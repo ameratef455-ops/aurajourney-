@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Tajawal", ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #1e3a8a; /* blue-900 */
+  --color-primary-light: #1e40af; 
+  --color-primary-dark: #172554; /* blue-950 */
+}
+
+body {
+  background-color: #ffffff;
+  color: #172554;
+  font-family: var(--font-sans);
+}
+
+@keyframes slow-breath {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.25), 0 4px 6px -4px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.4), 0 8px 10px -6px rgba(59, 130, 246, 0.35);
+  }
+}
+
+.animate-slow-breath {
+  animation: slow-breath 4.5s ease-in-out infinite;
+}
+
+.maps-dotted-bg {
+  background-image: radial-gradient(rgba(15, 23, 42, 0.05) 1.5px, transparent 1.5px);
+  background-size: 28px 28px;
+}
+
+/* TabView Overrides for Station Details */
+.custom-spaced-tabs .p-tabview-nav {
+    display: flex !important;
+    justify-content: space-around !important;
+    border-bottom: 2px solid #f8fafc !important;
+    background: transparent !important;
+    padding: 0 1rem !important;
+}
+
+.custom-spaced-tabs .p-tabview-nav li {
+    margin-right: 0 !important;
+}
+
+.custom-spaced-tabs .p-tabview-nav li .p-tabview-nav-link {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    transition: all 0.3s ease !important;
+}
+
+.custom-spaced-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    border-bottom: 2px solid #1e3a8a !important;
+    border-radius: 0 !important;
+}
+
+/* Moving dialog close button away from the edge and styling it */
+.p-dialog .p-dialog-header .p-dialog-header-icons {
+    position: absolute !important;
+    top: 1.75rem !important;
+    left: 1.75rem !important; /* Distance from the corner edge/margins as requested */
+    right: auto !important;
+    z-index: 50 !important;
+    display: flex !important;
+    gap: 0.5rem !important;
+}
+
+.p-dialog .p-dialog-header .p-dialog-header-close {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    border-radius: 9999px !important;
+    background: #f1f5f9 !important; /* light grey/slate background */
+    color: #475569 !important; /* slate-600 */
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important;
+}
+
+.p-dialog .p-dialog-header .p-dialog-header-close:hover {
+    background: #e2e8f0 !important;
+    transform: scale(1.1) rotate(90deg) !important;
+    color: #0f172a !important;
+}
+
+.p-dialog .p-dialog-header {
+    padding: 2.5rem 2.5rem 1rem 2.5rem !important;
+}
+
+.p-dialog .p-dialog-content {
+    padding: 0 2.5rem 2.5rem 2.5rem !important;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

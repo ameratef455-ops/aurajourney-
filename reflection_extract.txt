@@ -1,0 +1,186 @@
+      {/* FAB 2 - Compass and Reflection Utilities Sidebar (Tabbed) */}
+      <Dialog
+        visible={reflectionSidebar}
+        onHide={() => setReflectionSidebar(false)}
+        className="w-[98vw] max-w-4xl font-sans text-xl"
+        closable
+        dismissableMask
+        header={
+          <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
+            <i className="pi pi-compass text-blue-900"></i>
+            <span className="font-black text-blue-950 tracking-tight">البوصلة، أدوات الانعكاس والتحليلات 📊</span>
+          </div>
+        }
+      >
+        <div className="space-y-4 pt-1 text-right font-sans" dir="rtl">
+          <p className="text-gray-400 font-light text-xs mb-4">
+            قمرة القيادة الخاصة بوعيك النفسي، الوقود، والتقدم العام والتحليلات البيانية.
+          </p>
+
+          <div className="no-scrollbar">
+            <TabView
+              activeIndex={reflectionActiveTab}
+              onTabChange={(e) => setReflectionActiveTab(e.index)}
+              className="custom-tabview custom-spaced-tabs"
+            >
+              {/* Tab 1: Fuel & Rest */}
+              <TabPanel headerTemplate={createTabHeader("pi-bolt", "الوقود")}>
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="space-y-6 pt-4"
+                >
+                  <div className="bg-white border-2 border-blue-900 overflow-hidden rounded-2xl p-5 relative shadow-[0_4px_30px_rgba(30,58,138,0.05)]">
+                    <div className="w-full flex justify-between items-center mb-3">
+                      <h3 className="font-black text-blue-950 text-sm">
+                        خزان الالتزام اليومي 🚀
+                      </h3>
+                      <span className="font-bold text-blue-900 text-lg">
+                        {gData.fuel}%
+                      </span>
+                    </div>
+
+                    <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden mb-4 p-0.5">
+                      <div
+                        className="h-full bg-blue-900 transition-all duration-1000 rounded-full"
+                        style={{ width: `${gData.fuel}%` }}
+                      />
+                    </div>
+
+                    <p className="text-xs text-gray-400 mb-5 leading-relaxed font-light">
+                      بنزين الالتزام يمثل دافعيتك. عندما تعمل وتسجل نشاطاً يقل
+                      الوقود بنسبة <b className="font-bold text-blue-950">%7</b>{" "}
+                      (حرق طاقة). عندما تأخذ راحة وتعيد شحن نفسك يزيد بنسبة{" "}
+                      <b className="font-bold text-blue-950">%7</b>. إذا وصل إلى
+                      0% يغلق النظام تلقائياً لتجنب الاحتراق النفسي.
+                    </p>
+
+                    {!hasReflectedToday ? (
+                      <div className="flex gap-2">
+                        <Button
+                          label="يوم عمل (-7%)"
+                          icon="pi pi-bolt"
+                          className="flex-1 bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 text-white rounded-xl py-3.5 font-bold border-none hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                          onClick={undertakeReflection}
+                          disabled={gData.fuel <= 0}
+                        />
+                        <Button
+                          label="أجازة (+7%)"
+                          icon="pi pi-sun"
+                          className="flex-1 bg-gradient-to-r from-teal-500 via-indigo-500 to-blue-600 text-white rounded-xl py-3.5 font-bold border-none hover:opacity-95 active:scale-95 transition-all cursor-pointer"
+                          onClick={takeRestDay}
+                        />
+                      </div>
+                    ) : (
+                      <div className="text-center text-sm font-bold text-blue-800 bg-blue-50 py-3 border border-dashed border-blue-200 rounded-xl animate-fade-in">
+                        ✨ تم تسجيل حالتك اليومية! عد غداً لشحن خزان وقودك
+                        مجدداً.
+                      </div>
+                    )}
+                  </div>
+                  {/* Applied Station Status (Tawgheehi/Practical Station progress) */}
+                  {(() => {
+                    const rawSubs = user.subStations?.[activeStationId];
+                    const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
+                    if (stationSubs.length > 0) {
+                      const firstSub = stationSubs[0];
+                      return (
+                        <div className="bg-blue-50/40 p-4 rounded-xl border border-blue-100/30 space-y-2">
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                            التجربة العملية للمحطة الحالية:
+                          </p>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center mt-1">
+                              <span className="text-xs font-bold text-blue-900">المحطة التطبيقية مفعلة ✓</span>
+                              <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md">{firstSub.durationMinutes} دقيقة</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-gray-100/80 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-blue-500 rounded-full transition-all duration-300" 
+                                style={{ 
+                                  width: `${((firstSub.tasks || []).filter(t => t.isCompleted).length / Math.max(1, (firstSub.tasks || []).length)) * 100}%` 
+                                }} 
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </motion.div>
+              </TabPanel>
+
+              {/* Tab 2: Insights & Charts */}
+              <TabPanel headerTemplate={createTabHeader("pi-chart-bar", "إحصائيات")}>
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="space-y-6 pt-4"
+                >
+                  {/* Summary Numbers */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 text-center">
+                      <h5 className="text-xs text-gray-400 font-bold uppercase mb-1">
+                        نسبة إنجاز المسار
+                      </h5>
+                      <p className="text-2xl font-black text-blue-950">
+                        {Math.round(
+                          (stations.filter(s => unlockedStations.includes(s.id) && stationEnergy[s.id] === 100).length / stations.length) * 100,
+                        )}
+                        %
+                      </p>
+                    </div>
+                    <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 text-center">
+                      <h5 className="text-xs text-gray-400 font-bold uppercase mb-1">
+                        مجموع نقاط XP
+                      </h5>
+                      <p className="text-2xl font-black text-amber-600">
+                        {gData.xp}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Custom Bar Graphs Chart representing Station completion Energy */}
+                  <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+                    <h4 className="font-bold text-blue-950 text-sm mb-4">
+                      مستويات طاقة المحطات 🔋
+                    </h4>
+                    <div className="space-y-4">
+                      {stations.map((st) => {
+                        const energy = stationEnergy[st.id] || 0;
+                        const isUnlocked = unlockedStations.includes(st.id);
+                        return (
+                          <div key={st.id} className="space-y-1.5">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="font-bold text-blue-950 truncate max-w-[200px] flex items-center gap-1.5">
+                                <i className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-blue-900 text-xs`}></i>{" "}
+                                {st.name}
+                              </span>
+                              <span className="font-bold text-gray-400">
+                                {isUnlocked ? `${energy}% طاقة` : "🔒 مغلقة"}
+                              </span>
+                            </div>
+                            <div className="w-full h-2.5 bg-white border border-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-700
+                                              ${energy === 100 && isUnlocked ? "bg-emerald-500" : "bg-blue-600"}
+                                           `}
+                                style={{ width: `${isUnlocked ? energy : 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </motion.div>
+              </TabPanel>
+            </TabView>
+          </div>
+        </div>
+      </Dialog>
