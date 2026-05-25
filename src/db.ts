@@ -52,11 +52,15 @@ export interface UserSettings {
     anxieties: string;
   };
   attachments: string[];
+  resources?: { name: string; url: string }[];
+  dailyDuration?: number;
+  learningDays?: number[];
   gameData?: {
     fuel: number;
     xp: number;
     keys: number;
     lastReflectionDate: string;
+    streak?: number;
   };
   notes?: Record<string, { text: string; date: string; updatedAt?: string }[]>; // Station notes map
   unlockedStationIds?: string[]; // IDs of explicitly unlocked stations
@@ -80,11 +84,20 @@ export interface TaskReflection {
   createdAt: string;
 }
 
+export interface Stumble {
+  id: string;
+  stationId: string;
+  stationName: string;
+  reason: string;
+  createdAt: string;
+}
+
 export const db = new Dexie('AuraJourneyDatabase') as Dexie & {
   stations: EntityTable<Station, 'id'>,
   tasks: EntityTable<Task, 'id'>,
   userSettings: EntityTable<UserSettings, 'id'>,
-  reflections: EntityTable<TaskReflection, 'id'>
+  reflections: EntityTable<TaskReflection, 'id'>,
+  stumbles: EntityTable<Stumble, 'id'>
 };
 
 db.on('versionchange', () => {
@@ -110,6 +123,14 @@ db.version(3).stores({
   tasks: 'id, stationId, type, parentId',
   userSettings: 'id',
   reflections: 'id, taskId, stationId, createdAt'
+});
+
+db.version(4).stores({
+  stations: 'id, order',
+  tasks: 'id, stationId, type, parentId',
+  userSettings: 'id',
+  reflections: 'id, taskId, stationId, createdAt',
+  stumbles: 'id, stationId, createdAt'
 });
 
 db.open().catch(err => {

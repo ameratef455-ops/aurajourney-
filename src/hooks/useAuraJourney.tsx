@@ -51,33 +51,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   const [showCapsulePopup, setShowCapsulePopup] = useState(false);
   const [showCompassPopup, setShowCompassPopup] = useState(false);
   const [showRestSpeedDial, setShowRestSpeedDial] = useState(false);
-  const [weeklyChallengeModalVisible, setWeeklyChallengeModalVisible] = useState(false);
-  const [weeklyClaimed, setWeeklyClaimed] = useState(() => {
-    return localStorage.getItem("weekly_challenge_claimed_aura") === "true";
-  });
   const [gamificationActiveTab, setGamificationActiveTab] = useState(0);
-
-  const [weeklyChallengeName, setWeeklyChallengeName] = useState(() => {
-    return localStorage.getItem("weekly_challenge_name_aura") || "تحدي الأسبوع المخصص 🏆";
-  });
-  const [weeklyChallengeRequired, setWeeklyChallengeRequired] = useState(() => {
-    return localStorage.getItem("weekly_challenge_req_aura") || "أضف مهامك الشخصية لهذا الأسبوع وأنجزها بالكامل لتكسب مكافأة الـ 30 XP الثابتة!";
-  });
-
-  const [weeklyChallengeTasks, setWeeklyChallengeTasks] = useState<Array<{ id: string, title: string, isCompleted: boolean }>>(() => {
-    try {
-      const saved = localStorage.getItem("weekly_challenge_tasks_aura");
-      return saved ? JSON.parse(saved) : [
-        { id: "w-1", title: "مراجعة الخواطر والدروس المستفادة لهذا الأسبوع", isCompleted: false },
-        { id: "w-2", title: "تطبيق ساعة تركيز كاملة خالية من المشتتات", isCompleted: false },
-        { id: "w-3", title: "تخطيط أهداف الأسبوع القادم في سجل الرحلة", isCompleted: false }
-      ];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  const [newWeeklyTaskTitle, setNewWeeklyTaskTitle] = useState("");
 
   // Dynamic per-station input titles inside Tab 5
   const [newStationTaskTitles, setNewStationTaskTitles] = useState<Record<string, string>>({});
@@ -205,6 +179,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     xp: 0,
     keys: 0,
     lastReflectionDate: "",
+    streak: 0,
   };
 
   const today = new Date().toDateString();
@@ -396,68 +371,6 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   const completedTasksCount = activeStationTasks.filter(t => t.isCompleted).length;
   const isAllTasksCompleted = totalTasksWithSub > 0 && completedTasksCount === totalTasksWithSub;
 
-  const totalWeeklyTasks = weeklyChallengeTasks.length;
-  const completedWeeklyTasks = weeklyChallengeTasks.filter(t => t.isCompleted).length;
-  const isAllWeeklyTasksCompleted = totalWeeklyTasks > 0 && completedWeeklyTasks === totalWeeklyTasks;
-
-  const claimWeeklyReward = async () => {
-    if (weeklyClaimed) return;
-    if (!isAllWeeklyTasksCompleted || !user) return;
-    vibrate(HAPITCS.COMPLETE);
-    const newXp = gData.xp + 30;
-    await db.userSettings.update(user.id, {
-      gameData: { ...gData, xp: newXp }
-    });
-    setWeeklyClaimed(true);
-    localStorage.setItem("weekly_challenge_claimed_aura", "true");
-    toast.current?.show({
-      severity: "success",
-      summary: "تهانينا! 🏆",
-      detail: "تم استلام جائزة التحدي الأسبوعي (+30 XP) بنجاح!",
-      life: 4000,
-    });
-    // Trigger celebratory confetti
-    confetti({
-      particleCount: 150,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
-  };
-
-  const addWeeklyChallengeTask = () => {
-    if (!newWeeklyTaskTitle.trim()) return;
-    const newTask = {
-      id: "w-" + Date.now(),
-      title: newWeeklyTaskTitle.trim(),
-      isCompleted: false
-    };
-    const updated = [...weeklyChallengeTasks, newTask];
-    setWeeklyChallengeTasks(updated);
-    localStorage.setItem("weekly_challenge_tasks_aura", JSON.stringify(updated));
-    setNewWeeklyTaskTitle("");
-    vibrate(HAPITCS.MAJOR_CLICK);
-    toast.current?.show({
-      severity: "success",
-      summary: "تمت إضافة مهمة جديدة للتحدي! ✨",
-      life: 2000
-    });
-  };
-
-  const deleteWeeklyChallengeTask = (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const updated = weeklyChallengeTasks.filter(t => t.id !== id);
-    setWeeklyChallengeTasks(updated);
-    localStorage.setItem("weekly_challenge_tasks_aura", JSON.stringify(updated));
-    vibrate(HAPITCS.MAJOR_CLICK);
-  };
-
-  const toggleWeeklyChallengeTask = (id: string) => {
-    const updated = weeklyChallengeTasks.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t);
-    setWeeklyChallengeTasks(updated);
-    localStorage.setItem("weekly_challenge_tasks_aura", JSON.stringify(updated));
-    vibrate(HAPITCS.MAJOR_CLICK);
-  };
-
   // Manage initial active note selection
   useEffect(() => {
     if (activeStationId && !activeNoteStationId) {
@@ -507,142 +420,174 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     isCompleted: boolean,
     type: string,
   ) => {
-    if (gData.fuel <= 0 && !isCompleted) {
-      vibrate(HAPITCS.GUIDANCE);
-      toast.current?.show({
-        severity: "warn",
-        summary: "نفذ وقودك اليومي! ⛽",
-        detail:
-          "خزان دافعيتك صفر! يرجى أخذ راحة أو تسجيل حالة يومك من قسم البوصلة لإعادة التزود بالوقود.",
-        life: 4000,
-      });
-      return; // Locked if no fuel
+    // If we're trying to mark as completed via toggleTask, we block it 
+    // unless it's already completed and we're un-completing it.
+    if (!isCompleted) {
+       // We DON'T complete tasks via toggleTask anymore as per user request.
+       // The sidebar handles open, but completion only happens via "Seal Task".
+       return; 
     }
 
-    await db.tasks.update(taskId, { isCompleted: !isCompleted });
-
-    // Check if confirming a main task and if all main tasks of that station are now completed, trigger high-energy confetti celebration!
-    if (!isCompleted && type === "main") {
-      try {
-        const justCompletedTask = await db.tasks.get(taskId);
-        if (justCompletedTask && justCompletedTask.stationId) {
-          const allStationTasks = await db.tasks.where("stationId").equals(justCompletedTask.stationId).toArray();
-          const mainTasks = allStationTasks.filter(t => t.type === "main");
-          const allMainCompleted = mainTasks.every(t => t.id === taskId ? true : t.isCompleted);
-          
-          if (allMainCompleted) {
-            const currentSubData = user.subStations?.[justCompletedTask.stationId];
-            const hasSub = Array.isArray(currentSubData) ? currentSubData.length > 0 : !!currentSubData;
-            
-            if (!hasSub) {
-              // Trigger sub-station modal!
-              setSubStationTargetId(justCompletedTask.stationId);
-              setSubStationModalVisible(true);
-              setSubStationTasks([]);
-              setSubStationDuration(30);
-            }
-
-            // Normal celebration logic
-            confetti({
-              particleCount: 140,
-              spread: 80,
-              origin: { y: 0.55 },
-              colors: ['#1e40af', '#2563eb', '#3b82f6', '#f59e0b', '#fbbf24']
-            });
-            // Second burst: left side
-            setTimeout(() => {
-              confetti({
-                particleCount: 80,
-                angle: 60,
-                spread: 60,
-                origin: { x: 0.05, y: 0.65 }
-              });
-            }, 250);
-            // Third burst: right side
-            setTimeout(() => {
-              confetti({
-                particleCount: 80,
-                angle: 120,
-                spread: 60,
-                origin: { x: 0.95, y: 0.65 }
-              });
-            }, 450);
-
-            toast.current?.show({
-              severity: "success",
-              summary: "🎖️ اكتمال المحطة بنسبة 100%! 🧠",
-              detail: "روعة! لقد أنجزت جميع المهام الأساسية في هذه المحطة. المحطة الآن جاهزة ومفتوحة للعبور للمحطات المستقبلية!",
-              life: 5000,
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Error evaluating station completion", err);
-      }
-    }
-
-    // Give rewards
+    // Un-completing
+    await (db.tasks as any).update(taskId, { isCompleted: false });
+    vibrate(HAPITCS.MAJOR_CLICK);
+    
     let newXp = gData.xp;
     let newKeys = gData.keys;
 
-    if (!isCompleted) {
-      // Completing a task
-      vibrate(HAPITCS.COMPLETE);
-      if (type === "main") {
-        newXp += 30;
-        toast.current?.show({
-          severity: "success",
-          summary: "إنجاز رائع! ⚡",
-          detail: "أكملت مهمة أساسية مكثفة بنجاح! نلت +30 XP لمسيرتك.",
-          life: 2500,
-        });
-      }
-      if (type === "sub") {
-        newXp += 15;
-        toast.current?.show({
-          severity: "success",
-          summary: "خطوة بخطوة! 🧩",
-          detail: "أكملت مهمة فرعية! نلت +15 XP لمسيرتك.",
-          life: 2000,
-        });
-      }
-      if (type === "side") {
-        newXp += 25;
-        newKeys += 1; // Direct bonus key reward for extra focus side task completion!
-        toast.current?.show({
-          severity: "success",
-          summary: "مهارة استثنائية! ⭐",
-          detail:
-            "أنجزت مهارة بونص جانبية ومكثفة! ربحت +25 XP ومفتاح تركيز إضافي.",
-          life: 3000,
-        });
-      }
-    } else {
-      // Un-completing
-      vibrate(HAPITCS.MAJOR_CLICK);
-      if (type === "main") {
-        newXp = Math.max(0, newXp - 30);
-      }
-      if (type === "sub") {
-        newXp = Math.max(0, newXp - 15);
-      }
-      if (type === "side") {
-        newXp = Math.max(0, newXp - 25);
-        newKeys = Math.max(0, newKeys - 1);
-      }
-      toast.current?.show({
-        severity: "info",
-        summary: "تم إلغاء المهمة",
-        detail: "تم التراجع عن إكمال هذه المهمة وخُسمت نقاط الخبرة.",
-        life: 2000,
-      });
+    if (type === "main") {
+      newXp = Math.max(0, newXp - 30);
     }
+    if (type === "sub") {
+      newXp = Math.max(0, newXp - 15);
+    }
+    if (type === "side") {
+      newXp = Math.max(0, newXp - 25);
+      newKeys = Math.max(0, newKeys - 1);
+    }
+    
+    toast.current?.show({
+      severity: "info",
+      summary: "تم إلغاء المهمة",
+      detail: "تم التراجع عن إكمال هذه المهمة وخُسمت نقاط الخبرة.",
+      life: 2000,
+    });
 
     if (user) {
       await db.userSettings.update(user.id, {
         gameData: { ...gData, xp: newXp, keys: newKeys },
       });
     }
+  };
+
+  const processWorkdayAndStreak = (currentGameData: any) => {
+    const today = new Date();
+    const todayStr = today.toDateString();
+
+    let newFuel = currentGameData.fuel;
+    let newStreak = currentGameData.streak || 0;
+
+    if (currentGameData.lastReflectionDate !== todayStr) {
+      newFuel = Math.max(0, currentGameData.fuel - 7);
+
+      if (!currentGameData.lastReflectionDate) {
+        newStreak = 1;
+      } else {
+        const lastRefDate = new Date(currentGameData.lastReflectionDate);
+        let missedLearningDay = false;
+        
+        const checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() - 1);
+
+        while (checkDate > lastRefDate) {
+          const dayOfWeek = checkDate.getDay();
+          const isLearningDay = !user?.learningDays || user.learningDays.length === 0 || user.learningDays.includes(dayOfWeek);
+          if (isLearningDay) {
+            missedLearningDay = true;
+            break;
+          }
+          checkDate.setDate(checkDate.getDate() - 1);
+        }
+
+        if (missedLearningDay) {
+          newStreak = 1;
+        } else {
+          newStreak += 1;
+        }
+      }
+    }
+
+    return {
+      ...currentGameData,
+      fuel: newFuel,
+      lastReflectionDate: todayStr,
+      streak: newStreak
+    };
+  };
+
+  const completeTask = async (task: any) => {
+    if (!user || task.isCompleted) return;
+
+    if (task.type === "main") {
+      const allStationTasks = await db.tasks.where("stationId").equals(task.stationId).toArray();
+      const subTasks = allStationTasks.filter(t => t.parentId === task.id && t.type === "sub");
+      const hasUncompleted = subTasks.some(t => !t.isCompleted);
+
+      if (hasUncompleted) {
+        vibrate(HAPITCS.MAJOR_CLICK);
+        toast.current?.show({
+          severity: "warn",
+          summary: "أنجز الفرعيات أولاً ⚠️",
+          detail: "يرجى إكمال المهام الفرعية للرئيسية أولاً.",
+          life: 4000
+        });
+        return;
+      }
+    }
+
+    vibrate(HAPITCS.COMPLETE);
+    await (db.tasks as any).update(task.id, { isCompleted: true });
+
+    let newXp = gData.xp;
+    let newKeys = gData.keys;
+
+    if (task.type === "main") {
+      newXp += 30;
+      toast.current?.show({
+        severity: "success",
+        summary: "إنجاز رائع! ⚡",
+        detail: "أكملت مهمة أساسية مكثفة بنجاح! نلت +30 XP لمسيرتك.",
+        life: 2500,
+      });
+      
+      // Check if all main tasks are completed
+      const allStationTasks = await db.tasks.where("stationId").equals(task.stationId).toArray();
+      const mainTasks = allStationTasks.filter(t => t.type === "main");
+      const allMainCompleted = mainTasks.every(t => t.id === task.id ? true : t.isCompleted);
+      
+      if (allMainCompleted) {
+        const currentSubData = user.subStations?.[task.stationId];
+        const hasSub = Array.isArray(currentSubData) ? currentSubData.length > 0 : !!currentSubData;
+        
+        if (!hasSub) {
+          setSubStationTargetId(task.stationId);
+          setSubStationModalVisible(true);
+          setSubStationTasks([]);
+          setSubStationDuration(30);
+        }
+
+        confetti({
+          particleCount: 140,
+          spread: 80,
+          origin: { y: 0.55 },
+          colors: ['#1e40af', '#2563eb', '#3b82f6', '#f59e0b', '#fbbf24']
+        });
+      }
+    } else if (task.type === "sub") {
+      newXp += 15;
+      toast.current?.show({
+        severity: "success",
+        summary: "خطوة بخطوة! 🧩",
+        detail: "أكملت مهمة فرعية! نلت +15 XP لمسيرتك.",
+        life: 2000,
+      });
+    } else if (task.type === "side") {
+      newXp += 25;
+      newKeys += 1;
+      toast.current?.show({
+        severity: "success",
+        summary: "مهارة استثنائية! ⭐",
+        detail: "أنجزت مهارة بونص جانبية ومكثفة! ربحت +25 XP ومفتاح تركيز إضافي.",
+        life: 3000,
+      });
+    }
+
+    const baseGameData = { ...gData, xp: newXp, keys: newKeys };
+    const updatedGameData = processWorkdayAndStreak(baseGameData);
+
+    await db.userSettings.update(user.id, {
+      gameData: updatedGameData,
+    });
   };
 
   const rewardActivity = async (isCompleted: boolean) => {
@@ -669,9 +614,9 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   const undertakeReflection = async () => {
     if (hasReflectedToday || !user) return;
     vibrate(HAPITCS.COMPLETE);
-    const newFuel = Math.max(0, gData.fuel - 7); // Works burns fuel
+    const updatedGameData = processWorkdayAndStreak(gData);
     await db.userSettings.update(user.id, {
-      gameData: { ...gData, fuel: newFuel, lastReflectionDate: today },
+      gameData: updatedGameData,
     });
     toast.current?.show({
       severity: "info",
@@ -687,7 +632,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     vibrate(HAPITCS.GUIDANCE);
     const newFuel = Math.min(100, gData.fuel + 7); // Rests recover fuel
     await db.userSettings.update(user.id, {
-      gameData: { ...gData, fuel: newFuel, lastReflectionDate: today },
+      gameData: { ...gData, fuel: newFuel, lastReflectionDate: today, streak: 0 },
     });
     toast.current?.show({
       severity: "success",
@@ -921,7 +866,6 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
   const toggleSubStationTask = async (stationId: string, subStationIndex: number, taskId: string) => {
     if (!user) return;
-    vibrate(HAPITCS.COMPLETE);
     const rawSubs = user.subStations?.[stationId];
     const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
     
@@ -929,9 +873,21 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
     const subStation = stationSubs[subStationIndex];
     const sTasks = subStation.tasks || [];
+    
+    const task = sTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    // Only allow un-completing via toggle
+    if (!task.isCompleted) {
+       // Should open sidebar/modal instead
+       return;
+    }
+
+    vibrate(HAPITCS.MAJOR_CLICK);
+
     const updatedTasks = sTasks.map(t => {
       if (t.id === taskId) {
-        return { ...t, isCompleted: !t.isCompleted };
+        return { ...t, isCompleted: false };
       }
       return t;
     });
@@ -950,25 +906,10 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
         [stationId]: updatedStationSubs
       }
     });
-
-    if (isNowCompleted && !subStation.isCompleted) {
-       confetti({
-          particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 }
-       });
-       toast.current?.show({
-          severity: "success",
-          summary: "إنجاز عظيم! 🏆",
-          detail: "لقد أتممت أحد الأنشطة التطبيقية لهذه المحطة بنجاح.",
-          life: 5000,
-       });
-    }
   };
 
   const toggleSubStationInnerTask = async (stationId: string, subStationIndex: number, mainTaskId: string, innerTaskId: string) => {
     if (!user) return;
-    vibrate(HAPITCS.COMPLETE);
     const rawSubs = user.subStations?.[stationId];
     const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
     
@@ -976,24 +917,35 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
     const subStation = stationSubs[subStationIndex];
     const sTasks = subStation.tasks || [];
+    const mainTask = sTasks.find(t => t.id === mainTaskId);
+    if (!mainTask) return;
+    
+    const innerTask = mainTask.subTasks?.find(st => st.id === innerTaskId);
+    if (!innerTask) return;
+
+    // Only allow un-completing via toggle
+    if (!innerTask.isCompleted) {
+       return;
+    }
+
+    vibrate(HAPITCS.MAJOR_CLICK);
+
     const updatedTasks = sTasks.map(t => {
       if (t.id === mainTaskId) {
           const updatedSubs = t.subTasks?.map(st => {
-              if (st.id === innerTaskId) return { ...st, isCompleted: !st.isCompleted };
+              if (st.id === innerTaskId) return { ...st, isCompleted: false };
               return st;
           });
-          const mainIsCompleted = updatedSubs?.every(st => st.isCompleted) || false;
-          return { ...t, subTasks: updatedSubs, isCompleted: mainIsCompleted };
+          return { ...t, subTasks: updatedSubs, isCompleted: false };
       }
       return t;
     });
 
-    const isNowCompleted = updatedTasks.every(t => t.isCompleted);
     const updatedStationSubs = [...stationSubs];
     updatedStationSubs[subStationIndex] = {
       ...subStation,
       tasks: updatedTasks,
-      isCompleted: isNowCompleted
+      isCompleted: false
     };
 
     await db.userSettings.update(user.id, {
@@ -1083,6 +1035,67 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     return stationSubs.filter(s => !s.isCompleted);
   }, [user?.subStations, selectedStation, practicalFilter]);
 
+  const completePracticalTask = async (stationId: string, subStationIndex: number, taskId: string) => {
+    if (!user) return;
+    vibrate(HAPITCS.COMPLETE);
+    const rawSubs = user.subStations?.[stationId];
+    const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
+    
+    if (!stationSubs || !stationSubs[subStationIndex]) return;
+
+    const subStation = stationSubs[subStationIndex];
+    const sTasks = subStation.tasks || [];
+    const updatedTasks = sTasks.map(t => {
+      if (t.id === taskId) {
+        return { ...t, isCompleted: true };
+      }
+      return t;
+    });
+
+    const isNowCompleted = updatedTasks.every(t => t.isCompleted);
+    const updatedStationSubs = [...stationSubs];
+    updatedStationSubs[subStationIndex] = {
+      ...subStation,
+      tasks: updatedTasks,
+      isCompleted: isNowCompleted
+    };
+    
+    const baseGameData = {
+      ...gData,
+      xp: gData.xp + 20 // Rewarding xp for practical task completion
+    };
+    const updatedGameData = processWorkdayAndStreak(baseGameData);
+
+    await db.userSettings.update(user.id, {
+      subStations: {
+        ...user.subStations,
+        [stationId]: updatedStationSubs
+      },
+      gameData: updatedGameData
+    });
+
+    if (isNowCompleted && !subStation.isCompleted) {
+       confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 }
+       });
+       toast.current?.show({
+          severity: "success",
+          summary: "إنجاز عظيم! 🏆",
+          detail: "لقد أتممت أحد الأنشطة التطبيقية لهذه المحطة بنجاح.",
+          life: 5000,
+       });
+    } else {
+      toast.current?.show({
+        severity: "success",
+        summary: "تطبيق ناجح! 🛠️",
+        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +20 XP.",
+        life: 3000,
+      });
+    }
+  };
+
   return {
     settings,
     stations,
@@ -1119,20 +1132,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     setShowCompassPopup,
     showRestSpeedDial,
     setShowRestSpeedDial,
-    weeklyChallengeModalVisible,
-    setWeeklyChallengeModalVisible,
-    weeklyClaimed,
-    setWeeklyClaimed,
     gamificationActiveTab,
     setGamificationActiveTab,
-    weeklyChallengeName,
-    setWeeklyChallengeName,
-    weeklyChallengeRequired,
-    setWeeklyChallengeRequired,
-    weeklyChallengeTasks,
-    setWeeklyChallengeTasks,
-    newWeeklyTaskTitle,
-    setNewWeeklyTaskTitle,
     newStationTaskTitles,
     setNewStationTaskTitles,
     dialVisible,
@@ -1174,13 +1175,11 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     unlockedStations,
     unlockStation,
     toggleTask,
+    completeTask,
+    completePracticalTask,
     activeStationId,
     activeStation,
     activeStationTasks,
-    claimWeeklyReward,
-    addWeeklyChallengeTask,
-    deleteWeeklyChallengeTask,
-    toggleWeeklyChallengeTask,
     closeCelebration,
     undertakeReflection,
     takeRestDay,
@@ -1208,9 +1207,6 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     hasReflectedToday,
     totalTasksWithSub,
     completedTasksCount,
-    isAllTasksCompleted,
-    totalWeeklyTasks,
-    completedWeeklyTasks,
-    isAllWeeklyTasksCompleted
+    isAllTasksCompleted
   };
 }

@@ -8,6 +8,8 @@ export interface WizardState {
   };
   attachments: string[];
   stations: WizardStation[];
+  dailyDuration?: number;
+  learningDays?: number[];
 }
 
 export interface WizardStation {

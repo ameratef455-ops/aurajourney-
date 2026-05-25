@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 type AppState = 'splash' | 'landing' | 'wizard' | 'maps';
 
 export default function App() {
-  const [appState, setAppState] = useState<AppState>('landing');
+  const [appState, setAppState] = useState<AppState>('splash');
   const [targetState, setTargetState] = useState<AppState>('landing');
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);

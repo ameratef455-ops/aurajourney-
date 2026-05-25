@@ -5,6 +5,7 @@ import { vibrate, HAPITCS } from '../lib/haptics';
 import { WizardState } from '../types';
 import { Plus, X } from 'lucide-react';
 import { TabMenu } from 'primereact/tabmenu';
+import { TabView, TabPanel } from 'primereact/tabview';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { safeRandomUUID } from '../lib/uuid';
@@ -22,7 +23,9 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
     learningGoal: '',
     psychology: { reason: '', motivation: '', target: '', anxieties: '' },
     attachments: [''],
-    stations: []
+    stations: [],
+    dailyDuration: 30,
+    learningDays: [0, 1, 2, 3, 4]
   });
 
   useEffect(() => {
@@ -49,7 +52,9 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
               learningGoal: trip.learningGoal,
               psychology: trip.psychology || { reason: '', motivation: '', target: '', anxieties: '' },
               attachments: trip.attachments && trip.attachments.length > 0 ? trip.attachments : [''],
-              stations: mappedStations
+              stations: mappedStations,
+              dailyDuration: trip.dailyDuration || 30,
+              learningDays: trip.learningDays || [0, 1, 2, 3, 4]
             });
           }
         } catch (error) {
@@ -89,6 +94,8 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
       learningGoal: state.learningGoal,
       psychology: state.psychology,
       attachments: state.attachments.filter(a => a.trim() !== ''),
+      dailyDuration: state.dailyDuration || 30,
+      learningDays: state.learningDays || [0, 1, 2, 3, 4],
       gameData,
       notes: existingTrip?.notes || {},
       timeCapsules: existingTrip?.timeCapsules || {}
@@ -130,7 +137,7 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
 
   return (
     <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center p-6 z-40">
-      <div className="w-[700px] max-w-full h-[90vh] bg-white border border-gray-100 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="w-[850px] max-w-full h-[92vh] bg-white border border-gray-100 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
          {/* Header */}
          <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
              <div className="flex gap-2" dir="ltr">
@@ -157,8 +164,21 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
                  {step === 2 && <Step2 state={state} setState={setState} />}
                  {step === 3 && <Step3 state={state} setState={setState} />}
                  {step === 4 && <Step4 state={state} setState={setState} />}
-                 {step === 5 && <Step5 state={state} setState={setState} />}
-                 {step === 6 && <Step6 />}
+                  {step === 5 && <Step5 state={state} setState={setState} />}
+                 {step === 6 && (
+                    <div className="flex flex-col h-full overflow-y-auto no-scrollbar pr-1">
+                       <Step6 state={state} setState={setState} />
+                       <div className="mt-4 flex flex-col items-center">
+                          <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="bg-blue-50 text-blue-900 px-6 py-4 rounded-2xl border border-blue-100 text-center mb-2"
+                          >
+                             <p className="font-black text-[11px]">✨ رحلتك جاهزة للانطلاق! اضغط حفظ لبدء المغامرة.</p>
+                          </motion.div>
+                       </div>
+                    </div>
+                  )}
                </motion.div>
             </AnimatePresence>
 
@@ -407,9 +427,15 @@ const Step4 = ({ state, setState }: any) => {
 
   return (
     <div className="flex flex-col gap-8 pb-10">
-      <div>
-        <h2 className="text-3xl font-extrabold text-blue-950 mb-2">تخطيط المحطات</h2>
-        <p className="text-gray-400 font-medium text-sm leading-relaxed">قسم رحلتك لمحطات واضحة (مثلاً: محطة الأساسيات، محطة التطبيق...)</p>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-3xl font-extrabold text-blue-950">تخطيط المحطات</h2>
+        <button 
+          onClick={addStation} 
+          className="w-10 h-10 rounded-xl bg-blue-900 text-white flex items-center justify-center hover:bg-blue-800 transition-all shadow-md active:scale-95 cursor-pointer border-none"
+          title="إضافة محطة جديدة"
+        >
+          <Plus size={20} />
+        </button>
       </div>
       
       <div className="flex flex-col gap-4">
@@ -460,11 +486,6 @@ const Step4 = ({ state, setState }: any) => {
         ))}
       </div>
       
-      <button onClick={addStation} className="flex items-center justify-center gap-2 py-5 rounded-xl border-none cursor-pointer bg-blue-50/30 text-blue-900 font-bold hover:bg-blue-50 transition-all mt-2 w-full">
-        <Plus size={20} />
-        <span>إضافة محطة جديدة</span>
-      </button>
-
       {/* Prestigious Icons Picker Dialog */}
       <Dialog
         header={
@@ -553,15 +574,18 @@ const Step5 = ({ state, setState }: any) => {
 
   return (
     <div className="flex flex-col h-full font-sans text-right" dir="rtl">
-      <div className="mb-6">
-        <h2 className="text-2xl font-black text-blue-950 mb-2">توزيع المهام المنظم للمحطة</h2>
-        <p className="text-gray-400 font-medium text-xs leading-relaxed">
-          قم بإعداد المحطة من خلال إنشاء مهمة رئيسية، وبداخلها يمكنك تفريع مهام جزئية، تليها مهام جانبية إضافية.
-        </p>
+      <div className="mb-4 flex items-center justify-between px-1">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl md:text-2xl font-black text-blue-950">توزيع المهام المنظم</h2>
+        </div>
+        
+        <span className="text-[10px] bg-slate-100 px-3 py-1 rounded-full font-black text-slate-500 flex items-center gap-2">
+           <i className="pi pi-map-marker text-[9px]"></i>
+           تخطيط المسار
+        </span>
       </div>
       
-      {/* Station Selector - Custom Horizontal List with Gradient Border for Active Station */}
-      <div className="mb-6 flex gap-3 overflow-x-auto pb-2 px-1 no-scrollbar shrink-0" dir="rtl">
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 px-1 no-scrollbar shrink-0" dir="rtl">
         {state.stations.map((st: any, idx: number) => {
           const isActive = selectedStation === idx;
           return (
@@ -584,166 +608,315 @@ const Step5 = ({ state, setState }: any) => {
         })}
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-10 flex flex-col gap-8 pl-1 pr-1">
-        
-        {/* Main & Sub Tasks Section */}
-        <div className="flex flex-col gap-5 bg-gradient-to-br from-blue-50/20 via-slate-50/10 to-transparent p-6 rounded-2xl border border-blue-900/5 shadow-3xs">
-          <div className="flex items-center justify-between pb-3 border-b border-blue-900/5">
-            <div className="flex items-center gap-3">
-              <span className="w-9 h-9 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shadow-3xs">
-                <i className="pi pi-bolt text-sm"></i>
-              </span>
-              <h3 className="font-extrabold text-blue-950 text-base">🔋 المهام الأساسية والفرعية</h3>
+      <div className="flex-1 overflow-y-auto pb-10 flex flex-col gap-4 pl-1 pr-1">
+        <TabView className="custom-wizard-tabs">
+          {/* Tab 1: Core & Sub Tasks */}
+          <TabPanel 
+            header="🔋 المهام الأساسية" 
+            headerClassName="font-sans font-black text-xs"
+          >
+            <div className="flex flex-col gap-6 bg-gradient-to-br from-blue-50/20 via-slate-50/10 to-transparent p-6 rounded-3xl border border-blue-900/5 shadow-sm mt-4">
+              <div className="flex items-center justify-between pb-4 border-b border-blue-900/10">
+                <div className="flex items-center gap-4">
+                  <span className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shadow-3xs">
+                    <i className="pi pi-bolt text-sm"></i>
+                  </span>
+                  <h3 className="font-extrabold text-blue-950 text-base">المهام الأساسية والفرعية</h3>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black px-2.5 py-1 bg-blue-50 text-blue-900 rounded-lg border border-blue-100/50">الأساسية (+30 XP) | الفرعية (+15 XP)</span>
+                  <button 
+                    onClick={() => addTask(selectedStation, 'main')}
+                    className="w-10 h-10 rounded-xl bg-blue-900 text-white flex items-center justify-center hover:bg-blue-800 transition-all shadow-md active:scale-95 cursor-pointer border-none shrink-0"
+                    title="أضف مهمة رئيسية جديدة"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-5">
+                {mainTasks.length === 0 && (
+                  <div className="text-center py-8 text-xs text-gray-400 font-medium border border-dashed border-gray-200 rounded-xl bg-gray-50/20">
+                    لا يوجد مهام رئيسية مضافة لهذه المحطة بعد. اضغط على زر (+) أعلاه لإضافة أول مهمة!
+                  </div>
+                )}
+
+                {mainTasks.map((t: any) => {
+                  const absoluteIdx = currentStation.tasks.findIndex((ts: any) => ts.id === t.id);
+                  const subTasks = currentStation.tasks.filter((sub: any) => sub.type === 'sub' && sub.parentId === t.id);
+
+                  return (
+                    <div key={t.id} className="bg-white border border-slate-100 p-4 rounded-xl shadow-3xs space-y-4">
+                      <div className="flex items-center gap-2">
+                        <span className="flex-none text-[10px] font-extrabold bg-blue-50 text-blue-900 rounded-md px-2 py-1 select-none">أساسية</span>
+                        <input 
+                          className="flex-1 p-3 border border-slate-100 bg-slate-50/40 rounded-xl outline-none focus:ring-2 ring-blue-900/10 transition-all text-xs font-bold text-blue-950 placeholder-gray-300" 
+                          placeholder="مثال: كتابة مراجعة شاملة لأساسيات اللغة..." 
+                          value={t.title} 
+                          onChange={e => updateTask(selectedStation, absoluteIdx, e.target.value)} 
+                        />
+                        <button 
+                          onClick={() => removeTask(selectedStation, absoluteIdx)} 
+                          className="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-100 rounded-xl transition-all shrink-0 cursor-pointer"
+                        >
+                          <i className="pi pi-trash text-xs"></i>
+                        </button>
+                      </div>
+
+                      <div className="mr-6 pr-4 border-r-2 border-dashed border-slate-100/80 space-y-3">
+                        {subTasks.map((sub: any) => {
+                          const absoluteSubIdx = currentStation.tasks.findIndex((ts: any) => ts.id === sub.id);
+                          return (
+                            <div key={sub.id} className="flex items-center gap-2">
+                              <span className="flex-none text-[9px] font-bold bg-indigo-50 text-indigo-700 rounded-md px-1.5 py-0.5 select-none">فرعية</span>
+                              <input 
+                                className="flex-1 p-2 border border-slate-100 bg-white rounded-lg outline-none focus:ring-2 ring-indigo-600/10 transition-all text-xs font-medium text-gray-700 placeholder-gray-300" 
+                                placeholder="اكتب تفصيلاً فرعياً..." 
+                                value={sub.title} 
+                                onChange={e => updateTask(selectedStation, absoluteSubIdx, e.target.value)} 
+                              />
+                              <button 
+                                onClick={() => removeTask(selectedStation, absoluteSubIdx)} 
+                                className="p-2 text-gray-300 hover:text-rose-500 rounded-lg transition-colors shrink-0 cursor-pointer"
+                              >
+                                <i className="pi pi-times text-[10px]"></i>
+                              </button>
+                            </div>
+                          );
+                        })}
+
+                        <button
+                          type="button"
+                          onClick={() => addTask(selectedStation, 'sub', t.id)}
+                          className="flex items-center gap-1.5 text-[10px] text-indigo-700 font-bold hover:text-indigo-900 hover:bg-indigo-50/50 transition-all py-1.5 px-3 bg-transparent rounded-lg border border-dashed border-indigo-200/50 cursor-pointer font-sans"
+                        >
+                          <i className="pi pi-plus text-[8px] font-black"></i>
+                          <span>إضافة مهمة فرعية 🧩</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <span className="text-[10px] font-black px-2.5 py-1 bg-blue-50 text-blue-900 rounded-lg border border-blue-100/50">الأساسية (+30 XP) | الفرعية (+15 XP)</span>
-          </div>
+          </TabPanel>
 
-          <div className="flex flex-col gap-5">
-             {mainTasks.length === 0 && (
-               <div className="text-center py-6 text-xs text-gray-400 font-medium border border-dashed border-gray-200 rounded-xl bg-gray-50/20">
-                 لا يوجد مهام رئيسية مضافة لهذه المحطة بعد. اضغط أدناه لإضافة أول مهمة!
-               </div>
-             )}
-
-             {mainTasks.map((t: any) => {
-               const absoluteIdx = currentStation.tasks.findIndex((ts: any) => ts.id === t.id);
-               // Filter children subtasks of this specific main task
-               const subTasks = currentStation.tasks.filter((sub: any) => sub.type === 'sub' && sub.parentId === t.id);
-
-               return (
-                 <div key={t.id} className="bg-white border border-slate-100 p-4 rounded-xl shadow-3xs space-y-4">
-                   {/* Main Task Input Card Row */}
-                   <div className="flex items-center gap-2">
-                     <span className="flex-none text-[10px] font-extrabold bg-blue-50 text-blue-900 rounded-md px-2 py-1 select-none">أساسية</span>
-                     <input 
-                       className="flex-1 p-3 border border-slate-100 bg-slate-50/40 rounded-xl outline-none focus:ring-2 ring-blue-900/10 transition-all text-xs font-bold text-blue-950 placeholder-gray-300" 
-                       placeholder="مثال: كتابة مراجعة شاملة لأساسيات اللغة..." 
-                       value={t.title} 
-                       onChange={e => updateTask(selectedStation, absoluteIdx, e.target.value)} 
-                     />
-                     <button 
-                       onClick={() => removeTask(selectedStation, absoluteIdx)} 
-                       className="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-100 rounded-xl transition-all shrink-0 cursor-pointer"
-                     >
-                       <i className="pi pi-trash text-xs"></i>
-                     </button>
-                   </div>
-
-                   {/* Under under the main task name: nested subtasks */}
-                   <div className="mr-6 pr-4 border-r-2 border-dashed border-slate-100/80 space-y-3">
-                     <div className="text-[10px] text-indigo-900 font-extrabold flex items-center gap-1.5 select-none opacity-80 mb-1">
-                       <i className="pi pi-sitemap text-[9px]"></i>
-                       <span>المهام الفرعية الملحقة بهذه المهمة الرئيسية:</span>
-                     </div>
-                     
-                     {subTasks.map((sub: any) => {
-                       const absoluteSubIdx = currentStation.tasks.findIndex((ts: any) => ts.id === sub.id);
-                       return (
-                         <div key={sub.id} className="flex items-center gap-2">
-                           <span className="flex-none text-[9px] font-bold bg-indigo-50 text-indigo-700 rounded-md px-1.5 py-0.5 select-none">فرعية</span>
-                           <input 
-                             className="flex-1 p-2 border border-slate-100 bg-white rounded-lg outline-none focus:ring-2 ring-indigo-600/10 transition-all text-xs font-medium text-gray-700 placeholder-gray-300" 
-                             placeholder="اكتب تفصيلاً فرعياً..." 
-                             value={sub.title} 
-                             onChange={e => updateTask(selectedStation, absoluteSubIdx, e.target.value)} 
-                           />
-                           <button 
-                             onClick={() => removeTask(selectedStation, absoluteSubIdx)} 
-                             className="p-2 text-gray-300 hover:text-rose-500 rounded-lg transition-colors shrink-0 cursor-pointer"
-                           >
-                             <i className="pi pi-times text-[10px]"></i>
-                           </button>
-                         </div>
-                       );
-                     })}
-
-                     <button
-                       type="button"
-                       onClick={() => addTask(selectedStation, 'sub', t.id)}
-                       className="flex items-center gap-1.5 text-[10px] text-indigo-700 font-bold hover:text-indigo-900 hover:bg-indigo-50/50 transition-all py-1.5 px-3 bg-transparent rounded-lg border border-dashed border-indigo-200/50 cursor-pointer font-sans"
-                     >
-                       <i className="pi pi-plus text-[8px] font-black"></i>
-                       <span>إضافة مهمة فرعية جديدة تحت هذه المهمة 🧩</span>
-                     </button>
-                   </div>
-                 </div>
-               );
-             })}
-            
-            <Button 
-               label="أضف مهمة رئيسية جديدة" 
-               icon="pi pi-plus" 
-               className="mt-2 self-start bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 text-white font-bold rounded-xl py-3 px-6 text-xs border-none transition-all shadow-md hover:brightness-110 active:scale-95 cursor-pointer font-sans"
-               onClick={() => addTask(selectedStation, 'main')}
-            />
-          </div>
-        </div>
-
-        {/* Side Tasks Section */}
-        <div className="flex flex-col gap-4 bg-gradient-to-br from-amber-50/10 to-transparent p-6 rounded-2xl border border-amber-900/5 shadow-3xs">
-          <div className="flex items-center justify-between pb-3 border-b border-amber-900/10">
-             <div className="flex items-center gap-3">
-               <span className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-3xs">
-                 <i className="pi pi-sparkles text-sm"></i>
-               </span>
-               <h3 className="font-extrabold text-blue-950 text-base">🧠 مهارات وقدرات جانبية (بونص)</h3>
-             </div>
-             <span className="text-[10px] font-black px-2.5 py-1 bg-amber-50 text-amber-800 rounded-lg border border-amber-100/50">مفاتيح إضافية (+25 XP)</span>
-          </div>
-          
-          <div className="flex flex-col gap-3 mt-2">
-             {sideTasks.length === 0 && (
-               <div className="text-center py-5 text-xs text-gray-400 font-medium border border-dashed border-amber-100/40 rounded-xl bg-amber-50/10">
-                 لا توجد مهارات جانبية مضافة للمحطة الحالية بعد. مضافة لربح مفاتيح إضافية اختيارية.
-               </div>
-             )}
-             {sideTasks.map((t: any) => {
-               const absoluteIdx = currentStation.tasks.findIndex((ts: any) => ts.id === t.id);
-               return (
-                 <div key={t.id} className="flex gap-2">
-                   <span className="flex-none text-[10px] font-extrabold bg-amber-50 text-amber-700 rounded-md px-2 py-3 select-none flex items-center">جانبية</span>
-                   <input 
-                     className="flex-1 p-3 border border-slate-100 bg-white rounded-xl outline-none focus:ring-2 ring-amber-600/10 transition-colors text-xs font-medium text-gray-700 placeholder-gray-300 shadow-3xs" 
-                     placeholder="مثال: التدرب على المفردات لمدة 15 دقيقة إضافية..." 
-                     value={t.title} 
-                     onChange={e => updateTask(selectedStation, absoluteIdx, e.target.value)} 
-                   />
-                   <button 
-                     onClick={() => removeTask(selectedStation, absoluteIdx)} 
-                     className="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-100 rounded-xl transition-all shrink-0 cursor-pointer font-sans"
-                   >
-                     <i className="pi pi-trash text-xs"></i>
-                   </button>
-                 </div>
-               );
-             })}
-            <Button 
-               label="إضافة مهمة جانبية إضافية" 
-               icon="pi pi-sparkles" 
-               className="mt-2 self-start bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold rounded-xl py-3 px-6 text-xs border-none transition-all shadow-md hover:brightness-110 active:scale-95 cursor-pointer font-sans"
-               onClick={() => addTask(selectedStation, 'side')}
-            />
-          </div>
-        </div>
-
+          {/* Tab 2: Side Tasks (Skills/Bonus) */}
+          <TabPanel 
+            header="🧠 مهارات جانبية" 
+            headerClassName="font-sans font-black text-xs"
+          >
+            <div className="flex flex-col gap-5 bg-gradient-to-br from-amber-50/10 to-transparent p-6 rounded-3xl border border-amber-900/5 shadow-sm mt-4">
+              <div className="flex items-center justify-between pb-4 border-b border-amber-900/10">
+                <div className="flex items-center gap-4">
+                  <span className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-3xs">
+                    <i className="pi pi-sparkles text-sm"></i>
+                  </span>
+                  <h3 className="font-extrabold text-blue-950 text-base">مهارات وقدرات جانبية (بونص)</h3>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black px-2.5 py-1 bg-amber-50 text-amber-800 rounded-lg border border-amber-100/50">مفاتيح إضافية (+25 XP)</span>
+                  <button 
+                    onClick={() => addTask(selectedStation, 'side')}
+                    className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center hover:bg-amber-700 transition-all shadow-md active:scale-95 cursor-pointer border-none shrink-0"
+                    title="إضافة مهمة جانبية إضافية"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex flex-col gap-3 mt-2">
+                {sideTasks.length === 0 && (
+                  <div className="text-center py-10 text-xs text-gray-400 font-medium border border-dashed border-amber-100/40 rounded-xl bg-amber-50/10">
+                    لا توجد مهارات جانبية مضافة للمحطة الحالية بعد. اضغط على زر (+) أعلاه لإضافة مهارة!
+                  </div>
+                )}
+                {sideTasks.map((t: any) => {
+                  const absoluteIdx = currentStation.tasks.findIndex((ts: any) => ts.id === t.id);
+                  return (
+                    <div key={t.id} className="flex gap-2">
+                      <span className="flex-none text-[10px] font-extrabold bg-amber-50 text-amber-700 rounded-md px-2 py-3 select-none flex items-center">جانبية</span>
+                      <input 
+                        className="flex-1 p-3 border border-slate-100 bg-white rounded-xl outline-none focus:ring-2 ring-amber-600/10 transition-colors text-xs font-medium text-gray-700 placeholder-gray-300 shadow-3xs" 
+                        placeholder="مثال: التدرب على المفردات لمدة 15 دقيقة إضافية..." 
+                        value={t.title} 
+                        onChange={e => updateTask(selectedStation, absoluteIdx, e.target.value)} 
+                      />
+                      <button 
+                        onClick={() => removeTask(selectedStation, absoluteIdx)} 
+                        className="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-100 rounded-xl transition-all shrink-0 cursor-pointer font-sans"
+                      >
+                        <i className="pi pi-trash text-xs"></i>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </TabPanel>
+        </TabView>
       </div>
+
+      <style>{`
+        .custom-wizard-tabs .p-tabview-nav {
+          background: transparent !important;
+          border-bottom: 2px solid #f8fafc !important;
+          display: flex !important;
+          gap: 12px !important;
+        }
+        .custom-wizard-tabs .p-tabview-nav li {
+          margin-bottom: -2px !important;
+        }
+        .custom-wizard-tabs .p-tabview-nav li .p-tabview-nav-link {
+          background: transparent !important;
+          border: none !important;
+          border-bottom: 2px solid transparent !important;
+          padding: 12px 24px !important;
+          font-weight: 900 !important;
+          font-size: 13px !important;
+          transition: all 0.2s !important;
+          color: #94a3b8 !important;
+          border-radius: 0 !important;
+        }
+        .custom-wizard-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+          color: #1e3a8a !important;
+          border-bottom-color: #1e3a8a !important;
+        }
+        .custom-wizard-tabs .p-tabview-panels {
+          padding: 0 !important;
+          background: transparent !important;
+        }
+      `}</style>
+      <div className="hidden" />
+
     </div>
   );
 };
 
-const Step6 = () => (
-  <div className="flex flex-col items-center justify-center h-full text-center gap-6 mt-10">
-     <motion.div 
-       initial={{ scale: 0, rotate: -45 }}
-       animate={{ scale: 1, rotate: 0 }}
-       transition={{ type: "spring", bounce: 0.5, duration: 0.8 }}
-       className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-blue-400 flex items-center justify-center mb-4 shadow-[0_8px_30px_rgb(30,64,175,0.3)] shadow-blue-500/40"
-     >
-       <span className="text-5xl text-white">🚀</span>
-     </motion.div>
-     <h2 className="text-3xl font-extrabold text-blue-950">رحلتك جاهزة للانطلاق!</h2>
-     <p className="text-gray-400 max-w-[280px] leading-relaxed font-light text-lg">
-       تم تجهيز خريطتك بكل المحطات والمهام. اضغط حفظ لنبدأ.
-     </p>
-  </div>
-);
+const Step6 = ({ state, setState }: any) => {
+  const arabicDays = [
+    { name: 'الأحد', val: 0 },
+    { name: 'الاثنين', val: 1 },
+    { name: 'الثلاثاء', val: 2 },
+    { name: 'الأربعاء', val: 3 },
+    { name: 'الخميس', val: 4 },
+    { name: 'الجمعة', val: 5 },
+    { name: 'السبت', val: 6 }
+  ];
+
+  const presets = [15, 30, 45, 60, 90];
+
+  const toggleDay = (dayVal: number) => {
+    vibrate(HAPITCS.GUIDANCE);
+    const currentDays = state.learningDays || [];
+    let updated;
+    if (currentDays.includes(dayVal)) {
+      if (currentDays.length > 1) {
+        updated = currentDays.filter((d: number) => d !== dayVal);
+      } else {
+        updated = currentDays;
+      }
+    } else {
+      updated = [...currentDays, dayVal];
+    }
+    setState({ ...state, learningDays: updated });
+  };
+
+  return (
+    <div className="flex flex-col gap-6 pb-6 text-right font-sans" dir="rtl">
+      <div>
+        <h2 className="text-2xl font-black text-blue-950 mb-2">منهجية وروتين التعلم</h2>
+        <p className="text-slate-400 font-bold text-xs">حدد مدة تعهدك بالتعلم اليومي وجدول تكرارك المخصص للحفاظ على تقدمك المتتالي.</p>
+      </div>
+
+      {/* Daily Duration */}
+      <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 flex flex-col gap-4">
+        <label className="text-sm font-extrabold text-blue-950 flex items-center gap-2">
+          <span>🕒 مدة التعلم اليومية (بالدقائق)</span>
+        </label>
+        
+        <div className="flex items-center gap-4">
+          <input
+            type="number"
+            min="5"
+            max="480"
+            className="w-24 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 ring-blue-900/10 bg-white text-center font-bold text-base text-blue-950 transition-all font-mono"
+            value={state.dailyDuration || ''}
+            onChange={e => {
+              const val = parseInt(e.target.value) || 0;
+              setState({ ...state, dailyDuration: val });
+            }}
+          />
+          <span className="text-xs font-bold text-slate-400">دقيقة في اليوم</span>
+        </div>
+
+        {/* Duration Quick Presets */}
+        <div className="flex flex-wrap gap-2 mt-1 font-sans">
+          {presets.map(min => {
+            const isActive = state.dailyDuration === min;
+            return (
+              <button
+                key={min}
+                type="button"
+                onClick={() => {
+                  vibrate(HAPITCS.MAJOR_CLICK);
+                  setState({ ...state, dailyDuration: min });
+                }}
+                className={`px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer font-sans ${
+                  isActive 
+                    ? 'border-blue-900 bg-blue-50 text-blue-900 shadow-3xs hover:brightness-105' 
+                    : 'border-slate-200 bg-white text-slate-500 hover:border-blue-300'
+                }`}
+              >
+                {min} دقيقة
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Frequency - Custom Days */}
+      <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <label className="text-sm font-extrabold text-blue-950 flex items-center gap-2">
+            <span>📅 تكرار التعلم الأسبوعي (مخصص)</span>
+          </label>
+          <span className="text-[10px] font-black px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-100/50 rounded-full">
+            جدول مخصص
+          </span>
+        </div>
+        <p className="text-[11px] font-medium text-slate-400 leading-relaxed">
+          الأيام المحددة هي أيام التعلم الإلزامية الخاصة بك. وسيكون التزامك سليماً طالما أنك تنجز المهام/التقييمات في أيام التعلم، بينما تمنحك الأيام الأخرى فرصة للاستراحة دون كسر تقدمك المتتالي (Streak).
+        </p>
+
+        {/* Weekdays Selector */}
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mt-2">
+          {arabicDays.map(day => {
+            const isSelected = (state.learningDays || []).includes(day.val);
+            return (
+              <button
+                key={day.val}
+                type="button"
+                onClick={() => toggleDay(day.val)}
+                className={`py-3 rounded-xl font-bold flex flex-col items-center justify-center transition-all cursor-pointer select-none border ${
+                  isSelected
+                    ? 'bg-gradient-to-br from-blue-800 via-indigo-700 to-indigo-900 border-indigo-700 text-white shadow-sm'
+                    : 'bg-white border-slate-200 hover:border-indigo-200 text-slate-600'
+                }`}
+              >
+                <span className="text-xs font-black">{day.name}</span>
+                <span className={`text-[8px] mt-0.5 block font-medium ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>
+                  {isSelected ? 'تعلم' : 'راحة'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};

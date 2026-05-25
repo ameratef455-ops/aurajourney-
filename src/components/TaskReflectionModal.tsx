@@ -117,7 +117,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle }: Ta
               value={strengths}
               onChange={(e) => setStrengths(e.target.value)}
               placeholder="ما الذي ميز أداءك؟"
-              className="w-full min-h-[100px] bg-emerald-50/30 border-emerald-100 rounded-2xl p-4 text-xs font-medium focus:bg-white transition-colors"
+              className="w-full min-h-[60px] bg-emerald-50/30 border-emerald-100 rounded-2xl p-4 text-xs font-medium focus:bg-white transition-colors"
             />
           </div>
           <div className="space-y-2">
@@ -128,7 +128,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle }: Ta
               value={weaknesses}
               onChange={(e) => setWeaknesses(e.target.value)}
               placeholder="ما الذي يحتاج لتطوير؟"
-              className="w-full min-h-[100px] bg-rose-50/30 border-rose-100 rounded-2xl p-4 text-xs font-medium focus:bg-white transition-colors"
+              className="w-full min-h-[60px] bg-rose-50/30 border-rose-100 rounded-2xl p-4 text-xs font-medium focus:bg-white transition-colors"
             />
           </div>
         </div>
@@ -143,7 +143,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle }: Ta
             value={learnings}
             onChange={(e) => setLearnings(e.target.value)}
             placeholder="لخص أهم ما تعلمته اليوم في نقاط..."
-            className="w-full min-h-[120px] bg-blue-50/30 border-blue-100 rounded-2xl p-4 text-xs font-medium focus:bg-white transition-colors"
+            className="w-full min-h-[80px] bg-blue-50/30 border-blue-100 rounded-2xl p-4 text-xs font-medium focus:bg-white transition-colors"
           />
         </div>
 
@@ -171,7 +171,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle }: Ta
                     value={practicalIssues}
                     onChange={(e) => setPracticalIssues(e.target.value)}
                     placeholder="التحديات العملية وحلولك المبتكرة..."
-                    className="w-full min-h-[100px] bg-indigo-50/30 border-indigo-100 rounded-2xl p-4 text-xs font-medium focus:bg-white transition-colors"
+                    className="w-full min-h-[60px] bg-indigo-50/30 border-indigo-100 rounded-2xl p-4 text-xs font-medium focus:bg-white transition-colors"
                   />
                 </div>
               </motion.div>

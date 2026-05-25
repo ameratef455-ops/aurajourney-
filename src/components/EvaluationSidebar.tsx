@@ -1,15 +1,17 @@
 import { Sidebar } from "primereact/sidebar";
 import { TabView, TabPanel } from "primereact/tabview";
 import { Dialog } from "primereact/dialog";
+import { OverlayPanel } from "primereact/overlaypanel";
 import { InputText } from "primereact/inputtext";
 import { InputNumber } from "primereact/inputnumber";
 import { Button } from "primereact/button";
 import { Menu } from "primereact/menu";
 import { ConfirmPopup, confirmPopup } from "primereact/confirmpopup";
+import { Toast } from "primereact/toast";
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from 'canvas-confetti';
-import { ListChecks, Target, Trophy, Clock, Plus, Trash2, ChevronRight, ChevronDown, CheckCircle2, Circle, Edit2, MoreVertical } from "lucide-react";
+import { ListChecks, Target, Trophy, Clock, Plus, Trash2, ChevronRight, ChevronDown, CheckCircle2, Circle, Edit2, MoreVertical, Info, Briefcase } from "lucide-react";
 import { db, TaskActivity } from "../db";
 import { safeRandomUUID } from "../lib/uuid";
 import { TaskReflectionModal } from "./TaskReflectionModal";
@@ -17,30 +19,50 @@ import { TaskReflectionModal } from "./TaskReflectionModal";
 export interface EvaluationSidebarProps {
   visible: boolean;
   onHide: () => void;
+  stations: any[];
   mainTasks: any[];
   sideTasks: any[];
-  weeklyTasks: any[];
-  onUpdateWeeklyTasks?: (tasks: any[]) => void;
+  subTasks: any[];
+  practicalSubStations?: Record<string, any[]>;
   onRewardActivity?: (isCompleted: boolean) => void;
+  onCompleteTask?: (task: any) => void;
+  onCompletePracticalTask?: (stationId: string, subStationIndex: number, taskId: string) => void;
 }
 
 export function EvaluationSidebar({
   visible,
   onHide,
+  stations = [],
   mainTasks,
   sideTasks,
-  weeklyTasks,
-  onUpdateWeeklyTasks,
-  onRewardActivity
+  subTasks = [],
+  practicalSubStations = {},
+  onRewardActivity,
+  onCompleteTask,
+  onCompletePracticalTask
 }: EvaluationSidebarProps) {
   const [selectedTask, setSelectedTask] = useState<any>(null);
+  const toast = useRef<Toast>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [newActivityTitle, setNewActivityTitle] = useState("");
   const [newActivityDuration, setNewActivityDuration] = useState<number | null>(30);
   const [reflectionVisible, setReflectionVisible] = useState(false);
   const [taskToReflect, setTaskToReflect] = useState<any>(null);
 
-  const handleTaskClick = (task: any, source: 'dexie' | 'weekly') => {
+  const handleTaskClick = (task: any, source: 'dexie' | 'weekly' | 'practical') => {
+    if (task.type === 'main') {
+      const parentSubTasks = subTasks.filter(st => st.parentId === task.id);
+      const hasUncompleted = parentSubTasks.some(st => !st.isCompleted);
+      if (hasUncompleted) {
+        toast.current?.show({
+          severity: "warn",
+          summary: "أنجز الفرعيات أولاً ⚠️",
+          detail: "يرجى إكمال المهام الفرعية للرئيسية أولاً.",
+          life: 4000
+        });
+        return;
+      }
+    }
     setSelectedTask({ ...task, _source: source });
     setDetailModalVisible(true);
   };
@@ -50,11 +72,6 @@ export function EvaluationSidebar({
 
     if (selectedTask._source === 'dexie') {
       await db.tasks.update(selectedTask.id, { activities: updatedActivities });
-    } else if (selectedTask._source === 'weekly' && onUpdateWeeklyTasks) {
-       const updatedWeekly = weeklyTasks.map(t => 
-         t.id === selectedTask.id ? { ...t, activities: updatedActivities } : t
-       );
-       onUpdateWeeklyTasks(updatedWeekly);
     }
     
     setSelectedTask((prev: any) => ({ ...prev, activities: updatedActivities }));
@@ -232,9 +249,18 @@ export function EvaluationSidebar({
                   animate={{ opacity: 1, scale: 1 }}
                   className="space-y-4 pt-4"
                 >
-                  {mainTasks.length > 0 ? mainTasks.map((task) => (
-                    <TaskItem key={task.id} task={task} type="main" onClick={() => handleTaskClick(task, 'dexie')} />
-                  )) : <EmptyState message="لا توجد مهام رئيسية حالياً" />}
+                  {mainTasks.length > 0 ? mainTasks.map((task) => {
+                    const station = stations.find(s => s.id === task.stationId);
+                    return (
+                      <TaskItem 
+                        key={task.id} 
+                        task={task} 
+                        type="main" 
+                        stationName={station?.name}
+                        onClick={() => handleTaskClick(task, 'dexie')} 
+                      />
+                    );
+                  }) : <EmptyState message="لا توجد مهام رئيسية حالياً" />}
                 </motion.div>
               </TabPanel>
 
@@ -244,21 +270,73 @@ export function EvaluationSidebar({
                   animate={{ opacity: 1, scale: 1 }}
                   className="space-y-4 pt-4"
                 >
-                  {sideTasks.length > 0 ? sideTasks.map((task) => (
-                    <TaskItem key={task.id} task={task} type="side" onClick={() => handleTaskClick(task, 'dexie')} />
-                  )) : <EmptyState message="لا توجد مهام جانبية حالياً" />}
+                  {sideTasks.length > 0 ? sideTasks.map((task) => {
+                    const station = stations.find(s => s.id === task.stationId);
+                    return (
+                      <TaskItem 
+                        key={task.id} 
+                        task={task} 
+                        type="side" 
+                        stationName={station?.name}
+                        onClick={() => handleTaskClick(task, 'dexie')} 
+                      />
+                    );
+                  }) : <EmptyState message="لا توجد مهام جانبية حالياً" />}
                 </motion.div>
               </TabPanel>
 
-              <TabPanel header="التحدي" leftIcon={<Trophy className="w-4 h-4 ml-2" />}>
+              <TabPanel header="الفرعية" leftIcon={<ListChecks className="w-4 h-4 ml-2" />}>
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="space-y-4 pt-4"
                 >
-                  {weeklyTasks.length > 0 ? weeklyTasks.map((task) => (
-                    <TaskItem key={task.id} task={task} type="weekly" onClick={() => handleTaskClick(task, 'weekly')} />
-                  )) : <EmptyState message="لا توجد مهام تحدي للهذا الأسبوع" />}
+                  {subTasks.length > 0 ? subTasks.map((task) => {
+                    const station = stations.find(s => s.id === task.stationId);
+                    const parentMainTask = mainTasks.find(t => t.id === task.parentId);
+                    return (
+                      <TaskItem 
+                        key={task.id} 
+                        task={task} 
+                        type="sub" 
+                        stationName={station?.name}
+                        parentTaskName={parentMainTask?.title}
+                        onClick={() => handleTaskClick(task, 'dexie')} 
+                      />
+                    );
+                  }) : <EmptyState message="لا توجد مهام فرعية حالياً" />}
+                </motion.div>
+              </TabPanel>
+
+              <TabPanel header="العملية" leftIcon={<Briefcase className="w-4 h-4 ml-2" />}>
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-4 pt-4"
+                >
+                  {Object.entries(practicalSubStations).flatMap(([stId, subs]) => 
+                    subs.flatMap((sub, sIdx) => 
+                      sub.tasks.map((task: any) => ({
+                        ...task,
+                        stationId: stId,
+                        subStationIndex: sIdx,
+                        type: 'practical'
+                      }))
+                    )
+                  ).length > 0 ? Object.entries(practicalSubStations).flatMap(([stId, subs]) => 
+                    subs.flatMap((sub, sIdx) => {
+                      const station = stations.find(s => s.id === stId);
+                      return sub.tasks.map((task: any) => (
+                        <TaskItem 
+                          key={`${stId}-${sIdx}-${task.id}`}
+                          task={task}
+                          type="main" // Reuse main styling
+                          stationName={station?.name}
+                          onClick={() => handleTaskClick({ ...task, stationId: stId, subStationIndex: sIdx }, 'practical')}
+                        />
+                      ));
+                    })
+                  ) : <EmptyState message="لا توجد مهام تطبيقية حالياً" />}
                 </motion.div>
               </TabPanel>
             </TabView>
@@ -424,11 +502,18 @@ export function EvaluationSidebar({
               practicalIssues: data.practicalIssues,
               createdAt: new Date().toISOString()
             });
+
+            if (taskToReflect._source === 'practical' && onCompletePracticalTask) {
+              onCompletePracticalTask(taskToReflect.stationId, taskToReflect.subStationIndex, taskToReflect.id);
+            } else if (onCompleteTask && taskToReflect) {
+               onCompleteTask(taskToReflect);
+            }
           } catch (err) {
             console.error('Failed to save reflection:', err);
           }
         }}
       />
+      <Toast ref={toast} style={{ zIndex: 999999999, direction: "rtl" }} baseZIndex={999999999} />
     </>
   );
 }
@@ -588,11 +673,25 @@ function ActivityNode({ node, onToggle, onDelete, onEdit, onAddSub }: {
   );
 }
 
-function TaskItem({ task, type, onClick }: { task: any, type: 'main' | 'side' | 'weekly', onClick?: () => void }) {
+function TaskItem({ 
+  task, 
+  type, 
+  stationName, 
+  parentTaskName, 
+  onClick 
+}: { 
+  task: any, 
+  type: 'main' | 'side' | 'weekly' | 'sub', 
+  stationName?: string, 
+  parentTaskName?: string,
+  onClick?: () => void 
+}) {
+  const op = useRef<OverlayPanel>(null);
   const colors = {
     main: 'from-blue-500 to-indigo-600',
     side: 'from-amber-400 to-orange-500',
-    weekly: 'from-purple-500 to-fuchsia-600'
+    weekly: 'from-purple-500 to-fuchsia-600',
+    sub: 'from-indigo-400 to-blue-500'
   };
 
   return (
@@ -600,16 +699,61 @@ function TaskItem({ task, type, onClick }: { task: any, type: 'main' | 'side' | 
       onClick={onClick}
       className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between group hover:shadow-lg transition-all hover:border-indigo-200 cursor-pointer active:scale-98"
     >
-      <div className="flex items-center gap-4">
-        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colors[type]} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform`}>
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colors[type]} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform shrink-0`}>
           {task.isCompleted || task.completed ? <i className="pi pi-check font-bold"></i> : <i className="pi pi-circle text-[10px]"></i>}
         </div>
-        <div className="pr-1">
-          <h4 className="text-sm font-black text-slate-800 leading-none mb-1">{task.title}</h4>
-          <p className="text-[10px] text-slate-400 font-bold">{(task.isCompleted || task.completed) ? 'مكتملة' : 'قيد الانتظار'}</p>
+        <div className="pr-1 flex-1 min-w-0">
+          <h4 className="text-sm font-black text-slate-800 leading-none mb-1 truncate">{task.title}</h4>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-slate-400 font-bold">{(task.isCompleted || task.completed) ? 'مكتملة' : 'قيد الانتظار'}</p>
+            {stationName && (
+              <>
+                <span className="text-[10px] text-slate-300">•</span>
+                <span className="text-[10px] text-indigo-500 font-black truncate max-w-[120px]">{stationName}</span>
+              </>
+            )}
+            {type === 'sub' && (
+              <button 
+                className="w-5 h-5 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  op.current?.toggle(e);
+                }}
+              >
+                <Info className="w-3 h-3" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+
+      <OverlayPanel ref={op} className="p-0 overflow-hidden rounded-2xl border-none shadow-2xl" style={{ width: '220px' }}>
+         <div className="p-4 bg-white space-y-3" dir="rtl">
+            <div className="flex items-center gap-2">
+               <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <i className="pi pi-map-marker text-xs"></i>
+               </div>
+               <div>
+                  <p className="text-[10px] text-slate-400 font-bold">المحطة</p>
+                  <p className="text-xs font-black text-slate-800">{stationName || 'غير محدد'}</p>
+               </div>
+            </div>
+            {parentTaskName && (
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                   <Target className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-400 font-bold">المهمة الرئيسية</p>
+                  <p className="text-xs font-black text-slate-800">{parentTaskName}</p>
+                </div>
+              </div>
+            )}
+         </div>
+      </OverlayPanel>
+
+      <div className="flex items-center gap-2 shrink-0">
         {task.activities?.length > 0 && (
           <div className="bg-slate-50 px-2 py-1 rounded-md border border-slate-100 flex items-center gap-1">
             <ListChecks className="w-3 h-3 text-slate-400" />

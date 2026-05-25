@@ -8,57 +8,6 @@ import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { useLiveQuery } from "dexie-react-hooks";
 
-interface SupportModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-export function SupportModal({ isOpen, onClose }: SupportModalProps) {
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-white/60 backdrop-blur-sm z-40"
-          />
-          <motion.div
-            initial={{ opacity: 0, y: 15, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-sm bg-white border border-gray-100 rounded-3xl p-8 shadow-2xl z-50 text-center"
-          >
-            <div className="w-16 h-16 border-2 border-blue-900 rounded-full flex items-center justify-center mx-auto mb-4 bg-blue-50/30">
-              <span className="text-blue-900 text-2xl font-bold">؟</span>
-            </div>
-
-            <h3 className="text-2xl font-bold text-blue-950 mb-2">
-              أحتاج مساعدة ؟
-            </h3>
-            <p className="text-gray-500 mb-8 leading-relaxed font-light">
-              كلمنا على{" "}
-              <span className="font-bold text-blue-600 text-[1.15rem] mx-1">
-                01282920387
-              </span>{" "}
-              لأول رحلة مجاناً
-            </p>
-
-            <button
-              onClick={onClose}
-              className="w-full py-4 bg-gray-50 text-blue-950 font-bold rounded-xl border border-gray-100 hover:border-blue-200 transition-colors"
-            >
-              حسناً
-            </button>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
-
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -197,35 +146,55 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
     onEdit(trip.id);
   };
 
+  const getTripIcon = (goal: string) => {
+    const g = goal.toLowerCase();
+    if (g.includes('لغة') || g.includes('language') || g.includes('إنجليزي') || g.includes('english')) return 'pi-book';
+    if (g.includes('برمجة') || g.includes('code') || g.includes('programming') || g.includes('تطوير')) return 'pi-code';
+    if (g.includes('رسم') || g.includes('art') || g.includes('تصميم') || g.includes('design')) return 'pi-palette';
+    if (g.includes('طبخ') || g.includes('cook') || g.includes('طعام')) return 'pi-apple';
+    if (g.includes('رياضة') || g.includes('sport') || g.includes('جيم') || g.includes('صح')) return 'pi-heart-fill';
+    if (g.includes('موسيقى') || g.includes('music') || g.includes('عزف')) return 'pi-volume-up';
+    return 'pi-map';
+  };
+
   return (
     <div className="w-full max-w-2xl mt-8 mx-auto" dir="rtl">
-      <h3 className="text-xl font-bold text-blue-900 mb-5 text-center flex items-center justify-center gap-2">
-        <i className="pi pi-compass text-lg animate-spin" style={{ animationDuration: '4s' }}></i>
-        <span>الرحلات النشطة الحالية</span>
-      </h3>
+      <div className="flex justify-center mb-8">
+         <span className="px-8 py-3 bg-gradient-to-r from-blue-800 to-indigo-900 text-white rounded-full font-black text-sm shadow-lg flex items-center gap-3 border border-white/20">
+            <i className="pi pi-compass text-lg animate-spin" style={{ animationDuration: '4s' }}></i>
+            الرحلات النشطة الحالية
+         </span>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {trips.map((trip) => (
           <div
             key={trip.id}
             onClick={() => onOpen(trip.id)}
-            className="group relative bg-gradient-to-br from-blue-800 via-indigo-700 to-blue-950 p-[2.5px] rounded-3xl shadow-xl shadow-blue-900/10 hover:shadow-2xl hover:shadow-blue-950/20 active:scale-[0.99] transition-all duration-300 cursor-pointer aspect-square flex w-full"
+            className="group relative bg-gradient-to-br from-blue-800 via-indigo-700 to-blue-950 p-[1px] rounded-3xl shadow-2xl shadow-blue-900/20 hover:shadow-blue-500/40 active:scale-[0.98] transition-all duration-500 cursor-pointer aspect-square flex w-full overflow-hidden"
           >
-            <div className="bg-white p-6 rounded-[21px] flex flex-col justify-between items-center text-center w-full h-full relative overflow-hidden">
-              {/* Three dots absolute position so it fits beautifully */}
+            {/* Glow Effect Layer */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.3),transparent_70%)]" />
+            
+            <div className="bg-gradient-to-br from-blue-900/90 to-blue-950 p-6 rounded-[23px] flex flex-col justify-between items-center text-center w-full h-full relative overflow-hidden backdrop-blur-sm">
+              {/* Decorative elements */}
+              <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/20 blur-3xl rounded-full pointer-events-none group-hover:bg-blue-400/30 transition-all duration-500" />
+              <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-indigo-500/20 blur-3xl rounded-full pointer-events-none group-hover:bg-indigo-400/30 transition-all duration-500" />
+
+              {/* Three dots absolute position */}
               <div 
                 className="absolute top-4 left-4 z-30" 
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
                   type="button"
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 transition border-none cursor-pointer"
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 backdrop-blur-md hover:bg-white/20 text-white/70 transition border border-white/10 cursor-pointer shadow-lg"
                   onClick={() => {
                     vibrate(HAPITCS.MAJOR_CLICK);
                     setActiveMenuTripId(activeMenuTripId === trip.id ? null : trip.id);
                   }}
                   title="خيارات"
                 >
-                  <i className="pi pi-ellipsis-v text-sm"></i>
+                  <i className="pi pi-ellipsis-v text-xs"></i>
                 </button>
                 {activeMenuTripId === trip.id && (
                   <>
@@ -233,23 +202,24 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
                       className="fixed inset-0 z-10" 
                       onClick={() => setActiveMenuTripId(null)}
                     />
-                    <div className="absolute left-0 mt-2 w-40 bg-white border border-gray-100 rounded-2xl shadow-xl z-20 py-2 text-right">
+                    <div className="absolute left-0 mt-2 w-44 bg-white border border-gray-100 rounded-2xl shadow-2xl z-20 py-2 text-right overflow-hidden">
                       <button
                         onClick={() => {
                           setActiveMenuTripId(null);
                           startEdit(trip);
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-blue-950 hover:bg-gray-50 transition border-none bg-transparent font-medium cursor-pointer"
+                        className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-blue-950 hover:bg-blue-50 transition border-none bg-transparent font-bold cursor-pointer"
                       >
                         <i className="pi pi-pencil text-blue-600"></i>
                         <span>تعديل المحطات</span>
                       </button>
+                      <div className="h-px bg-gray-50 mx-2" />
                       <button
                         onClick={() => {
                           setActiveMenuTripId(null);
                           setDeleteTripId(trip.id);
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-600 hover:bg-rose-50 transition border-none bg-transparent font-medium cursor-pointer"
+                        className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-rose-600 hover:bg-rose-50 transition border-none bg-transparent font-bold cursor-pointer"
                       >
                         <i className="pi pi-trash text-rose-500"></i>
                         <span>حذف الرحلة</span>
@@ -259,17 +229,18 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
                 )}
               </div>
 
-              {/* Learning Goal Centered vertically */}
-              <div className="flex-1 flex items-center justify-center py-6 px-2">
-                <span className="font-extrabold text-blue-950 text-xl md:text-2xl group-hover:text-blue-800 transition-colors leading-snug">
+              {/* Trip Icon / Visual with Glow */}
+              <div className="mt-4 w-20 h-20 rounded-2xl bg-white shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 relative z-10">
+                <i className={`pi ${getTripIcon(trip.learningGoal)} text-3xl text-blue-900`}></i>
+              </div>
+
+              {/* Learning Goal */}
+              <div className="flex-1 flex items-center justify-center py-6 px-2 relative z-10">
+                <span className="font-black text-white text-xl md:text-2xl leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
                   {trip.learningGoal}
                 </span>
               </div>
 
-              {/* Subtext decorator */}
-              <span className="text-[11px] font-extrabold text-indigo-900/50 uppercase tracking-wider bg-indigo-50/50 px-3 py-1 rounded-full">
-                اضغط لعرض الرحلة 🗺️
-              </span>
             </div>
           </div>
         ))}
@@ -320,17 +291,11 @@ interface LandingProps {
 }
 
 export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
-  const [supportOpen, setSupportOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleStart = () => {
     vibrate(HAPITCS.MAJOR_CLICK);
     onStart();
-  };
-
-  const handleSupport = () => {
-    vibrate(HAPITCS.GUIDANCE);
-    setSupportOpen(true);
   };
 
   const handleSettings = () => {
@@ -340,10 +305,17 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
 
   return (
     <div className="w-full max-h-[85vh] overflow-y-auto py-12 px-6 flex flex-col items-center justify-start text-center z-10 space-y-12 max-w-2xl relative scroll-smooth no-scrollbar">
-      <header className="absolute top-0 left-0 w-full p-6 md:p-12 flex justify-center items-center gap-6 z-10">
+      <header className="absolute top-0 left-0 w-full p-6 md:p-12 flex justify-between items-center gap-6 z-10" dir="rtl">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 border-2 border-blue-900 flex items-center justify-center rounded-full bg-white shadow-sm">
-            <div className="w-5 h-5 bg-blue-900 rounded-full animate-pulse"></div>
+          <div className="w-12 h-12 border-2 border-blue-900 flex items-center justify-center rounded-full bg-white shadow-sm overflow-hidden p-2">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-blue-900">
+              <circle cx="12" cy="6" r="2.5" fill="currentColor" />
+              <circle cx="6" cy="18" r="2.5" fill="currentColor" />
+              <circle cx="18" cy="18" r="2.5" fill="currentColor" />
+              <path d="M12 8.5L7.5 15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M12 8.5L16.5 15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M8.5 18H15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
           </div>
           <div className="flex flex-col items-start pr-2">
             <h1 className="text-xl md:text-2xl font-black text-blue-950 tracking-tight leading-none mb-1">
@@ -353,12 +325,21 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
               رحلة حياة
             </span>
           </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleStart}
+            className="hidden md:flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-800 to-blue-950 text-white rounded-full text-sm font-black shadow-lg hover:brightness-110 active:scale-95 transition-all border-none cursor-pointer"
+          >
+            إبدأ الآن
+          </button>
           
-          <div className="h-8 w-px bg-slate-200 mx-2"></div>
+          <div className="h-8 w-px bg-slate-200 mx-1"></div>
 
           <button
             onClick={handleSettings}
-            className="w-10 h-10 flex items-center justify-center rounded-full text-blue-900 hover:bg-blue-50 transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-full text-blue-900 hover:bg-blue-50 transition-colors border-none bg-transparent cursor-pointer"
           >
             <i className="pi pi-cog text-xl"></i>
           </button>
@@ -371,7 +352,7 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
  
       <TripsList onEdit={onEdit} onOpen={onOpen} />
 
-      <div className="flex flex-col items-center gap-6 w-full pb-8">
+      <div className="flex flex-col items-center gap-6 w-full pb-8 md:hidden">
         <motion.button
           onClick={handleStart}
           whileHover={{ scale: 1.05 }}
@@ -388,27 +369,17 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
             duration: 2,
             ease: "easeInOut",
           }}
-          className="px-12 py-5 bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 hover:brightness-110 text-white rounded-full text-xl font-extrabold transition-all relative overflow-hidden group w-full md:w-auto shadow-xl"
+          className="px-12 py-5 bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 hover:brightness-110 text-white rounded-full text-xl font-extrabold transition-all relative overflow-hidden group w-full shadow-xl border-none cursor-pointer"
         >
           <span className="relative z-10 flex items-center justify-center gap-2">
-            إصنع رحلتك بنفسك 🚀
+            إصنع رحلتك بنفسك
           </span>
           <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
         </motion.button>
-        <button
-          onClick={handleSupport}
-          className="text-blue-900/60 font-semibold hover:text-blue-900 transition-colors border-b border-transparent hover:border-blue-900 pb-1"
-        >
-          أحتاج مساعدة ؟
-        </button>
       </div>
 
 
 
-      <SupportModal
-        isOpen={supportOpen}
-        onClose={() => setSupportOpen(false)}
-      />
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}

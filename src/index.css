@@ -35,29 +35,60 @@ body {
 }
 
 /* TabView Overrides for Station Details */
+.custom-spaced-tabs {
+    display: flex;
+    flex-direction: column;
+}
+
 .custom-spaced-tabs .p-tabview-nav {
     display: flex !important;
-    justify-content: space-around !important;
-    border-bottom: 2px solid #f8fafc !important;
+    justify-content: flex-start !important;
+    border-bottom: 2px solid #f1f5f9 !important;
     background: transparent !important;
-    padding: 0 1rem !important;
+    padding: 0 1rem 0.5rem 1rem !important;
+    margin-bottom: 1.5rem !important;
+    gap: 1.5rem !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+}
+
+.custom-spaced-tabs .p-tabview-nav::-webkit-scrollbar {
+    display: none;
 }
 
 .custom-spaced-tabs .p-tabview-nav li {
     margin-right: 0 !important;
+    flex-shrink: 0 !important;
 }
 
 .custom-spaced-tabs .p-tabview-nav li .p-tabview-nav-link {
     border: none !important;
     background: transparent !important;
-    padding: 0 !important;
+    padding: 0.75rem 0 !important;
     box-shadow: none !important;
     transition: all 0.3s ease !important;
+    opacity: 0.6;
+}
+
+.custom-spaced-tabs .p-tabview-nav li:hover .p-tabview-nav-link {
+    opacity: 1;
 }
 
 .custom-spaced-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
-    border-bottom: 2px solid #1e3a8a !important;
+    border-bottom: 3px solid #3b82f6 !important;
     border-radius: 0 !important;
+    opacity: 1;
+}
+
+.custom-spaced-tabs .p-tabview-panels {
+    padding: 1.5rem 1.5rem 3.5rem 1.5rem !important; 
+    line-height: 1.8 !important;
+}
+
+.station-details-tabs .p-tabview-panels > div {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* gap-6 equivalent */
 }
 
 /* Moving dialog close button away from the edge and styling it */
@@ -105,5 +136,18 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Force PrimeReact Toast notifications to be on top of all dialogs */
+.p-toast {
+  z-index: 999999999 !important;
+}
+
+/* Ensure topmost dialogs (like Stumble Dialog) render in front of parent dialogs */
+.topmost-dialog {
+  z-index: 20000002 !important;
+}
+.topmost-mask {
+  z-index: 20000001 !important;
 }
 

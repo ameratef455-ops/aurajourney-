@@ -13,66 +13,13 @@ import { SpeedDial } from "primereact/speeddial";
 import { DataView } from "primereact/dataview";
 import { Tree } from "primereact/tree";
 import { 
-  Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma
+  Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { safeRandomUUID } from "../lib/uuid";
 import { GamificationSidebar } from "./GamificationSidebar";
 import { ReflectionSidebar } from "./ReflectionSidebar";
 import { EvaluationSidebar } from "./EvaluationSidebar";
-
-function EnergyRing({ progress, size = 110 }: { progress: number, size?: number }) {
-  const radius = (size - 10) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (Math.min(100, progress) / 100) * circumference;
-  const bonusProgress = Math.max(0, progress - 100);
-  const bonusOffset = circumference - (Math.min(100, 30) / 30) * circumference; // Normalized to 30% bonus target
-  const actualBonusOffset = circumference - (Math.min(30, bonusProgress) / 30) * (circumference * 0.3); // Visible bonus segment
-
-  return (
-    <svg width={size} height={size} className="absolute pointer-events-none z-0 transform rotate-[-95deg]">
-      {/* Background circle */}
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="transparent"
-        stroke="rgba(30, 64, 175, 0.08)"
-        strokeWidth="6"
-      />
-      {/* Main 0-100% progress */}
-      <motion.circle
-        initial={{ strokeDashoffset: circumference }}
-        animate={{ strokeDashoffset: offset }}
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="transparent"
-        stroke={progress >= 100 ? "#10b981" : "#3b82f6"}
-        strokeWidth="6"
-        strokeDasharray={circumference}
-        className="transition-all duration-1000 ease-out"
-        strokeLinecap="round"
-      />
-      {/* Bonus > 100% progress (Up to 130%) */}
-      {bonusProgress > 0 && (
-        <motion.circle
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset: circumference - (bonusProgress / 30) * circumference }}
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="transparent"
-          stroke="#f59e0b"
-          strokeWidth="8"
-          strokeDasharray={circumference}
-          className="transition-all duration-1000 ease-out drop-shadow-[0_0_12px_rgba(245,158,11,0.7)]"
-          strokeLinecap="round"
-        />
-      )}
-    </svg>
-  );
-}
 
 export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string | null }) {
   const toast = useRef<Toast>(null);
@@ -112,20 +59,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     setShowCompassPopup,
     showRestSpeedDial,
     setShowRestSpeedDial,
-    weeklyChallengeModalVisible,
-    setWeeklyChallengeModalVisible,
-    weeklyClaimed,
-    setWeeklyClaimed,
     gamificationActiveTab,
     setGamificationActiveTab,
-    weeklyChallengeName,
-    setWeeklyChallengeName,
-    weeklyChallengeRequired,
-    setWeeklyChallengeRequired,
-    weeklyChallengeTasks,
-    setWeeklyChallengeTasks,
-    newWeeklyTaskTitle,
-    setNewWeeklyTaskTitle,
     newStationTaskTitles,
     setNewStationTaskTitles,
     dialVisible,
@@ -167,13 +102,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     unlockedStations,
     unlockStation,
     toggleTask,
+    completeTask,
+    completePracticalTask,
     activeStationId,
     activeStation,
     activeStationTasks,
-    claimWeeklyReward,
-    addWeeklyChallengeTask,
-    deleteWeeklyChallengeTask,
-    toggleWeeklyChallengeTask,
     closeCelebration,
     undertakeReflection,
     takeRestDay,
@@ -201,23 +134,113 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     hasReflectedToday,
     totalTasksWithSub,
     completedTasksCount,
-    isAllTasksCompleted,
-    totalWeeklyTasks,
-    completedWeeklyTasks,
-    isAllWeeklyTasksCompleted
+    isAllTasksCompleted
   } = useAuraJourney({ tripId, toast });
 
+  const [showLinksPopup, setShowLinksPopup] = useState(false);
   const [evaluationSidebarVisible, setEvaluationSidebarVisible] = useState(false);
+  const [selectedTaskForAnalytics, setSelectedTaskForAnalytics] = useState<any>(null);
+  const [taskReflectionData, setTaskReflectionData] = useState<any>(null);
+  const [showStumbleForm, setShowStumbleForm] = useState(false);
+  const [stumbleReason, setStumbleReason] = useState("");
+  const [reflectionForceStationId, setReflectionForceStationId] = useState<string | null>(null);
+  const [newResourceName, setNewResourceName] = useState("");
+  const [newResourceUrl, setNewResourceUrl] = useState("");
+  const [stationDialVisible, setStationDialVisible] = useState(false);
+
+  const allStumbles = useLiveQuery(() => {
+    try {
+      if (!db.stumbles) return [];
+      return db.stumbles.toArray();
+    } catch {
+      return [];
+    }
+  }) || [];
+
+  const openTaskAnalytics = async (task: any) => {
+    vibrate(HAPITCS.MAJOR_CLICK);
+    setSelectedTaskForAnalytics(task);
+    if (db.reflections) {
+      const ref = await db.reflections.where("taskId").equals(task.id).first();
+      setTaskReflectionData(ref || null);
+    } else {
+      setTaskReflectionData(null);
+    }
+  };
+
+  const handleSaveStumble = async () => {
+    if (!stumbleReason.trim() || !selectedStation) return;
+    try {
+      const currentStationObj = stations.find((s) => s.id === selectedStation);
+      const stationName = currentStationObj?.name || 'محطة غير معروفة';
+      
+      const newStumble = {
+        id: safeRandomUUID(),
+        stationId: selectedStation,
+        stationName,
+        reason: stumbleReason.trim(),
+        createdAt: new Date().toISOString()
+      };
+
+      // 1. Add stumble to Dexie database
+      await db.stumbles.add(newStumble);
+
+      // 2. Protect streak - prevent streak from resetting by updating lastReflectionDate to today, but without changing the current streak itself.
+      const todayStr = new Date().toDateString();
+      if (user) {
+        // Retrieve current game data
+        const currentGData = user?.gameData || { xp: 0, keys: 0, fuel: 100, lastReflectionDate: "", streak: 0 };
+        const updatedGData = {
+          ...currentGData,
+          lastReflectionDate: todayStr
+        };
+        await db.userSettings.update(user.id, {
+          gameData: updatedGData
+        });
+      }
+
+      toast.current?.show({
+        severity: "success",
+        className: "font-sans",
+        summary: "تم تأمين السلسلة 🛡️",
+        detail: "سجلنا تعثرك وحمينا سلسلتك المتتالية من الانكسار!",
+        life: 4000
+      });
+
+      setShowStumbleForm(false);
+      setStumbleReason("");
+    } catch (err) {
+      console.error("Failed to save stumble:", err);
+      toast.current?.show({
+        severity: "error",
+        summary: "فشل الحفظ ❌",
+        detail: "حدث خطأ غير متوقع أثناء تدوين الاستثناء.",
+        life: 3000
+      });
+    }
+  };
 
   const treeNodeTemplate = (node: any) => {
     const t = node.data;
     const isSub = t.type === 'sub';
+    const totalSubs = node.children ? node.children.length : 0;
+    const completedSubs = node.children ? node.children.filter((c: any) => c.data.isCompleted).length : 0;
     
     return (
       <div 
           className="flex items-center gap-3 py-1.5 w-full font-sans group"
           onClick={(e) => {
               e.stopPropagation();
+              if (t.type === 'main' && !t.isCompleted && completedSubs < totalSubs) {
+                vibrate(HAPITCS.MAJOR_CLICK);
+                toast.current?.show({
+                  severity: "warn",
+                  summary: "أنجز الفرعيات أولاً ⚠️",
+                  detail: "يرجى إكمال المهام الفرعية للرئيسية أولاً.",
+                  life: 4000
+                });
+                return;
+              }
               toggleTask(t.id, t.isCompleted, t.type);
           }}
       >
@@ -243,6 +266,19 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           >
             {t.title}
           </span>
+          {t.isCompleted && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openTaskAnalytics(t);
+              }}
+              className="mr-auto p-1.5 text-indigo-600 hover:text-indigo-800 transition-colors rounded-lg hover:bg-slate-100 flex items-center justify-center cursor-pointer shadow-3xs"
+              title="عرض تحليلات المهمة"
+              type="button"
+            >
+              <i className="pi pi-chart-bar text-[10px] font-black"></i>
+            </button>
+          )}
       </div>
     );
   };
@@ -256,6 +292,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
   if (!stations || !tasks || !user) return null;
 
+  // EnergyRing logic removed as per user request
+  
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.98 }}
@@ -268,7 +306,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         ref={toast}
         position="top-center"
         className="font-sans text-xs text-right"
-        style={{ direction: "rtl" }}
+        style={{ direction: "rtl", zIndex: 999999999 }}
+        baseZIndex={999999999}
       />
 
       {/* Styles for dashed moving road path and floating map */}
@@ -352,12 +391,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       `}</style>
 
       {/* Dynamic Header - Fixed at the top frame */}
-      <div className="flex-none pt-12 pb-2 flex justify-center items-center z-30 pointer-events-none select-none px-6">
-        <div className="text-center">
-          <h2 className="text-2xl md:text-3xl font-black text-indigo-900/40 uppercase tracking-[0.25em] text-center drop-shadow-sm font-sans mix-blend-multiply">
+      <div className="flex-none pt-8 pb-4 flex justify-center items-center z-30 pointer-events-none select-none px-4 mt-4">
+        <div className="text-center bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-950 px-6 py-3 rounded-[32px] shadow-xl border-4 border-white/30 backdrop-blur-md max-w-[90%]">
+          <h2 className="text-xl md:text-2xl font-black text-white px-2">
             {user.learningGoal}
           </h2>
-          <div className="w-16 h-1 bg-indigo-900/10 mx-auto mt-2 rounded-full"></div>
         </div>
       </div>
 
@@ -450,12 +488,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 style={{ left: xPercent, top: `${yPx}px` }}
               >
                 <div className="flex flex-col items-center relative">
-                  {/* Energy Ring Visualization */}
-                  {isUnlocked && (
-                    <div className="absolute top-[24px] left-1/2 -translate-x-1/2 -translate-y-1/2 z-0">
-                       <EnergyRing progress={energy} />
-                    </div>
-                  )}
+                  {/* EnergyRing removed */}
 
                   {/* Floating Sub-stations indicators */}
                   {isUnlocked && stationSubData.length > 0 && (
@@ -487,7 +520,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     id={`map-node-orb-${st.id}`}
                     whileHover={isUnlocked ? { scale: 1.12, y: -2 } : {}}
                     whileTap={isUnlocked ? { scale: 0.95 } : {}}
-                    className={`w-16 h-12 rounded-xl flex items-center justify-center cursor-pointer relative transition-all duration-300 border shadow-md rotate-[25deg]
+                    className={`w-24 h-20 rounded-3xl flex items-center justify-center cursor-pointer relative transition-all duration-300 border shadow-lg rotate-[25deg]
                             ${isActive ? "bg-gradient-to-br from-blue-600 to-indigo-800 border-blue-400 shadow-[0_0_25px_rgba(37,99,235,0.6)] scale-110 z-20" : ""}
                             ${isCompleted ? "bg-gradient-to-br from-emerald-500 to-teal-700 border-emerald-400" : ""}
                             ${!isActive && !isCompleted && isUnlocked ? "bg-gradient-to-br from-blue-500 to-blue-700 border-blue-300 shadow-blue-500/10" : ""}
@@ -522,21 +555,23 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     {/* Active Station Pulse Effect */}
                     {isActive && (
                       <>
-                        <span className="absolute -inset-[6px] rounded-xl bg-blue-500/40 z-10 pointer-events-none animate-ping opacity-75" />
-                        <span className="absolute -inset-[12px] rounded-xl bg-blue-400/20 z-10 pointer-events-none animate-pulse blur-md" />
-                        <span className="absolute -inset-[18px] rounded-xl bg-blue-300/10 z-10 pointer-events-none blur-lg" />
-                        <span className="absolute inset-0 rounded-xl bg-blue-600/20 animate-pulse z-0 pointer-events-none" />
+                        <span className="absolute -inset-[6px] rounded-2xl bg-blue-500/40 z-10 pointer-events-none animate-ping opacity-75" />
+                        <span className="absolute -inset-[12px] rounded-2xl bg-blue-400/20 z-10 pointer-events-none animate-pulse blur-md" />
+                        <span className="absolute -inset-[18px] rounded-2xl bg-blue-300/10 z-10 pointer-events-none blur-lg" />
+                        <span className="absolute inset-0 rounded-2xl bg-blue-600/20 animate-pulse z-0 pointer-events-none" />
                       </>
                     )}
 
                     {/* Station Icon or Lock overlay */}
                     {isUnlocked ? (
-                      <i 
-                        className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-xl select-none inline-block -rotate-[25deg] text-white filter drop-shadow-sm z-20`}
-                      ></i>
+                      <div className="flex items-center justify-center z-20">
+                        <i 
+                          className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-2xl select-none inline-block -rotate-[25deg] bg-gradient-to-b from-blue-50 to-blue-300 bg-clip-text text-transparent filter drop-shadow-md`}
+                        ></i>
+                      </div>
                     ) : (
                       <i
-                        className={`pi pi-lock text-2xl -rotate-[25deg] ${isNextLocked ? "text-blue-600" : "text-gray-400"} z-20`}
+                        className={`pi pi-lock text-3xl -rotate-[25deg] ${isNextLocked ? "text-blue-600" : "text-gray-400"} z-20`}
                       ></i>
                     )}
 
@@ -584,14 +619,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       <EvaluationSidebar 
         visible={evaluationSidebarVisible}
         onHide={() => setEvaluationSidebarVisible(false)}
+        stations={stations || []}
         mainTasks={tasks.filter(t => t.type === 'main')}
         sideTasks={tasks.filter(t => t.type === 'side')}
-        weeklyTasks={weeklyChallengeTasks}
-        onUpdateWeeklyTasks={(updated) => {
-          setWeeklyChallengeTasks(updated);
-          localStorage.setItem("weekly_challenge_tasks_aura", JSON.stringify(updated));
-        }}
+        subTasks={tasks.filter(t => t.type === 'sub')}
+        practicalSubStations={user?.subStations || {}}
         onRewardActivity={rewardActivity}
+        onCompleteTask={completeTask}
+        onCompletePracticalTask={completePracticalTask}
       />
 
       {/* FAB 1 - Gamification Engine Details */}
@@ -603,11 +638,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         createTabHeader={createTabHeader}
         gData={gData}
         buyKeys={buyKeys}
-        weeklyChallengeName={weeklyChallengeName}
-        weeklyChallengeRequired={weeklyChallengeRequired}
-        completedWeeklyTasks={completedWeeklyTasks}
-        totalWeeklyTasks={totalWeeklyTasks}
-        setWeeklyChallengeModalVisible={setWeeklyChallengeModalVisible}
+        activeStationEnergy={activeStationId ? stationEnergy[activeStationId] || 0 : 0}
       />
 
       {/* FAB 2 - Compass and Reflection Utilities Sidebar (Tabbed) */}
@@ -627,6 +658,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         stations={stations}
         unlockedStations={unlockedStations}
         stationEnergy={stationEnergy}
+        forceStationId={reflectionForceStationId}
       />
 
       {/* Detail Tasks Dialog for Selected Station */}
@@ -661,8 +693,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             const currentStationObj = stations.find((s) => s.id === selectedStation);
             return (
               <div className="flex flex-col items-center justify-center text-center py-6 px-4 bg-gradient-to-b from-blue-50/50 to-transparent border-b border-dashed border-slate-100 rounded-b-[32px] mb-6">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 via-indigo-700 to-indigo-900 flex items-center justify-center text-white text-3xl shadow-lg shadow-indigo-500/20 mb-3 transition-transform duration-500 hover:scale-110">
-                  <i className={`${currentStationObj?.icon && currentStationObj.icon.startsWith("pi ") ? currentStationObj.icon : "pi pi-flag-fill"} text-2xl`}></i>
+                <div className="w-16 h-16 rounded-full bg-white border-2 border-blue-100 flex items-center justify-center text-3xl shadow-lg shadow-indigo-500/10 mb-3 transition-transform duration-500 hover:scale-110">
+                  <i className={`${currentStationObj?.icon && currentStationObj.icon.startsWith("pi ") ? currentStationObj.icon : "pi pi-flag-fill"} text-3xl bg-gradient-to-br from-blue-500 to-indigo-600 bg-clip-text text-transparent`}></i>
                 </div>
                 <h2 className="text-2xl font-black text-blue-950 mb-2 leading-snug">
                   {currentStationObj?.name}
@@ -676,10 +708,93 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     لا يوجد وصف متوفر لهذه المحطة حالياً.
                   </p>
                 )}
-                {currentStationObj?.targetDate && (
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50/60 border border-blue-100 text-blue-700 rounded-full text-[10px] font-black shadow-xs">
-                    <i className="pi pi-calendar text-[9px]"></i>
-                    <span>التاريخ المقدر: {currentStationObj.targetDate}</span>
+                <div className="flex flex-wrap justify-center items-center gap-2 mt-1">
+                  {currentStationObj?.id && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-[10px] font-black shadow-xs">
+                      <i className="pi pi-bolt text-[9px]"></i>
+                      <span>بطارية المحطة: {stationEnergy[currentStationObj.id] || 0}%</span>
+                    </div>
+                  )}
+                  {currentStationObj?.targetDate && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50/60 border border-blue-100 text-blue-700 rounded-full text-[10px] font-black shadow-xs">
+                      <i className="pi pi-calendar text-[9px]"></i>
+                      <span>التاريخ المقدر: {currentStationObj.targetDate}</span>
+                    </div>
+                  )}
+                </div>
+                {(user?.dailyDuration || (Array.isArray(user?.learningDays) && user.learningDays.length > 0)) && (
+                  <div className="mt-3.5 flex flex-wrap gap-2 justify-center items-center relative z-40">
+                    {user?.dailyDuration ? (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50/80 border border-indigo-100 text-indigo-800 rounded-xl text-[10px] font-black">
+                        <i className="pi pi-clock text-[10px]"></i>
+                        <span>الهدف: {user.dailyDuration} دقيقة يوماً</span>
+                      </div>
+                    ) : null}
+                    {Array.isArray(user?.learningDays) && user.learningDays.length > 0 ? (
+                      <button 
+                        onClick={() => {
+                          const daysStr = user.learningDays.map((d: number) => ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][d]).join('، ');
+                          toast.current?.show({
+                            severity: 'info',
+                            summary: 'أيام التعلم المحددة 🗓️',
+                            detail: daysStr,
+                            life: 4000
+                          });
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-100 hover:border-indigo-200 text-indigo-800 transition-colors rounded-xl text-[10px] font-black cursor-pointer shadow-xs"
+                      >
+                        <i className="pi pi-calendar text-[10px]"></i>
+                        <span>أيام التعلم المحددة</span>
+                      </button>
+                    ) : null}
+
+                    {/* Inline Station Internal Actions */}
+                    <div className="flex gap-2 mr-1">
+                      <button
+                        title="مصادر التعلم"
+                        onClick={() => {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          setShowLinksPopup(true);
+                        }}
+                        className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-sm flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none"
+                      >
+                        <i className="pi pi-book text-xs"></i>
+                      </button>
+                      <button
+                        title="الخواطر"
+                        onClick={() => {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          setActiveNoteStationId(selectedStation!);
+                          setShowNotesPopup(true);
+                        }}
+                        className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-400 to-fuchsia-500 text-white shadow-sm flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none"
+                      >
+                        <i className="pi pi-pencil text-xs"></i>
+                      </button>
+                      <button
+                        title="تحليلات المحطة"
+                        onClick={() => {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          setReflectionForceStationId(selectedStation);
+                          setReflectionActiveTab(0); // 0 because analytics is first tab now in ReflectionSidebar
+                          setReflectionSidebar(true);
+                        }}
+                        className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none"
+                      >
+                        <i className="pi pi-chart-bar text-xs"></i>
+                      </button>
+                      <button
+                        title="وقعت اليوم؟"
+                        onClick={() => {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          setStumbleReason("");
+                          setShowStumbleForm(true);
+                        }}
+                        className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-400 to-red-500 text-white shadow-sm flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none"
+                      >
+                        <i className="pi pi-exclamation-triangle text-xs"></i>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -744,7 +859,21 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                 <div 
                                   onClick={(e) => {
                                     e.stopPropagation(); // Stop chevron toggle!
+                                    if (!parentTask.isCompleted && completedSubs < totalSubs) {
+                                      vibrate(HAPITCS.MAJOR_CLICK);
+                                      toast.current?.show({
+                                        severity: "warn",
+                                        summary: "أنجز الفرعيات أولاً ⚠️",
+                                        detail: "يرجى إكمال المهام الفرعية للرئيسية أولاً.",
+                                        life: 4000
+                                      });
+                                      return;
+                                    }
                                     toggleTask(parentTask.id, parentTask.isCompleted, parentTask.type);
+                                    if (!parentTask.isCompleted) {
+                                      vibrate(HAPITCS.MAJOR_CLICK);
+                                      setEvaluationSidebarVisible(true);
+                                    }
                                   }}
                                   className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300 cursor-pointer shrink-0 mt-0.5
                                     ${
@@ -763,22 +892,48 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                   <span
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      toggleTask(parentTask.id, parentTask.isCompleted, parentTask.type);
+                                      if (!parentTask.isCompleted && completedSubs < totalSubs) {
+                                        vibrate(HAPITCS.MAJOR_CLICK);
+                                        toast.current?.show({
+                                          severity: "warn",
+                                          summary: "أنجز الفرعيات أولاً ⚠️",
+                                          detail: "يرجى إكمال المهام الفرعية للرئيسية أولاً.",
+                                          life: 4000
+                                        });
+                                        return;
+                                      }
+                                      vibrate(HAPITCS.MAJOR_CLICK);
+                                      setEvaluationSidebarVisible(true);
                                     }}
                                     className={`font-black text-sm block leading-relaxed break-words cursor-pointer transition-all
                                       ${parentTask.isCompleted 
                                          ? "text-slate-400 line-through opacity-70" 
-                                         : "text-slate-800 hover:text-blue-900"
+                                         : "text-slate-800 hover:text-blue-900 underline decoration-blue-200/50"
                                       }`}
                                   >
-                                    {parentTask.title}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span>{parentTask.title}</span>
+                                      {parentTask.isCompleted && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openTaskAnalytics(parentTask);
+                                          }}
+                                          className="p-1 px-1.5 bg-indigo-50 border border-indigo-100/50 hover:bg-indigo-100 hover:border-indigo-200 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs"
+                                          title="عرض تحليلات المهمة"
+                                        >
+                                          <i className="pi pi-chart-bar text-[10px] font-black"></i>
+                                        </button>
+                                      )}
+                                    </div>
                                   </span>
 
                                   {/* Progress pill/badge for child items */}
                                   {hasChildren && (
                                     <div className="flex items-center gap-2 mt-1.5 justify-start">
                                       <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full transition-all ${completedSubs === totalSubs ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-blue-50 text-blue-600 border border-blue-100"}`}>
-                                        {completedSubs} من {totalSubs} مهام فرعية
+                                        {completedSubs === 0 ? `${totalSubs} مهام فرعية` : `${completedSubs} من ${totalSubs} مهام فرعية`}
                                       </span>
                                       
                                       {/* Miniature visual progress strip */}
@@ -825,7 +980,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                         return (
                                           <div 
                                             key={subTask.id}
-                                            onClick={() => toggleTask(subTask.id, subTask.isCompleted, subTask.type)}
+                                            onClick={() => {
+                                              toggleTask(subTask.id, subTask.isCompleted, subTask.type);
+                                              if (!subTask.isCompleted) {
+                                                vibrate(HAPITCS.MAJOR_CLICK);
+                                                setEvaluationSidebarVisible(true);
+                                              }
+                                            }}
                                             className="flex items-start gap-3 group/sub cursor-pointer relative py-1.5"
                                           >
                                             {/* Horizontal branches */}
@@ -850,10 +1011,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                               className={`font-semibold text-xs leading-relaxed break-words cursor-pointer transition-all flex-1 text-right py-0.5
                                                 ${subTask.isCompleted 
                                                    ? "text-slate-400 line-through opacity-75" 
-                                                   : "text-slate-600 group-hover/sub:text-indigo-950"
+                                                   : "text-slate-600 group-hover/sub:text-indigo-950 underline decoration-indigo-200/30"
                                                 }`}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                vibrate(HAPITCS.MAJOR_CLICK);
+                                                setEvaluationSidebarVisible(true);
+                                              }}
                                             >
-                                              {subTask.title}
+                                              <div className="flex items-center gap-2 flex-wrap justify-start"><span>{subTask.title}</span>{subTask.isCompleted && (<button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(subTask); }} className="p-1 bg-indigo-50/75 border border-indigo-100/30 hover:bg-indigo-100/90 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button>)}</div>
                                             </span>
                                           </div>
                                         );
@@ -906,8 +1072,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   {filteredSideTasks.map((t) => (
                     <div
                       key={t.id}
-                      onClick={() => toggleTask(t.id, t.isCompleted, t.type)}
-                      className={`flex items-center gap-4 p-5 rounded-[24px] border cursor-pointer transition-all active:scale-[0.98]
+                      className={`flex items-center gap-4 p-5 rounded-[24px] border transition-all active:scale-[0.98]
                            ${
                              t.isCompleted
                                ? "bg-amber-50/40 border-amber-100 shadow-xs"
@@ -916,11 +1081,18 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                          `}
                     >
                       <div
-                        className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-300
+                        onClick={() => {
+                          toggleTask(t.id, t.isCompleted, t.type);
+                          if (!t.isCompleted) {
+                            vibrate(HAPITCS.MAJOR_CLICK);
+                            setEvaluationSidebarVisible(true);
+                          }
+                        }}
+                        className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-300 cursor-pointer
                             ${
                               t.isCompleted
                                 ? "bg-amber-500 border-amber-500 text-white"
-                                : "border-amber-100 bg-white"
+                                : "border-amber-100 bg-white hover:border-amber-300"
                             }
                           `}
                       >
@@ -929,10 +1101,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         )}
                       </div>
                       <span
-                        className={`font-black text-sm transition-all
-                             ${t.isCompleted ? "text-amber-800 line-through opacity-65" : "text-blue-950"}`}
+                        onClick={() => {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          setEvaluationSidebarVisible(true);
+                        }}
+                        className={`font-black text-sm transition-all cursor-pointer flex-1 text-right
+                             ${t.isCompleted ? "text-amber-800 line-through opacity-65" : "text-blue-950 hover:text-amber-700 underline decoration-amber-200/40"}`}
                       >
-                        {t.title}
+                        <div className="flex items-center gap-2 flex-wrap"><span>{t.title}</span>{t.isCompleted && (<button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(t); }} className="p-1 px-1.5 bg-amber-50 border border-amber-100/50 hover:bg-amber-100 hover:border-amber-200 text-amber-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[10px] font-black"></i></button>)}</div>
                       </span>
                     </div>
                   ))}
@@ -1014,14 +1190,26 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         {sub.tasks.map((stTask) => (
                           <div key={stTask.id} className="bg-white border border-slate-100 rounded-[28px] p-5 shadow-xs hover:shadow-md transition-all active:scale-[0.99]">
                             <div 
-                              className="flex items-center gap-4 cursor-pointer"
-                              onClick={() => toggleSubStationTask(selectedStation!, sIdx, stTask.id)}
+                              className="flex items-center gap-4"
                             >
-                              <div className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all ${stTask.isCompleted ? 'bg-indigo-600 border-indigo-600 shadow-md shadow-indigo-600/20' : 'border-indigo-100 bg-slate-50'}`}>
+                              <div 
+                                onClick={() => {
+                                  toggleSubStationTask(selectedStation!, sIdx, stTask.id);
+                                  if (!stTask.isCompleted) {
+                                    vibrate(HAPITCS.MAJOR_CLICK);
+                                    setEvaluationSidebarVisible(true);
+                                  }
+                                }}
+                                className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all cursor-pointer ${stTask.isCompleted ? 'bg-indigo-600 border-indigo-600 shadow-md shadow-indigo-600/20' : 'border-indigo-100 bg-slate-50 hover:border-indigo-300'}`}>
                                 {stTask.isCompleted && <i className="pi pi-check text-[10px] text-white font-black"></i>}
                               </div>
-                              <span className={`font-black text-sm ${stTask.isCompleted ? 'text-slate-400 line-through opacity-60' : 'text-blue-950'}`}>
-                                {stTask.title}
+                              <span 
+                                onClick={() => {
+                                  vibrate(HAPITCS.MAJOR_CLICK);
+                                  setEvaluationSidebarVisible(true);
+                                }}
+                                className={`font-black text-sm cursor-pointer flex-1 text-right ${stTask.isCompleted ? 'text-slate-400 line-through opacity-60' : 'text-blue-950 hover:text-indigo-800 underline decoration-indigo-200/50'}`}>
+                                <div className="flex items-center gap-2 flex-wrap"><span>{stTask.title}</span>{stTask.isCompleted && (<button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(stTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-150 hover:border-indigo-300 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[10px] font-black"></i></button>)}</div>
                               </span>
                             </div>
                             
@@ -1030,14 +1218,26 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                 {stTask.subTasks.map(inner => (
                                   <div 
                                     key={inner.id} 
-                                    className="flex items-center gap-3 cursor-pointer group"
-                                    onClick={() => toggleSubStationInnerTask(selectedStation!, sIdx, stTask.id, inner.id)}
+                                    className="flex items-center gap-3 group"
                                   >
-                                    <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${inner.isCompleted ? 'bg-indigo-400 border-indigo-400' : 'border-indigo-100 bg-white group-hover:border-indigo-200'}`}>
+                                    <div 
+                                      onClick={() => {
+                                        toggleSubStationInnerTask(selectedStation!, sIdx, stTask.id, inner.id);
+                                        if (!inner.isCompleted) {
+                                          vibrate(HAPITCS.MAJOR_CLICK);
+                                          setEvaluationSidebarVisible(true);
+                                        }
+                                      }}
+                                      className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer ${inner.isCompleted ? 'bg-indigo-400 border-indigo-400' : 'border-indigo-100 bg-white hover:border-indigo-300 group-hover:border-indigo-200'}`}>
                                       {inner.isCompleted && <i className="pi pi-check text-[8px] text-white font-black"></i>}
                                     </div>
-                                    <span className={`text-xs font-bold ${inner.isCompleted ? 'text-slate-300 line-through' : 'text-slate-600'}`}>
-                                      {inner.title}
+                                    <span 
+                                      onClick={() => {
+                                        vibrate(HAPITCS.MAJOR_CLICK);
+                                        setEvaluationSidebarVisible(true);
+                                      }}
+                                      className={`text-xs font-bold cursor-pointer flex-1 text-right ${inner.isCompleted ? 'text-slate-300 line-through' : 'text-slate-600 hover:text-indigo-900 underline decoration-indigo-200/30'}`}>
+                                      <div className="flex items-center gap-2 flex-wrap justify-start"><span>{inner.title}</span>{inner.isCompleted && (<button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(inner); }} className="p-1 bg-indigo-50/70 border border-indigo-100/30 hover:bg-indigo-100/80 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button>)}</div>
                                     </span>
                                   </div>
                                 ))}
@@ -1067,103 +1267,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               </motion.div>
             </TabPanel>
 
-            <TabPanel headerTemplate={createTabHeader("pi-pencil", "الخواطر")}>
-               <motion.div 
-                 initial={{ opacity: 0, x: 20 }}
-                 animate={{ opacity: 1, x: 0 }}
-                 exit={{ opacity: 0, x: -20 }}
-                 transition={{ duration: 0.3, ease: "easeOut" }}
-                 className="pt-4 px-1 space-y-6"
-               >
-                  <div className="bg-blue-50/50 border border-blue-100 rounded-[32px] p-6 space-y-4">
-                     <h4 className="font-black text-blue-900 text-sm flex items-center gap-2">
-                        <i className="pi pi-pencil"></i> تدوين خاطرة لهذه المحطة:
-                     </h4>
-                     <div className="relative group">
-                        <textarea
-                           className="w-full h-24 p-5 bg-white border border-blue-100 rounded-[28px] outline-none focus:ring-2 ring-blue-600/10 font-bold text-sm text-blue-950 resize-none transition-all placeholder:text-slate-300"
-                           placeholder="ما هي أبرز استنتاجاتك من هذا الدرس؟"
-                           value={noteText}
-                           onChange={(e) => {
-                              setNoteText(e.target.value);
-                              setActiveNoteStationId(selectedStation!);
-                           }}
-                        />
-                        <button 
-                           onClick={saveJournalNote}
-                           disabled={!noteText.trim()}
-                           className="absolute bottom-4 left-4 w-10 h-10 rounded-full bg-blue-900 text-white flex items-center justify-center shadow-lg shadow-blue-900/30 hover:bg-blue-950 transition-all disabled:opacity-20 cursor-pointer border-none"
-                        >
-                           <i className="pi pi-plus text-xs"></i>
-                        </button>
-                     </div>
-                  </div>
-
-                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1 no-scrollbar pb-10">
-                     {Array.isArray(user.notes?.[selectedStation!]) && [...user.notes[selectedStation!]].reverse().map((note: any, idx: number) => {
-                        const originalIdx = user.notes[selectedStation!].length - 1 - idx;
-                        const isEditing = editingNote?.index === originalIdx;
-                        
-                        return (
-                          <div key={idx} className="bg-white border border-slate-100 rounded-[28px] p-5 relative group hover:shadow-md transition-all">
-                             {isEditing ? (
-                                <div className="space-y-3">
-                                   <textarea 
-                                      className="w-full bg-blue-50/30 border-2 border-blue-100 rounded-2xl p-4 text-xs font-bold text-blue-950 outline-none focus:border-blue-400 min-h-[100px] resize-none"
-                                      value={editingNote.text}
-                                      onChange={(e) => setEditingNote({ ...editingNote, text: e.target.value })}
-                                      autoFocus
-                                   />
-                                   <div className="flex justify-end gap-2">
-                                      <button 
-                                         onClick={cancelEditingNote}
-                                         className="px-4 py-2 rounded-xl bg-slate-50 text-slate-400 text-[10px] font-black border-none cursor-pointer hover:bg-slate-100"
-                                      >إلغاء</button>
-                                      <button 
-                                         onClick={() => updateJournalNote(selectedStation!)}
-                                         className="px-4 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black border-none cursor-pointer hover:bg-blue-700 shadow-md shadow-blue-600/20"
-                                      >حفظ التغيير</button>
-                                   </div>
-                                </div>
-                             ) : (
-                                <>
-                                   <div className="flex justify-between items-center mb-3">
-                                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
-                                         {new Date(note.date).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' })}
-                                         {note.updatedAt && <span className="text-blue-300 text-[8px]">(معدل)</span>}
-                                      </span>
-                                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                         <button 
-                                            onClick={() => startEditingNote(originalIdx, note.text)}
-                                            className="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 hover:text-blue-600 rounded-full border-none cursor-pointer transition-colors"
-                                         >
-                                            <i className="pi pi-pencil text-[10px]"></i>
-                                         </button>
-                                         <button 
-                                            onClick={() => deleteJournalNote(selectedStation!, originalIdx)}
-                                            className="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-300 hover:text-rose-500 rounded-full border-none cursor-pointer transition-colors"
-                                         >
-                                            <i className="pi pi-trash text-[10px]"></i>
-                                         </button>
-                                      </div>
-                                   </div>
-                                   <p className="text-sm font-bold text-blue-950 leading-relaxed italic pr-2 border-r-4 border-blue-50/50">
-                                      "{note.text}"
-                                   </p>
-                                </>
-                             )}
-                          </div>
-                        );
-                     })}
-                     {(!user.notes?.[selectedStation!] || user.notes[selectedStation!].length === 0) && (
-                        <div className="py-12 bg-slate-50 border border-dashed border-slate-200 rounded-[32px] text-center">
-                           <i className="pi pi-book text-4xl text-slate-100 mb-3 block"></i>
-                           <p className="text-xs text-slate-300 font-bold italic">لم تدون أية خواطر بعد لهذه المحطة.</p>
-                        </div>
-                     )}
-                  </div>
-               </motion.div>
-            </TabPanel>
           </TabView>
           
               <div className="pt-8 px-1 pb-6">
@@ -1173,9 +1276,57 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   onClick={() => setSelectedStation(null)}
                 />
               </div>
+
             </motion.div>
           )}
         </AnimatePresence>
+      </Dialog>
+
+      {/* Stumble Report Dialog */}
+      <Dialog
+        visible={showStumbleForm}
+        onHide={() => setShowStumbleForm(false)}
+        baseZIndex={30000}
+        header={
+          <div className="flex items-center gap-3 text-red-950 font-black pr-4 text-xl font-sans" dir="rtl">
+            <i className="pi pi-exclamation-triangle text-rose-600 border-2 border-rose-950/10 p-1.5 rounded-lg"></i>
+            <span className="font-black text-rose-950 tracking-tight">تسجيل تعثر ⚠️</span>
+          </div>
+        }
+        className="w-[94vw] max-w-md font-sans !rounded-[40px] overflow-hidden topmost-dialog"
+        closable
+        dismissableMask
+        maskClassName="backdrop-blur-sm bg-rose-950/10 topmost-mask"
+      >
+        <div className="space-y-4 pt-2 text-right font-sans" dir="rtl">
+          <p className="text-xs text-slate-500 font-bold leading-relaxed">
+            دون سبب عدم التزامك اليوم بصراحة، هذا يحمي تتابع استمرارك (الـ Streak) من الانكسار ريثما تعود بقوة غداً!
+          </p>
+          <div className="space-y-1.5">
+            <label className="text-xs text-rose-950 font-black">سبب التعثر الرئيسي اليوم؟</label>
+            <textarea
+              className="w-full h-24 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-rose-600/10 font-bold text-xs text-slate-800 resize-none transition-all placeholder:text-slate-300"
+              placeholder="مثال: ضيق الوقت، كسل مؤقت، كثرة الملهيات..."
+              value={stumbleReason}
+              onChange={(e) => setStumbleReason(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveStumble}
+              disabled={!stumbleReason.trim()}
+              className="flex-1 py-3 bg-rose-600 text-white rounded-xl text-xs font-black shadow-md hover:bg-rose-700 disabled:opacity-30 cursor-pointer transition-all border-none"
+            >
+              حفظ وتأمين السلسلة
+            </button>
+            <button
+              onClick={() => setShowStumbleForm(false)}
+              className="px-4 py-3 bg-slate-100 text-slate-500 rounded-xl text-xs font-black hover:bg-slate-200 cursor-pointer transition-all border-none"
+            >
+              إلغاء
+            </button>
+          </div>
+        </div>
       </Dialog>
 
       {/* Celebratory Unlocked Time Capsule Modal Overlay */}
@@ -1340,6 +1491,165 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 <p className="text-[10px] text-center text-rose-500 font-bold">يجب إنهاء المحطة السابقة بالكامل أولاً.</p>
               )}
             </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Dialog>
+
+      {/* Learning Resources Popup Dialog */}
+      <Dialog
+        visible={showLinksPopup}
+        onHide={() => setShowLinksPopup(false)}
+        header={
+          <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
+            <i className="pi pi-book text-blue-600 border-2 border-blue-950/10 p-1.5 rounded-lg"></i>
+            <span className="font-black text-blue-950 tracking-tight">مصادر التعلم 📚</span>
+          </div>
+        }
+        className="w-[98vw] max-w-2xl font-sans text-xl topmost-dialog"
+        closable
+        dismissableMask
+        baseZIndex={30000}
+        maskClassName="topmost-mask"
+      >
+        <AnimatePresence>
+          {showLinksPopup && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.7, y: 40 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.7, y: 40 }}
+              transition={{ type: "spring", damping: 20, stiffness: 350 }}
+              className="space-y-6 pt-4 text-right font-sans" 
+              dir="rtl"
+            >
+              <p className="text-slate-400 font-medium text-xs -mt-2 leading-relaxed">
+                الروابط والمصادر التي تعينك على التعلم في هذه الرحلة.
+              </p>
+
+              <div className="bg-slate-50 border border-slate-100 p-4 rounded-3xl space-y-3">
+                <h4 className="text-xs font-black text-slate-800">إضافة مصدر جديد</h4>
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    value={newResourceName}
+                    onChange={(e) => setNewResourceName(e.target.value)}
+                    placeholder="اسم الموقع أو المصدر (مثال: توثيق ريآكت)"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all"
+                  />
+                  <input
+                    type="url"
+                    value={newResourceUrl}
+                    onChange={(e) => setNewResourceUrl(e.target.value)}
+                    placeholder="رابط الموقع (https://...)"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all text-left"
+                    dir="ltr"
+                  />
+                  <Button
+                    label="إضافة المصدر"
+                    icon="pi pi-plus"
+                    className="w-full bg-blue-600 text-white rounded-xl py-3 text-xs font-black border-none hover:bg-blue-700 transition-all mt-1"
+                    disabled={!newResourceName.trim() || !newResourceUrl.trim()}
+                    onClick={async () => {
+                      if (!newResourceName.trim() || !newResourceUrl.trim()) return;
+                      try {
+                        const r = { name: newResourceName.trim(), url: newResourceUrl.trim() };
+                        const updatedResources = [...(user.resources || []), r];
+                        await db.userSettings.update(user.id, { resources: updatedResources });
+                        setNewResourceName("");
+                        setNewResourceUrl("");
+                        toast.current?.show({
+                          severity: "success",
+                          summary: "نجاح",
+                          detail: "تمت إضافة المصدر بنجاح",
+                          life: 3000
+                        });
+                      } catch (err) {
+                        toast.current?.show({
+                          severity: "error",
+                          summary: "خطأ",
+                          detail: "لم نتمكن من حفظ المصدر",
+                          life: 3000
+                        });
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1 no-scrollbar pb-4">
+                {(!user.attachments?.length && !user.resources?.length) ? (
+                  <div className="py-16 bg-slate-50 border border-dashed border-slate-200 rounded-[40px] text-center">
+                    <i className="pi pi-link text-4xl text-slate-100 mb-4 block"></i>
+                    <p className="text-sm text-slate-400 font-bold italic">لا توجد مصادر مضافة بعد.</p>
+                  </div>
+                ) : (
+                  <>
+                    {(user.resources || []).map((res: any, idx: number) => (
+                      <motion.div
+                        key={`res-${idx}`}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-blue-400 hover:shadow-lg transition-all group"
+                      >
+                        <a href={res.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 flex-1 overflow-hidden min-w-0">
+                          <div className="w-12 h-12 shrink-0 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <i className="pi pi-external-link text-xl"></i>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-blue-950 truncate mb-1">
+                              {res.name}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-bold tracking-widest truncate" dir="ltr">
+                              {res.url.replace(/https?:\/\/(www\.)?/, '')}
+                            </p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={async () => {
+                            const updated = (user.resources || []).filter((_: any, i: number) => i !== idx);
+                            await db.userSettings.update(user.id, { resources: updated });
+                          }}
+                          className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-colors mr-2 cursor-pointer"
+                        >
+                          <i className="pi pi-trash"></i>
+                        </button>
+                      </motion.div>
+                    ))}
+                    {(user.attachments || []).map((url: string, idx: number) => (
+                      <motion.a
+                        key={`att-${idx}`}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-3xl hover:border-blue-400 hover:shadow-lg transition-all group"
+                      >
+                        <div className="w-12 h-12 shrink-0 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <i className="pi pi-link text-xl"></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-blue-950 truncate mb-1" dir="ltr">
+                            {url.replace(/https?:\/\/(www\.)?/, '')}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            رابط المرفقات الأولي
+                          </p>
+                        </div>
+                        <i className="pi pi-chevron-left text-slate-200 group-hover:text-blue-400 transition-colors"></i>
+                      </motion.a>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              <div className="pt-4">
+                <Button
+                  label="إغلاق"
+                  className="w-full bg-slate-100 text-slate-500 rounded-2xl py-4 font-black border-none hover:bg-slate-200 transition-all cursor-pointer"
+                  onClick={() => setShowLinksPopup(false)}
+                />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -1662,6 +1972,149 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         </AnimatePresence>
       </Dialog>
 
+      {/* Task Analytics Dialog */}
+      <Dialog
+        visible={!!selectedTaskForAnalytics}
+        onHide={() => {
+          setSelectedTaskForAnalytics(null);
+          setTaskReflectionData(null);
+        }}
+        header={
+          <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
+            <i className="pi pi-chart-line text-indigo-600 border-2 border-indigo-950/10 p-1.5 rounded-lg"></i>
+            <span className="font-black text-blue-950 tracking-tight">تحليلات وإنجازات المهمة 📊</span>
+          </div>
+        }
+        className="w-[98vw] max-w-2xl font-sans"
+        closable
+        dismissableMask
+        maskClassName="backdrop-blur-md bg-blue-950/20"
+      >
+        <AnimatePresence>
+          {selectedTaskForAnalytics && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
+              transition={{ type: "spring", damping: 20, stiffness: 350 }}
+              className="space-y-6 pt-2 text-right font-sans"
+              dir="rtl"
+            >
+              <div className="border bg-slate-50/50 border-slate-100 p-4 rounded-2xl flex flex-col justify-between items-start gap-2">
+                <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 font-extrabold px-2.5 py-1 rounded-full uppercase">المهمة المنجزة</span>
+                <h3 className="font-black text-blue-950 text-base leading-snug">{selectedTaskForAnalytics.title}</h3>
+              </div>
+
+              {taskReflectionData ? (
+                <div className="space-y-5">
+                  {/* Focus & Mastery metrics row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Focus metric */}
+                    <div className="bg-gradient-to-br from-indigo-50/70 to-blue-50/50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center justify-center text-center">
+                      <p className="text-[10px] text-indigo-950/70 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                        <Brain className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> تركيزك أثناء المهمة:
+                      </p>
+                      <div className="text-3xl font-black text-indigo-700 font-mono">
+                        {taskReflectionData.focus} <span className="text-xs font-bold text-indigo-400">/ 5</span>
+                      </div>
+                      <div className="flex gap-1 mt-2.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <div
+                            key={s}
+                            className={`w-2.5 h-2.5 rounded-full ${
+                              s <= taskReflectionData.focus ? "bg-indigo-600" : "bg-indigo-100"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Mastery metric */}
+                    <div className="bg-gradient-to-br from-amber-50/70 to-yellow-50/50 p-4 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center">
+                      <p className="text-[10px] text-amber-950/75 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                        <Trophy className="w-3.5 h-3.5 text-amber-600" /> مستوى الإتقان والفهم:
+                      </p>
+                      <div className="text-3xl font-black text-amber-700 font-mono">
+                        {taskReflectionData.mastery} <span className="text-xs font-bold text-amber-400">/ 10</span>
+                      </div>
+                      <div className="w-32 h-2 bg-amber-200/50 rounded-full overflow-hidden mt-3 p-0.5">
+                        <div
+                          className="h-full bg-amber-600 rounded-full"
+                          style={{ width: `${(taskReflectionData.mastery / 10) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Date Badge */}
+                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 text-slate-500 rounded-xl w-fit text-[11px] font-bold border border-slate-100">
+                    <i className="pi pi-calendar text-[11px] text-slate-400"></i>
+                    <span>تاريخ تسجيل الإنجاز: {new Date(taskReflectionData.createdAt).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  </div>
+
+                  {/* Strengths & Weaknesses */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Strengths */}
+                    <div className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 flex flex-col gap-1.5">
+                      <p className="text-[10px] text-emerald-800 font-black tracking-widest uppercase flex items-center gap-1.5">
+                        <span className="text-emerald-500">💪</span> نقاط القوة المسجلة:
+                      </p>
+                      <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-emerald-50/30 font-medium leading-relaxed">
+                        {taskReflectionData.strengths || "لم يتم تدوين نقاط قوة معينة."}
+                      </p>
+                    </div>
+
+                    {/* Weaknesses */}
+                    <div className="bg-rose-50/30 p-4 rounded-2xl border border-rose-100 flex flex-col gap-1.5">
+                      <p className="text-[10px] text-rose-800 font-black tracking-widest uppercase flex items-center gap-1.5">
+                        <span className="text-rose-500">🧨</span> مجالات التحسين (الضعف):
+                      </p>
+                      <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-rose-50/30 font-medium leading-relaxed">
+                        {taskReflectionData.weaknesses || "لم يتم تدوين مجالات تحسين معينة."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Key Learnings */}
+                  <div className="bg-blue-50/30 p-5 rounded-2xl border border-blue-100/60 flex flex-col gap-2">
+                    <p className="text-[11px] text-blue-900 font-black tracking-widest uppercase flex items-center gap-2">
+                      <Lightbulb className="w-4 h-4 text-amber-500" /> أهم الخلاصات والأفكار المسجلة:
+                    </p>
+                    <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-blue-50/60 leading-relaxed font-bold">
+                      {taskReflectionData.learnings || "لم تنشأ خلاصات مدونة."}
+                    </p>
+                  </div>
+
+                  {/* Practical aspect */}
+                  {taskReflectionData.didPractical && (
+                    <div className="bg-teal-50/30 p-5 rounded-2xl border border-teal-100 flex flex-col gap-2">
+                      <p className="text-[11px] text-teal-900/80 font-black tracking-widest uppercase flex items-center gap-2">
+                        <i className="pi pi-verified text-teal-600 text-xs"></i> التطبيق العملي والعوائق:
+                      </p>
+                      <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-teal-50 font-medium leading-relaxed">
+                        {taskReflectionData.practicalIssues || "تم تفعيل وتطبيق المعرفة بسلاسة ودون مشاكل تقنية."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-10 px-6 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shadow-3xs">
+                    <i className="pi pi-check text-2xl font-black"></i>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-blue-950 mb-1">المهمة مكتملة بنجاح! 🚀</h4>
+                    <p className="text-xs text-slate-400 font-bold max-w-md mx-auto leading-relaxed">
+                      هذا النشاط مسجل كمكتمل في سجلاتك. لم تدوّن حالتها ضمن البوصلة أو التقييمات التفصيلية للمهارات حتى الآن، لكن تقدمك المتتالي سليم وتأثيرها محتسب في نقاط خبرتك العام.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Dialog>
+
       {/* Compass Popup Dialog */}
       <Dialog
         visible={showCompassPopup}
@@ -1718,159 +2171,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   </p>
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </Dialog>
-
-      {/* Weekly Challenge Popup Dialog */}
-      <Dialog
-        visible={weeklyChallengeModalVisible}
-        onHide={() => setWeeklyChallengeModalVisible(false)}
-        header={
-          <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
-            <i className="pi pi-trophy text-amber-500 border-2 border-amber-950/10 p-1.5 rounded-lg"></i>
-            <span className="font-black text-blue-950 tracking-tight">{weeklyChallengeName} 🏆</span>
-          </div>
-        }
-        className="w-[98vw] max-w-4xl font-sans text-xl"
-        closable
-        dismissableMask
-      >
-        <AnimatePresence>
-          {weeklyChallengeModalVisible && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.7, y: 40 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.7, y: 40 }}
-              transition={{ type: "spring", damping: 20, stiffness: 350 }}
-              className="space-y-6 pt-4 text-right font-sans" 
-              dir="rtl"
-            >
-              <div className="bg-gradient-to-br from-indigo-50/70 to-purple-50/50 p-5 rounded-3xl border border-indigo-100/30 text-right">
-                <h4 className="text-base font-black text-indigo-950 mb-1 flex items-center gap-2">
-                  <i className="pi pi-compass text-indigo-600"></i>
-                  <span>{weeklyChallengeName}</span>
-                </h4>
-                <p className="text-xs text-slate-500 font-bold leading-relaxed mb-4">
-                  {weeklyChallengeRequired}
-                </p>
-
-                {/* Quick Task Add with Plus Icon inside the Modal */}
-                <div className="bg-white/80 p-3.5 rounded-2xl border border-indigo-100/20 space-y-2">
-                      <label className="text-sm font-black text-indigo-950 uppercase block">
-                        أضف تحديات ومهام جديدة ➕:
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          className="flex-1 p-3 bg-white border border-slate-300 rounded-xl outline-none text-base font-medium text-indigo-950 focus:border-indigo-500 transition-all font-sans"
-                          value={newWeeklyTaskTitle}
-                          onChange={(e) => setNewWeeklyTaskTitle(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') addWeeklyChallengeTask(); }}
-                          placeholder="اكتب تحدي أو مهمة جديدة هنا..."
-                          dir="rtl"
-                        />
-                        <button
-                          type="button"
-                          onClick={addWeeklyChallengeTask}
-                          className="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center border-none shadow-sm hover:bg-indigo-700 active:scale-95 transition-all cursor-pointer"
-                          title="إضافة"
-                        >
-                          <i className="pi pi-plus text-lg font-bold"></i>
-                        </button>
-                      </div>
-                </div>
-              </div>
-
-              <div>
-                <h5 className="font-black text-sm text-blue-950 mb-3 flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <i className="pi pi-list text-blue-600 text-xs"></i>
-                    <span>مهام وتحديات:</span>
-                  </span>
-                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-                    {completedWeeklyTasks} / {totalWeeklyTasks}
-                  </span>
-                </h5>
-
-                {weeklyChallengeTasks.length === 0 ? (
-                  <div className="p-6 bg-slate-50 rounded-2xl text-center text-slate-400 text-xs border border-dashed">
-                    ⚠️ أضف تحدياتك وابدأ فوراً.
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1 no-scrollbar">
-                    {weeklyChallengeTasks.map((t) => (
-                      <div 
-                        key={t.id} 
-                        onClick={() => {
-                          toggleWeeklyChallengeTask(t.id);
-                        }}
-                        className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer group ${
-                          t.isCompleted 
-                            ? "bg-emerald-50/40 border-emerald-100/50" 
-                            : "bg-white border-slate-100 hover:border-indigo-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 flex-1 overflow-hidden">
-                          <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${
-                            t.isCompleted 
-                              ? "bg-emerald-500 border-emerald-500 text-white" 
-                              : "border-slate-300 bg-white"
-                          }`}>
-                            {t.isCompleted && <i className="pi pi-check text-[10px] font-bold"></i>}
-                          </div>
-                          <span className={`text-[12px] font-bold leading-tight flex-1 truncate ${
-                            t.isCompleted ? "text-slate-400 line-through" : "text-slate-700"
-                          }`}>
-                            {t.title}
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={(e) => deleteWeeklyChallengeTask(t.id, e)}
-                          className="p-1 px-2.5 rounded-lg text-[10px] text-red-400 font-bold hover:text-red-600 hover:bg-rose-50 border-none transition-colors cursor-pointer"
-                          title="حذف المهمة"
-                        >
-                          حذف 🗑️
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="p-5 bg-indigo-50/50 border border-indigo-100/20 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">🎁</span>
-                  <div>
-                    <h6 className="font-black text-indigo-950 text-xs">مكافأة إتمام التحدي المخصص</h6>
-                    <p className="text-[10px] text-indigo-500/80 mt-0.5">نقاط خبرة ثابتة عند إنجاز كافة المهام المخصصة</p>
-                  </div>
-                </div>
-                <span className="text-lg font-black text-indigo-950 bg-white px-4 py-1.5 rounded-xl border border-indigo-50 shadow-xs">30 XP ثابتة</span>
-              </div>
-
-              {weeklyClaimed ? (
-                <div className="p-4 bg-emerald-50 text-emerald-800 rounded-2xl font-bold text-center border border-emerald-100 flex items-center justify-center gap-2">
-                  <i className="pi pi-verified text-lg"></i>
-                  <span>✓ تمت المطالبة بالجائزة واستلام 30 XP بنجاح!</span>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Button
-                    label={isAllWeeklyTasksCompleted ? "المطالبة بالمكافأة واستلام 30 XP 🎁" : `أكمل كافة المهام للمطالبة بالجائزة (${completedWeeklyTasks}/${totalWeeklyTasks}) ⏳`}
-                    disabled={!isAllWeeklyTasksCompleted}
-                    onClick={claimWeeklyReward}
-                    className={`w-full justify-center p-4 rounded-2xl font-black text-sm border-none shadow-md transition-all cursor-pointer ${
-                      isAllWeeklyTasksCompleted 
-                        ? "bg-gradient-to-r from-emerald-600 top-teal-700 text-white hover:brightness-110 active:scale-98" 
-                        : "bg-slate-100 text-slate-400"
-                    }`}
-                  />
-                </div>
-              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -2087,140 +2387,41 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       
       {/* Zoom Controls code block completely removed */}
 
-      {/* PrimeReact Semi-circle SpeedDial Action Menu - 4 Combined Buttons */}
+      {/* Main Map Side Actions (Compass & Rewards) */}
       <motion.div 
-        initial={{ y: 100, opacity: 0, scale: 0.9 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        transition={{ duration: 0.7, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 pointer-events-auto flex items-end justify-center w-20 h-20"
+        initial={{ x: -50, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.7, delay: 0.4 }}
+        className="fixed bottom-10 left-[30%] z-40 pointer-events-auto"
       >
-        <SpeedDial 
-          visible={dialVisible}
-          onVisibleChange={(v) => {
+        <button
+          onClick={() => {
             vibrate(HAPITCS.MAJOR_CLICK);
-            setDialVisible(v);
+            setShowCompassPopup(true);
           }}
-          model={[
-            {
-              label: 'سجل التقييم 📝',
-              command: () => {
-                vibrate(HAPITCS.MAJOR_CLICK);
-                setEvaluationSidebarVisible(true);
-                setDialVisible(false);
-              },
-              template: (item: any, options: any) => (
-                <div className="relative flex items-center justify-center w-14 h-14 cursor-pointer group" onClick={(e) => options.onClick(e)}>
-                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-max text-[11px] font-black bg-slate-900/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 pointer-events-none border border-white/10 z-50">
-                    {item.label}
-                  </div>
-                  <div className="w-full h-full rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-800 text-white shadow-xl flex items-center justify-center group-hover:scale-110 active:scale-95 transition-all text-xl border-2 border-white/40 ring-4 ring-indigo-500/10">
-                    <i className="pi pi-list"></i>
-                  </div>
-                </div>
-              )
-            },
-            {
-              label: 'بوصلة الوضوح 🧭',
-              command: () => {
-                vibrate(HAPITCS.MAJOR_CLICK);
-                setShowCompassPopup(true);
-                setDialVisible(false);
-              },
-              template: (item: any, options: any) => (
-                <div className="relative flex items-center justify-center w-14 h-14 cursor-pointer group" onClick={(e) => options.onClick(e)}>
-                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-max text-[11px] font-black bg-slate-900/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 pointer-events-none border border-white/10 z-50">
-                    {item.label}
-                  </div>
-                  <div className="w-full h-full rounded-2xl bg-gradient-to-br from-purple-500 to-violet-700 text-white shadow-xl flex items-center justify-center group-hover:scale-110 active:scale-95 transition-all text-xl border-2 border-white/40 ring-4 ring-purple-500/10">
-                    <i className="pi pi-compass"></i>
-                  </div>
-                </div>
-              )
-            },
-            {
-              label: 'المحرك والجوائز 🏆',
-              command: () => {
-                vibrate(HAPITCS.MAJOR_CLICK);
-                setGamificationSidebar(true);
-                setDialVisible(false);
-              },
-              template: (item: any, options: any) => (
-                <div className="relative flex items-center justify-center w-14 h-14 cursor-pointer group" onClick={(e) => options.onClick(e)}>
-                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-max text-[11px] font-black bg-slate-900/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 pointer-events-none border border-white/10 z-50">
-                    {item.label}
-                  </div>
-                  <div className="w-full h-full rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xl flex items-center justify-center group-hover:scale-110 active:scale-95 transition-all text-xl border-2 border-white/40 ring-4 ring-orange-500/10">
-                    <i className="pi pi-trophy"></i>
-                  </div>
-                </div>
-              )
-            },
-            {
-              label: 'تحليلات التقدم 📊',
-              command: () => {
-                vibrate(HAPITCS.MAJOR_CLICK);
-                setReflectionActiveTab(1);
-                setReflectionSidebar(true);
-                setDialVisible(false);
-              },
-              template: (item: any, options: any) => (
-                <div className="relative flex items-center justify-center w-14 h-14 cursor-pointer group" onClick={(e) => options.onClick(e)}>
-                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-max text-[11px] font-black bg-slate-900/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 pointer-events-none border border-white/10 z-50">
-                    {item.label}
-                  </div>
-                  <div className="w-full h-full rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-xl flex items-center justify-center group-hover:scale-110 active:scale-95 transition-all text-xl border-2 border-white/40 ring-4 ring-emerald-500/10">
-                    <i className="pi pi-chart-bar"></i>
-                  </div>
-                </div>
-              )
-            }
-          ]}
-          type="semi-circle"
-          radius={120}
-          direction="up"
-          showIcon="pi pi-map"
-          hideIcon="pi pi-times"
-          buttonClassName="p-button-rounded !rounded-full bg-gradient-to-br from-blue-700 via-indigo-800 to-slate-900 border-none w-24 h-24 shadow-[0_10px_40px_rgba(29,78,216,0.3)] hover:scale-105 active:scale-95 transition-all text-white text-3xl p-0 flex items-center justify-center shrink-0 ring-4 ring-white/20"
-          buttonTemplate={(options) => {
-            const energy = activeStationId ? stationEnergy[activeStationId] || 0 : 0;
-            return (
-              <button 
-                onClick={options.onClick}
-                className={`${options.className} relative flex flex-col items-center justify-center gap-1 overflow-hidden pointer-events-auto`}
-              >
-                {dialVisible ? (
-                   <i className="pi pi-times text-2xl"></i>
-                ) : (
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9px] font-black">
-                     <div className="flex items-center gap-0.5 text-amber-300">
-                        <span>🪙</span>
-                        <span>{gData.xp}</span>
-                     </div>
-                     <div className="flex items-center gap-0.5 text-blue-300">
-                        <span>🧠</span>
-                        <span>{gData.keys}</span>
-                     </div>
-                     <div className="flex items-center gap-0.5 text-rose-300">
-                        <span>⛽</span>
-                        <span>{gData.fuel}%</span>
-                     </div>
-                     <div className="flex items-center gap-0.5 text-emerald-300">
-                        <span>⚡</span>
-                        <span>{energy}%</span>
-                     </div>
-                     <div className="col-span-2 flex items-center justify-center mt-0.5">
-                        <i className="pi pi-map text-xs text-white/50"></i>
-                     </div>
-                  </div>
-                )}
-                {/* Visual indicator for Energy in background of the button */}
-                {!dialVisible && activeStationId && (
-                   <div className="absolute inset-x-0 bottom-0 bg-blue-500/10" style={{ height: `${energy}%` }} />
-                )}
-              </button>
-            )
+          title="بوصلة الوضوح"
+          className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-violet-700 text-white shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-sm border border-white/40 ring-2 ring-purple-500/20 cursor-pointer"
+        >
+          <i className="pi pi-compass"></i>
+        </button>
+      </motion.div>
+
+      <motion.div 
+        initial={{ x: 50, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.7, delay: 0.4 }}
+        className="fixed bottom-10 right-[30%] z-40 pointer-events-auto"
+      >
+        <button
+          onClick={() => {
+            vibrate(HAPITCS.MAJOR_CLICK);
+            setGamificationSidebar(true);
           }}
-        />
+          title="المحرك والجوائز"
+          className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-sm border border-white/40 ring-2 ring-orange-500/20 cursor-pointer"
+        >
+          <i className="pi pi-trophy"></i>
+        </button>
       </motion.div>
     </motion.div>
 );
