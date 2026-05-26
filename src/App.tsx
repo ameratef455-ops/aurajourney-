@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Splash } from './components/Splash';
+import { db } from './db';
+import { motion, AnimatePresence } from 'motion/react';
+import { Toaster } from 'react-hot-toast';
 import { Landing } from './components/Landing';
 import { SetupWizard } from './components/SetupWizard';
 import { Maps } from './components/Maps';
-import { db } from './db';
-import { motion, AnimatePresence } from 'motion/react';
+import { playTickSound } from './lib/haptics';
 
 type AppState = 'splash' | 'landing' | 'wizard' | 'maps';
 
@@ -15,6 +17,23 @@ export default function App() {
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Add global click listener for tick sound
+    const handleClick = (e: MouseEvent) => {
+      let target = e.target as HTMLElement | null;
+      while (target && target !== document.body) {
+        const tag = target.tagName.toLowerCase();
+        const role = target.getAttribute('role');
+        const isClickable = tag === 'button' || tag === 'a' || role === 'button' || target.classList.contains('cursor-pointer');
+        
+        if (isClickable) {
+           playTickSound();
+           break;
+        }
+        target = target.parentElement;
+      }
+    };
+    document.addEventListener('click', handleClick);
+
     const init = async () => {
        try {
          // Keep targetState initialized to landing as requested
@@ -24,10 +43,24 @@ export default function App() {
        }
     };
     init();
+
+    return () => {
+      document.removeEventListener('click', handleClick);
+    };
   }, []);
 
   return (
     <div className="w-full h-[100dvh] bg-white relative overflow-hidden font-sans">
+      <Toaster 
+        position="top-center" 
+        reverseOrder={false} 
+        containerStyle={{ zIndex: 2147483647 }} 
+        toastOptions={{
+          style: {
+            zIndex: 2147483647,
+          }
+        }}
+      />
       <div className="h-full flex flex-col items-center justify-center p-0 md:p-8 relative overflow-hidden">
         {/* Background Decorative Element */}
         <svg className="absolute inset-0 w-full h-full opacity-5 pointer-events-none" viewBox="0 0 1024 768" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -1,0 +1,30 @@
+{
+  "name": "Aura Journey",
+  "short_name": "Aura Journey",
+  "description": "رحلة استكشاف وتطوير فکري متكامل",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020512",
+  "theme_color": "#091024",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

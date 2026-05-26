@@ -15,6 +15,7 @@ import { ListChecks, Target, Trophy, Clock, Plus, Trash2, ChevronRight, ChevronD
 import { db, TaskActivity } from "../db";
 import { safeRandomUUID } from "../lib/uuid";
 import { TaskReflectionModal } from "./TaskReflectionModal";
+import { toast as toastHot } from "react-hot-toast";
 
 export interface EvaluationSidebarProps {
   visible: boolean;
@@ -42,7 +43,70 @@ export function EvaluationSidebar({
   onCompletePracticalTask
 }: EvaluationSidebarProps) {
   const [selectedTask, setSelectedTask] = useState<any>(null);
-  const toast = useRef<Toast>(null);
+  const toast = useRef({
+    show: (options: { severity?: string; summary?: string; detail?: string; life?: number }) => {
+      const msg = options.detail || options.summary || "";
+      const duration = options.life || 3000;
+      if (options.severity === "error") {
+        toastHot.error(msg, {
+          duration,
+          style: {
+            borderRadius: '24px',
+            background: '#0c183e',
+            color: '#fff',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            fontFamily: 'sans-serif',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            direction: 'rtl'
+          },
+        });
+      } else if (options.severity === "success") {
+        toastHot.success(msg, {
+          duration,
+          style: {
+            borderRadius: '24px',
+            background: '#0c183e',
+            color: '#fff',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            fontFamily: 'sans-serif',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            direction: 'rtl'
+          },
+        });
+      } else if (options.severity === "warn") {
+        toastHot(msg, {
+          duration,
+          icon: '⚠️',
+          style: {
+            borderRadius: '24px',
+            background: '#0c183e',
+            color: '#fff',
+            border: '1px solid rgba(245, 158, 11, 0.2)',
+            fontFamily: 'sans-serif',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            direction: 'rtl'
+          },
+        });
+      } else {
+        toastHot(msg, {
+          duration,
+          style: {
+            borderRadius: '24px',
+            background: '#0c183e',
+            color: '#fff',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            fontFamily: 'sans-serif',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            direction: 'rtl'
+          },
+        });
+      }
+    }
+  }) as any;
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [newActivityTitle, setNewActivityTitle] = useState("");
   const [newActivityDuration, setNewActivityDuration] = useState<number | null>(30);
@@ -71,7 +135,7 @@ export function EvaluationSidebar({
     if (!selectedTask) return;
 
     if (selectedTask._source === 'dexie') {
-      await db.tasks.update(selectedTask.id, { activities: updatedActivities });
+      await (db.tasks as any).update(selectedTask.id, { activities: updatedActivities });
     }
     
     setSelectedTask((prev: any) => ({ ...prev, activities: updatedActivities }));
@@ -181,7 +245,8 @@ export function EvaluationSidebar({
         particleCount: 150,
         spread: 70,
         origin: { y: 0.6 },
-        colors: ['#2563eb', '#1d4ed8', '#1e3a8a', '#10b981']
+        colors: ['#2563eb', '#1d4ed8', '#1e3a8a', '#10b981'],
+        zIndex: 30000000
       });
       setTaskToReflect(selectedTask);
       setReflectionVisible(true);
@@ -210,12 +275,12 @@ export function EvaluationSidebar({
       <Sidebar
         visible={visible}
         onHide={onHide}
-        position="right"
-        className="w-full md:w-[450px] !bg-transparent p-0 border-none shadow-none"
+        position="bottom"
+        className="w-full h-auto max-h-[90vh] md:w-[600px] md:mx-auto !bg-transparent p-0 border-none shadow-none"
         showCloseIcon={false}
-        blockScroll
+        modal={false}
       >
-        <div className="flex flex-col h-[calc(100vh-32px)] my-4 mx-4 bg-slate-50/95 backdrop-blur-xl rounded-[2.5rem] overflow-hidden border border-white/20 shadow-2xl relative" dir="rtl">
+        <div className="flex flex-col h-[85vh] md:h-[70vh] mb-0 mx-2 md:mx-auto bg-slate-50/100 rounded-t-[2.5rem] md:rounded-[2.5rem] overflow-hidden border border-white/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] relative" dir="rtl">
           {/* Header */}
           <div className="p-6 bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 text-white relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full opacity-10">
@@ -513,7 +578,6 @@ export function EvaluationSidebar({
           }
         }}
       />
-      <Toast ref={toast} style={{ zIndex: 999999999, direction: "rtl" }} baseZIndex={999999999} />
     </>
   );
 }
@@ -735,7 +799,7 @@ function TaskItem({
                   <i className="pi pi-map-marker text-xs"></i>
                </div>
                <div>
-                  <p className="text-[10px] text-slate-400 font-bold">المحطة</p>
+                  <p className="text-[10px] text-slate-400 font-bold">الخطة</p>
                   <p className="text-xs font-black text-slate-800">{stationName || 'غير محدد'}</p>
                </div>
             </div>

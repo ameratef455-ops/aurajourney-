@@ -112,7 +112,7 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
       const stationId = st.id || safeRandomUUID();
       await db.stations.put({
         id: stationId,
-        name: st.name || `محطة ${i + 1}`,
+        name: st.name || `خطة ${i + 1}`,
         icon: st.icon || 'pi pi-flag-fill',
         description: st.description,
         targetDate: st.targetDate,
@@ -428,11 +428,11 @@ const Step4 = ({ state, setState }: any) => {
   return (
     <div className="flex flex-col gap-8 pb-10">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-3xl font-extrabold text-blue-950">تخطيط المحطات</h2>
+        <h2 className="text-3xl font-extrabold text-blue-950">تخطيط الخطط</h2>
         <button 
           onClick={addStation} 
           className="w-10 h-10 rounded-xl bg-blue-900 text-white flex items-center justify-center hover:bg-blue-800 transition-all shadow-md active:scale-95 cursor-pointer border-none"
-          title="إضافة محطة جديدة"
+          title="إضافة خطة جديدة"
         >
           <Plus size={20} />
         </button>
@@ -463,7 +463,7 @@ const Step4 = ({ state, setState }: any) => {
               </button>
               <input 
                 className="flex-1 px-4 bg-gray-50 border-0 rounded-xl font-bold outline-none focus:ring-2 ring-blue-900/10 transition-colors text-blue-950 placeholder-gray-300" 
-                placeholder="اسم المحطة" 
+                placeholder="اسم الخطة" 
                 value={st.name} 
                 onChange={e => updateStation(i, 'name', e.target.value)} 
               />
@@ -471,7 +471,7 @@ const Step4 = ({ state, setState }: any) => {
             
             <textarea 
               className="w-full p-4 bg-gray-50 border-0 rounded-xl outline-none text-sm resize-none h-24 focus:ring-2 ring-blue-900/10 transition-colors text-blue-950 placeholder-gray-300 font-medium" 
-              placeholder="وصف قصير للمحطة" 
+              placeholder="وصف قصير للخطة" 
               value={st.description} 
               onChange={e => updateStation(i, 'description', e.target.value)} 
             />
@@ -490,7 +490,7 @@ const Step4 = ({ state, setState }: any) => {
       <Dialog
         header={
           <div className="flex items-center gap-2 text-blue-950 font-extrabold pr-4 text-sm" dir="rtl">
-            🌟 اختر أيقونة فخمة للمحطة
+            🌟 اختر أيقونة فخمة للخطة
           </div>
         }
         visible={activeSelectIdx !== null}
@@ -533,7 +533,7 @@ const Step5 = ({ state, setState }: any) => {
         <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-400">
            <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         </div>
-        <p className="text-gray-500 font-medium font-sans">من فضلك عُد للخطوة السابقة وأضف محطة واحدة على الأقل.</p>
+        <p className="text-gray-500 font-medium font-sans">من فضلك عُد للخطوة السابقة وأضف خطة واحدة على الأقل.</p>
       </div>
     );
   }
@@ -600,7 +600,7 @@ const Step5 = ({ state, setState }: any) => {
             >
               <div className={`w-full h-full rounded-[9.5px] px-5 py-2.5 flex items-center justify-center ${isActive ? "bg-white" : "bg-slate-50"}`}>
                 <span className={`font-bold text-sm transition-colors ${isActive ? "text-blue-950" : "text-slate-600"}`}>
-                  {st.name || `محطة ${idx + 1}`}
+                  {st.name || `خطة ${idx + 1}`}
                 </span>
               </div>
             </button>
@@ -639,7 +639,7 @@ const Step5 = ({ state, setState }: any) => {
               <div className="flex flex-col gap-5">
                 {mainTasks.length === 0 && (
                   <div className="text-center py-8 text-xs text-gray-400 font-medium border border-dashed border-gray-200 rounded-xl bg-gray-50/20">
-                    لا يوجد مهام رئيسية مضافة لهذه المحطة بعد. اضغط على زر (+) أعلاه لإضافة أول مهمة!
+                    لا يوجد مهام رئيسية مضافة لهذه الخطة بعد. اضغط على زر (+) أعلاه لإضافة أول مهمة!
                   </div>
                 )}
 
@@ -732,7 +732,7 @@ const Step5 = ({ state, setState }: any) => {
               <div className="flex flex-col gap-3 mt-2">
                 {sideTasks.length === 0 && (
                   <div className="text-center py-10 text-xs text-gray-400 font-medium border border-dashed border-amber-100/40 rounded-xl bg-amber-50/10">
-                    لا توجد مهارات جانبية مضافة للمحطة الحالية بعد. اضغط على زر (+) أعلاه لإضافة مهارة!
+                    لا توجد مهارات جانبية مضافة للخطة الحالية بعد. اضغط على زر (+) أعلاه لإضافة مهارة!
                   </div>
                 )}
                 {sideTasks.map((t: any) => {

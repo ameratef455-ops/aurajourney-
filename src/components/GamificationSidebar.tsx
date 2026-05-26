@@ -27,6 +27,7 @@ export function GamificationSidebar({
 }: GamificationSidebarProps) {
   return (
     <Dialog
+      baseZIndex={30000}
       visible={gamificationSidebar}
       onHide={() => setGamificationSidebar(false)}
       className="w-[98vw] max-w-4xl font-sans text-xl"
@@ -97,7 +98,7 @@ export function GamificationSidebar({
                     <div className="bg-emerald-50/30 p-5 rounded-2xl border border-emerald-100/50 flex flex-col items-center text-center shadow-sm">
                       <span className="text-3xl mb-1 select-none">🔋</span>
                       <p className="text-xs text-slate-400 font-bold tracking-wider uppercase mb-1">
-                        بطارية المحطة
+                        بطارية الخطة
                       </p>
                       <h4 className="text-xl font-black text-emerald-600">
                         {activeStationEnergy}%
@@ -120,7 +121,7 @@ export function GamificationSidebar({
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 mb-5 font-light leading-relaxed">
-                      هل تحتاج إلى مفاتيح تركيز لفك قفل المحطة التالية؟ يمكنك مقايضة نقاط خبرتك. معدل الاستبدال: <b className="font-bold">10 مفاتيح مقابل 70 XP</b>.
+                      هل تحتاج إلى مفاتيح تركيز لفك قفل الخطة التالية؟ يمكنك مقايضة نقاط خبرتك. معدل الاستبدال: <b className="font-bold">10 مفاتيح مقابل 70 XP</b>.
                     </p>
                     <Button
                       label={`مقايضة: شراء 10 مفاتيح بـ 70 XP`}

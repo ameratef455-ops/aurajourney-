@@ -1,12 +1,13 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { vibrate, HAPITCS } from "../lib/haptics";
+import { vibrate, HAPITCS, playTickSound } from "../lib/haptics";
 import { db } from "../db";
 import { FileUpload } from "primereact/fileupload";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { useLiveQuery } from "dexie-react-hooks";
+import { toast as toastHot } from "react-hot-toast";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -127,8 +128,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
 function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (id: string) => void }) {
   const trips = useLiveQuery(() => db.userSettings.toArray());
+  const allStations = useLiveQuery(() => db.stations ? db.stations.orderBy('order').toArray() : []) || [];
+  
   const [activeMenuTripId, setActiveMenuTripId] = useState<string | null>(null);
   const [deleteTripId, setDeleteTripId] = useState<string | null>(null);
+  const [freezeConfirmTrip, setFreezeConfirmTrip] = useState<any | null>(null);
+  const [resetTrip, setResetTrip] = useState<any | null>(null);
+  const [resetMode, setResetMode] = useState<"all" | "selected">("all");
+  const [selectedResetStations, setSelectedResetStations] = useState<string[]>([]);
 
   if (!trips || trips.length === 0) return null;
 
@@ -140,6 +147,96 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
       setDeleteTripId(null);
       window.location.reload();
     }
+  };
+
+  const handleResetConfirm = async () => {
+    if (!resetTrip) return;
+    vibrate(HAPITCS.MAJOR_CLICK);
+    playTickSound();
+
+    if (resetMode === "all") {
+      const allTasks = await db.tasks.toArray();
+      await Promise.all(allTasks.map(t => (db.tasks as any).update(t.id, { isCompleted: false, activities: [] })));
+      await db.reflections.clear();
+      await db.stumbles.clear();
+
+      const firstStation = allStations && allStations.length > 0 ? allStations[0] : null;
+      const newUnlocked = firstStation ? [firstStation.id] : [];
+      
+      await db.userSettings.update(resetTrip.id, {
+        isVacation: false,
+        gameData: { fuel: 100, xp: 0, keys: 0, lastReflectionDate: "", streak: 0 },
+        unlockedStationIds: newUnlocked,
+        subStations: {}, // Clear all practical sub-stations
+        timeCapsules: {}, // Keep time capsules or clear? Better clear entirely.
+        notes: {}
+      });
+      toastHot.success("تم تصفير الرحلة بالكامل بنجاح!");
+    } else {
+      if (selectedResetStations.length === 0) return;
+      
+      for (const stId of selectedResetStations) {
+         const stTasks = await db.tasks.where("stationId").equals(stId).toArray();
+         await Promise.all(stTasks.map(t => (db.tasks as any).update(t.id, { isCompleted: false, activities: [] })));
+         // Also clear reflections and stumbles for selected stations
+         await db.reflections.where("stationId").equals(stId).delete();
+         await db.stumbles.where("stationId").equals(stId).delete();
+      }
+
+      const firstStation = allStations && allStations.length > 0 ? allStations[0] : null;
+      const currentUnlocked = resetTrip.unlockedStationIds || [];
+      const newUnlocked = currentUnlocked.filter((id: string) => !selectedResetStations.includes(id) || id === firstStation?.id);
+      
+      // Make sure first is always unlocked
+      if (firstStation && !newUnlocked.includes(firstStation.id)) {
+        newUnlocked.push(firstStation.id);
+      }
+      
+      const newSubStations = { ...(resetTrip.subStations || {}) };
+      for (const stId of selectedResetStations) {
+         delete newSubStations[stId];
+      }
+
+      await db.userSettings.update(resetTrip.id, {
+        isVacation: false,
+        gameData: { ...resetTrip.gameData, fuel: 100 },
+        unlockedStationIds: Array.from(new Set(newUnlocked)),
+        subStations: newSubStations
+      });
+      toastHot.success("تم تصفير الخطط المحددة بنجاح!");
+    }
+
+    setResetTrip(null);
+    setSelectedResetStations([]);
+    setResetMode("all");
+    
+    // Slight delay so they can see the toast
+    setTimeout(() => {
+        window.location.reload();
+    }, 1200);
+  };
+
+  const handleToggleFreeze = async (trip: any) => {
+    vibrate(HAPITCS.MAJOR_CLICK);
+    const currentlyFrozen = !!trip.isFrozen;
+    const updates: any = {
+      isFrozen: !currentlyFrozen
+    };
+    
+    if (currentlyFrozen) {
+      // Unfreeze: set lastReflectionDate to yesterday so streak restarts correctly
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toDateString();
+      if (trip.gameData) {
+        updates.gameData = {
+          ...trip.gameData,
+          lastReflectionDate: yesterdayStr
+        };
+      }
+    }
+    
+    await db.userSettings.update(trip.id, updates);
   };
 
   const startEdit = (trip: any) => {
@@ -166,88 +263,144 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
          </span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {trips.map((trip) => (
-          <div
-            key={trip.id}
-            onClick={() => onOpen(trip.id)}
-            className="group relative bg-gradient-to-br from-blue-800 via-indigo-700 to-blue-950 p-[1px] rounded-3xl shadow-2xl shadow-blue-900/20 hover:shadow-blue-500/40 active:scale-[0.98] transition-all duration-500 cursor-pointer aspect-square flex w-full overflow-hidden"
-          >
-            {/* Glow Effect Layer */}
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.3),transparent_70%)]" />
-            
-            <div className="bg-gradient-to-br from-blue-900/90 to-blue-950 p-6 rounded-[23px] flex flex-col justify-between items-center text-center w-full h-full relative overflow-hidden backdrop-blur-sm">
-              {/* Decorative elements */}
-              <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/20 blur-3xl rounded-full pointer-events-none group-hover:bg-blue-400/30 transition-all duration-500" />
-              <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-indigo-500/20 blur-3xl rounded-full pointer-events-none group-hover:bg-indigo-400/30 transition-all duration-500" />
+        {trips.map((trip) => {
+          const isFrozen = !!trip.isFrozen;
+          const isVacation = !!trip.isVacation;
+          
+          let cardOuterClass = "bg-gradient-to-br from-blue-800 via-indigo-700 to-blue-950 shadow-2xl shadow-blue-900/20 hover:shadow-blue-500/40 active:scale-[0.98]";
+          if (isFrozen) cardOuterClass = "bg-gradient-to-br from-[#22d3ee] via-[#38bdf8] to-[#2563eb] shadow-[0_0_25px_rgba(34,211,238,0.25)] hover:shadow-cyan-400/50 border border-cyan-300/20";
+          if (isVacation) cardOuterClass = "bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-400 shadow-[0_0_25px_rgba(16,185,129,0.3)] hover:shadow-emerald-400/50 border border-emerald-300/30";
 
-              {/* Three dots absolute position */}
+          let cardInnerClass = "bg-gradient-to-br from-blue-900/90 to-blue-950";
+          if (isFrozen) cardInnerClass = "bg-gradient-to-br from-slate-900/95 via-sky-950/90 to-[#0c1830]/95";
+          if (isVacation) cardInnerClass = "bg-gradient-to-br from-emerald-950/95 via-teal-900/95 to-cyan-950/95";
+
+          return (
+            <div
+              key={trip.id}
+              onClick={() => onOpen(trip.id)}
+              className={`group relative p-[1px] rounded-3xl transition-all duration-500 cursor-pointer aspect-square flex w-full overflow-hidden ${cardOuterClass}`}
+            >
+              {/* Glow Effect Layer */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.3),transparent_70%)]" />
+              
               <div 
-                className="absolute top-4 left-4 z-30" 
-                onClick={(e) => e.stopPropagation()}
+                className={`p-6 rounded-[23px] flex flex-col justify-between items-center text-center w-full h-full relative overflow-hidden backdrop-blur-sm ${cardInnerClass}`}
               >
-                <button
-                  type="button"
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 backdrop-blur-md hover:bg-white/20 text-white/70 transition border border-white/10 cursor-pointer shadow-lg"
-                  onClick={() => {
-                    vibrate(HAPITCS.MAJOR_CLICK);
-                    setActiveMenuTripId(activeMenuTripId === trip.id ? null : trip.id);
-                  }}
-                  title="خيارات"
-                >
-                  <i className="pi pi-ellipsis-v text-xs"></i>
-                </button>
-                {activeMenuTripId === trip.id && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-10" 
-                      onClick={() => setActiveMenuTripId(null)}
-                    />
-                    <div className="absolute left-0 mt-2 w-44 bg-white border border-gray-100 rounded-2xl shadow-2xl z-20 py-2 text-right overflow-hidden">
-                      <button
-                        onClick={() => {
-                          setActiveMenuTripId(null);
-                          startEdit(trip);
-                        }}
-                        className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-blue-950 hover:bg-blue-50 transition border-none bg-transparent font-bold cursor-pointer"
-                      >
-                        <i className="pi pi-pencil text-blue-600"></i>
-                        <span>تعديل المحطات</span>
-                      </button>
-                      <div className="h-px bg-gray-50 mx-2" />
-                      <button
-                        onClick={() => {
-                          setActiveMenuTripId(null);
-                          setDeleteTripId(trip.id);
-                        }}
-                        className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-rose-600 hover:bg-rose-50 transition border-none bg-transparent font-bold cursor-pointer"
-                      >
-                        <i className="pi pi-trash text-rose-500"></i>
-                        <span>حذف الرحلة</span>
-                      </button>
-                    </div>
-                  </>
+                {/* Decorative elements */}
+                <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/20 blur-3xl rounded-full pointer-events-none group-hover:bg-blue-400/30 transition-all duration-500" />
+                <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-indigo-500/20 blur-3xl rounded-full pointer-events-none group-hover:bg-indigo-400/30 transition-all duration-500" />
+
+                {/* Frozen/Vacation Badge */}
+                {isFrozen && (
+                  <div className="absolute top-4 right-4 bg-cyan-950/80 border border-cyan-400/30 px-2.5 py-1 rounded-full text-[9px] font-black text-cyan-300 flex items-center gap-1.5 z-20 shadow-[0_0_10px_rgba(34,211,238,0.2)]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                    <span>❄️ رحلة مجمدة</span>
+                  </div>
                 )}
-              </div>
+                {isVacation && (
+                  <div className="absolute top-4 right-4 bg-emerald-950/80 border border-emerald-400/30 px-2.5 py-1 rounded-full text-[9px] font-black text-emerald-300 flex items-center gap-1.5 z-20 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>🌴 فى أجازة</span>
+                  </div>
+                )}
 
-              {/* Trip Icon / Visual with Glow */}
-              <div className="mt-4 w-20 h-20 rounded-2xl bg-white shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 relative z-10">
-                <i className={`pi ${getTripIcon(trip.learningGoal)} text-3xl text-blue-900`}></i>
-              </div>
+                {/* Three dots absolute position */}
+                <div 
+                  className="absolute top-4 left-4 z-30" 
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 backdrop-blur-md hover:bg-white/20 text-white/70 transition border border-white/10 cursor-pointer shadow-lg"
+                    onClick={() => {
+                      vibrate(HAPITCS.MAJOR_CLICK);
+                      setActiveMenuTripId(activeMenuTripId === trip.id ? null : trip.id);
+                    }}
+                    title="خيارات"
+                  >
+                    <i className="pi pi-ellipsis-v text-xs"></i>
+                  </button>
+                  {activeMenuTripId === trip.id && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setActiveMenuTripId(null)}
+                      />
+                      <div className="absolute left-0 mt-2 w-44 bg-white border border-gray-100 rounded-2xl shadow-2xl z-20 py-2 text-right overflow-hidden">
+                        <button
+                          onClick={() => {
+                            setActiveMenuTripId(null);
+                            startEdit(trip);
+                          }}
+                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-blue-950 hover:bg-blue-50 transition border-none bg-transparent font-bold cursor-pointer"
+                        >
+                          <i className="pi pi-pencil text-blue-600"></i>
+                          <span>تعديل المحطات</span>
+                        </button>
+                        <div className="h-px bg-gray-50 mx-2" />
+                        <button
+                          onClick={() => {
+                            setActiveMenuTripId(null);
+                            setResetTrip(trip);
+                          }}
+                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-amber-600 hover:bg-amber-50 transition border-none bg-transparent font-bold cursor-pointer"
+                        >
+                          <i className="pi pi-refresh text-amber-500"></i>
+                          <span>ابدأ الرحلة من جديد</span>
+                        </button>
+                        <div className="h-px bg-gray-50 mx-2" />
+                        <button
+                          onClick={() => {
+                            setActiveMenuTripId(null);
+                            setFreezeConfirmTrip(trip);
+                          }}
+                          className={`w-full flex items-center gap-3 px-5 py-3.5 text-sm transition border-none bg-transparent font-bold cursor-pointer ${
+                            isFrozen ? "text-emerald-600 hover:bg-emerald-50" : "text-cyan-600 hover:bg-cyan-50"
+                          }`}
+                        >
+                          <i className={`pi ${isFrozen ? 'pi-play' : 'pi-stop-circle'} ${isFrozen ? 'text-emerald-500' : 'text-cyan-500'}`}></i>
+                          <span>{isFrozen ? "إلغاء التجميد" : "تجميد الرحلة"}</span>
+                        </button>
+                        <div className="h-px bg-gray-50 mx-2" />
+                        <button
+                          onClick={() => {
+                            setActiveMenuTripId(null);
+                            setDeleteTripId(trip.id);
+                          }}
+                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-rose-600 hover:bg-rose-50 transition border-none bg-transparent font-bold cursor-pointer"
+                        >
+                          <i className="pi pi-trash text-rose-500"></i>
+                          <span>حذف الرحلة</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
 
-              {/* Learning Goal */}
-              <div className="flex-1 flex items-center justify-center py-6 px-2 relative z-10">
-                <span className="font-black text-white text-xl md:text-2xl leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-                  {trip.learningGoal}
-                </span>
-              </div>
+                {/* Trip Icon / Visual with Glow */}
+                <div className={`mt-4 w-20 h-20 rounded-2xl bg-white flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 relative z-10 ${
+                  isFrozen ? "shadow-[0_0_20px_rgba(34,211,238,0.4)] border border-cyan-200" : "shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                }`}>
+                  <i className={`pi ${getTripIcon(trip.learningGoal)} text-3xl ${isFrozen ? 'text-cyan-600' : 'text-blue-900'}`}></i>
+                </div>
 
+                {/* Learning Goal */}
+                <div className="flex-1 flex flex-col items-center justify-center py-4 px-2 relative z-10">
+                  <span className="font-black text-white text-xl md:text-2xl leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                    {trip.learningGoal}
+                  </span>
+                </div>
+
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Delete Confirmation Dialog */}
       <Dialog
+        baseZIndex={30000}
         header={
           <div
             className="flex items-center gap-2 text-rose-600 font-extrabold pr-4 text-2xl"
@@ -280,6 +433,161 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
           </div>
         </div>
       </Dialog>
+
+      {/* Freeze Confirmation Dialog */}
+      <Dialog
+        baseZIndex={30500}
+        header={
+          <div
+            className={`flex items-center gap-2 font-extrabold pr-4 text-2xl ${
+              freezeConfirmTrip?.isFrozen ? "text-emerald-500" : "text-cyan-500"
+            }`}
+            dir="rtl"
+          >
+            {freezeConfirmTrip?.isFrozen ? "🔥 تفعيل السعي" : "❄️ تجميد السلسلة"}
+          </div>
+        }
+        visible={!!freezeConfirmTrip}
+        onHide={() => setFreezeConfirmTrip(null)}
+        className="w-[98vw] max-w-sm font-sans mx-4 text-xl"
+        closable
+        dismissableMask
+      >
+        <div className="space-y-6 pt-2 text-right font-sans" dir="rtl">
+          <p className="text-xl font-semibold text-blue-950 leading-relaxed">
+            {freezeConfirmTrip?.isFrozen
+              ? "هل أنت متأكد من إلغاء تجميد هذه الرحلة واستعادة طاقتها وسعيك الإيجابي؟"
+              : "هل أنت متأكد من تجميد هذه الرحلة؟ سيتم الحفاظ على إحصائياتك والستريك لتجنب خسارتها لغاية إلغاء التجميد."}
+          </p>
+          <div className="flex gap-3 justify-end pt-2">
+            <Button
+              label="تراجع"
+              className="p-button-text text-gray-500 font-bold text-lg cursor-pointer hover:bg-slate-50 rounded-xl"
+              onClick={() => setFreezeConfirmTrip(null)}
+            />
+            <Button
+              label={freezeConfirmTrip?.isFrozen ? "نعم، إلغاء التجميد 🔥" : "نعم، تجميد ❄️"}
+              className={`${
+                freezeConfirmTrip?.isFrozen ? "bg-emerald-600 hover:bg-emerald-700 hover:brightness-110" : "bg-cyan-600 hover:bg-cyan-700 hover:brightness-110"
+              } border-none text-white font-bold px-4 py-2.5 rounded-xl text-lg cursor-pointer transition-all`}
+              onClick={async () => {
+                if (freezeConfirmTrip) {
+                  await handleToggleFreeze(freezeConfirmTrip);
+                  setFreezeConfirmTrip(null);
+                }
+              }}
+            />
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Reset Journey Dialog */}
+      <Dialog
+        baseZIndex={30500}
+        header={
+          <div className="flex items-center gap-3 font-extrabold pr-4 text-2xl text-blue-400 drop-shadow-md" dir="rtl">
+            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-400/30">
+               <i className="pi pi-refresh text-xl text-blue-300"></i>
+            </div>
+            بدء الرحلة من جديد
+          </div>
+        }
+        visible={!!resetTrip}
+        onHide={() => {
+            setResetTrip(null);
+            setResetMode("all");
+            setSelectedResetStations([]);
+        }}
+        className="w-[98vw] max-w-lg font-sans mx-4 border-none shadow-[0_0_50px_rgba(14,165,233,0.3)] bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 rounded-3xl overflow-hidden"
+        contentStyle={{ background: 'transparent', color: 'white' }}
+        headerStyle={{ background: 'transparent', color: 'white', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+        closable
+        dismissableMask
+      >
+        <div className="space-y-6 pt-5 text-right font-sans" dir="rtl">
+          <p className="text-[15px] font-medium text-blue-100/90 leading-relaxed drop-shadow-sm">
+            حدد نطاق التصفير؛ هل ترغب في تهيئة الرحلة بالكامل للبدء من نقطة الصفر، أم تفضل اختيار محطات محددة لإعادة المحاولة فيها؟
+          </p>
+
+          <div className="space-y-4 mb-6 relative">
+            <label className={`flex items-center gap-4 p-4 border rounded-2xl cursor-pointer transition-all duration-300 ${resetMode === 'all' ? 'bg-blue-500/10 border-blue-400/50 shadow-inner glow' : 'hover:bg-white/5 border-white/10'}`}>
+                <input 
+                  type="radio" 
+                  name="resetMode" 
+                  value="all"
+                  checked={resetMode === "all"}
+                  onChange={() => { playTickSound(); setResetMode("all"); }}
+                  className="w-5 h-5 text-blue-500 cursor-pointer accent-blue-500"
+                />
+                <div>
+                   <p className="font-bold text-sm text-white">تصفير الرحلة بالكامل</p>
+                   <p className="text-xs text-blue-200/70 mt-1.5">مسح شامل لجميع إنجازاتك والبدء بطاقة ومستوى جديدين كلياً.</p>
+                </div>
+            </label>
+
+            <label className={`flex items-center gap-4 p-4 border rounded-2xl cursor-pointer transition-all duration-300 ${resetMode === 'selected' ? 'bg-blue-500/10 border-blue-400/50 shadow-inner glow' : 'hover:bg-white/5 border-white/10'}`}>
+                <input 
+                  type="radio" 
+                  name="resetMode" 
+                  value="selected"
+                  checked={resetMode === "selected"}
+                  onChange={() => { playTickSound(); setResetMode("selected"); }}
+                  className="w-5 h-5 text-blue-500 cursor-pointer accent-blue-500"
+                />
+                <div>
+                   <p className="font-bold text-sm text-white">تصفير خطط ومحطات محددة</p>
+                   <p className="text-xs text-blue-200/70 mt-1.5">اختر محطات معينة لمسح مهامها وتحليلاتها وتجربة إنجازها مجدداً.</p>
+                </div>
+            </label>
+          </div>
+
+          {resetMode === "selected" && allStations.length > 0 && (
+             <div className="bg-black/20 rounded-2xl p-5 max-h-56 overflow-y-auto mb-4 border border-white/5 backdrop-blur-md shadow-inset">
+                <p className="text-xs font-bold text-blue-300/80 mb-4 block uppercase tracking-wider">حدد المحطات المراد تصفيرها:</p>
+                <div className="space-y-2">
+                   {allStations.map((st: any) => (
+                      <label key={st.id} className="flex items-center gap-4 cursor-pointer hover:bg-white/5 p-3 rounded-xl transition-colors border border-transparent hover:border-white/10">
+                        <input 
+                           type="checkbox"
+                           className="w-4 h-4 cursor-pointer accent-blue-400"
+                           checked={selectedResetStations.includes(st.id)}
+                           onChange={(e) => {
+                             playTickSound();
+                             if (e.target.checked) setSelectedResetStations([...selectedResetStations, st.id]);
+                             else setSelectedResetStations(selectedResetStations.filter(id => id !== st.id));
+                           }}
+                        />
+                        <div className="flex items-center gap-3">
+                           <span className="w-8 h-8 rounded-full bg-blue-900/50 flex items-center justify-center text-blue-300 border border-blue-500/20">
+                             <i className={`pi ${st.icon || 'pi-map-marker'} text-[10px]`}></i>
+                           </span>
+                           <span className="text-sm font-bold text-blue-50 drop-shadow-sm">{st.name}</span>
+                        </div>
+                      </label>
+                   ))}
+                </div>
+             </div>
+          )}
+
+          <div className="flex gap-4 justify-end pt-4 border-t border-white/5 mt-6">
+            <Button
+              label="تراجع"
+              className="p-button-text text-blue-200/60 font-bold text-sm cursor-pointer hover:text-white hover:bg-white/5 rounded-xl px-5 py-3 border-none bg-transparent transition-all"
+              onClick={() => {
+                setResetTrip(null);
+                setResetMode("all");
+                setSelectedResetStations([]);
+              }}
+            />
+            <Button
+              label="تأكيد التصفير وبدء السعي 🔥"
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border-none text-white font-black px-6 py-3 rounded-xl text-sm cursor-pointer transition-all shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
+              onClick={handleResetConfirm}
+              disabled={resetMode === "selected" && selectedResetStations.length === 0}
+            />
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
@@ -305,9 +613,9 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
 
   return (
     <div className="w-full max-h-[85vh] overflow-y-auto py-12 px-6 flex flex-col items-center justify-start text-center z-10 space-y-12 max-w-2xl relative scroll-smooth no-scrollbar">
-      <header className="absolute top-0 left-0 w-full p-6 md:p-12 flex justify-between items-center gap-6 z-10" dir="rtl">
+      <header className="fixed top-0 left-0 w-full p-6 md:p-8 flex justify-between items-center gap-6 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100" dir="rtl">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 border-2 border-blue-900 flex items-center justify-center rounded-full bg-white shadow-sm overflow-hidden p-2">
+          <div className="w-14 h-14 md:w-16 md:h-16 border-2 border-blue-900 flex items-center justify-center rounded-full bg-white shadow-sm overflow-hidden p-2.5">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-blue-900">
               <circle cx="12" cy="6" r="2.5" fill="currentColor" />
               <circle cx="6" cy="18" r="2.5" fill="currentColor" />
@@ -318,30 +626,30 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
             </svg>
           </div>
           <div className="flex flex-col items-start pr-2">
-            <h1 className="text-xl md:text-2xl font-black text-blue-950 tracking-tight leading-none mb-1">
+            <h1 className="text-2xl md:text-3xl font-black text-blue-950 tracking-tight leading-none mb-1">
               Aura Journey
             </h1>
-            <span className="text-[10px] md:text-xs text-indigo-600 font-black tracking-[0.2em] uppercase">
+            <span className="text-[11px] md:text-sm text-indigo-600 font-black tracking-[0.2em] uppercase">
               رحلة حياة
             </span>
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4 shrink-0">
           <button
             onClick={handleStart}
-            className="hidden md:flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-800 to-blue-950 text-white rounded-full text-sm font-black shadow-lg hover:brightness-110 active:scale-95 transition-all border-none cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-gradient-to-r from-blue-800 to-blue-950 text-white rounded-full text-xs md:text-sm font-black shadow-md hover:brightness-110 active:scale-95 transition-all border-none cursor-pointer whitespace-nowrap"
           >
-            إبدأ الآن
+            اصنع رحلتك
           </button>
           
-          <div className="h-8 w-px bg-slate-200 mx-1"></div>
+          <div className="h-6 w-px bg-slate-200"></div>
 
           <button
             onClick={handleSettings}
-            className="w-10 h-10 flex items-center justify-center rounded-full text-blue-900 hover:bg-blue-50 transition-colors border-none bg-transparent cursor-pointer"
+            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-blue-900 hover:bg-blue-50 transition-colors border-none bg-transparent cursor-pointer"
           >
-            <i className="pi pi-cog text-xl"></i>
+            <i className="pi pi-cog text-lg md:text-xl"></i>
           </button>
         </div>
       </header>
@@ -351,34 +659,6 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
       </div>
  
       <TripsList onEdit={onEdit} onOpen={onOpen} />
-
-      <div className="flex flex-col items-center gap-6 w-full pb-8 md:hidden">
-        <motion.button
-          onClick={handleStart}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          animate={{
-            boxShadow: [
-              "0 0 15px rgba(29, 78, 216, 0.4)",
-              "0 0 32px rgba(59, 130, 246, 0.77)",
-              "0 0 15px rgba(29, 78, 216, 0.4)",
-            ],
-          }}
-          transition={{
-            repeat: Infinity,
-            duration: 2,
-            ease: "easeInOut",
-          }}
-          className="px-12 py-5 bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 hover:brightness-110 text-white rounded-full text-xl font-extrabold transition-all relative overflow-hidden group w-full shadow-xl border-none cursor-pointer"
-        >
-          <span className="relative z-10 flex items-center justify-center gap-2">
-            إصنع رحلتك بنفسك
-          </span>
-          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-        </motion.button>
-      </div>
-
-
 
       <SettingsModal
         isOpen={settingsOpen}

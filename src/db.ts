@@ -44,6 +44,8 @@ export interface SubStation {
 
 export interface UserSettings {
   id: string;
+  isFrozen?: boolean;
+  isVacation?: boolean;
   learningGoal: string;
   psychology: {
     reason: string;

@@ -31,6 +31,9 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
   // Tab indexes inside drawers
   const [reflectionActiveTab, setReflectionActiveTab] = useState(0);
+  const [stationTabsIndex, setStationTabsIndex] = useState(0);
+  const [editingNoteIndex, setEditingNoteIndex] = useState<number | null>(null);
+  const [editingStationId, setEditingStationId] = useState<string | null>(null);
 
   // Note state
   const [activeNoteStationId, setActiveNoteStationId] = useState<string>("");
@@ -48,6 +51,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showSubStationCancelConfirm, setShowSubStationCancelConfirm] = useState(false);
   const [showNotesPopup, setShowNotesPopup] = useState(false);
+  const [showRoutinePopup, setShowRoutinePopup] = useState(false);
+  const [showPracticalPopup, setShowPracticalPopup] = useState(false);
   const [showCapsulePopup, setShowCapsulePopup] = useState(false);
   const [showCompassPopup, setShowCompassPopup] = useState(false);
   const [showRestSpeedDial, setShowRestSpeedDial] = useState(false);
@@ -136,7 +141,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     toast.current?.show({
       severity: "success",
       summary: "تم تحديث الخاطرة ✨",
-      detail: "تعديلاتك باتت محفوظة الآن في سجل المحطة.",
+      detail: "تعديلاتك باتت محفوظة الآن في سجل الخطة.",
       life: 2500,
     });
   };
@@ -161,7 +166,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     toast.current?.show({
       severity: "success",
       summary: type === "main" ? "تمت إضافة مهمة أساسية 🔋" : "تمت إضافة مهمة جانبية 🧠",
-      detail: `تم إدراج المهمة بنجاح في المحطة الجاري العمل عليها.`,
+      detail: `تم إدراج المهمة بنجاح في الخطة الجاري العمل عليها.`,
       life: 2500,
     });
   };
@@ -249,34 +254,19 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
         }
       });
 
-      // If we have sub-stations, their completion contributes to the "total" station progress
+      // If we have sub-stations, each completed practical task adds 15% bonus to the station battery
       const rawSubStations = user.subStations?.[st.id];
       const subStations = Array.isArray(rawSubStations) ? rawSubStations : (rawSubStations ? [rawSubStations] : []);
       
-      let totalValue = 0;
-      if (subStations.length > 0) {
-        let subProgress = 0;
-        let totalSubActions = 0;
-        let completedSubActions = 0;
-        
-        subStations.forEach(sub => {
-          const sTasks = sub.tasks || [];
-          totalSubActions += sTasks.length;
-          completedSubActions += sTasks.filter(t => t.isCompleted).length;
-        });
+      let completedPracticalTasksCount = 0;
+      subStations.forEach(sub => {
+        const sTasks = sub.tasks || [];
+        completedPracticalTasksCount += sTasks.filter(t => t.isCompleted).length;
+      });
 
-        if (subStations.some(s => s.isCompleted)) {
-          subProgress = 100;
-        } else if (totalSubActions > 0) {
-          subProgress = (completedSubActions / totalSubActions) * 100;
-        }
+      const practicalBonus = completedPracticalTasksCount * 15;
 
-        totalValue = Math.round((Math.min(100, baseEnergy) * 0.8) + (Math.min(100, subProgress) * 0.2));
-      } else {
-        totalValue = Math.min(100, baseEnergy);
-      }
-
-      map[st.id] = totalValue + activityBonus;
+      map[st.id] = Math.min(100, baseEnergy) + practicalBonus + activityBonus;
     }
     return map;
   }, [stations, tasks, user]);
@@ -306,8 +296,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       if (prevEnergy < 130) {
         toast.current?.show({
           severity: "error",
-          summary: "المحطة السابقة غير مكتملة! ⚠️",
-          detail: "يطلب العبور للمحطة التالية الوصول لنسبة 130% من الطاقة عبر المهام التطبيقية.",
+          summary: "الخطة السابقة غير مكتملة! ⚠️",
+          detail: "يطلب العبور للخطة التالية الوصول لنسبة 130% من الطاقة عبر المهام التطبيقية.",
           life: 4500,
         });
         return;
@@ -318,7 +308,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       toast.current?.show({
         severity: "error",
         summary: "نقص في المفاتيح! 🔑",
-        detail: `تحتاج إلى ${requiredKeys} مفاتيح لفك قفل هذه المحطة.`,
+        detail: `تحتاج إلى ${requiredKeys} مفاتيح لفك قفل هذه الخطة.`,
         life: 3000,
       });
       return;
@@ -342,7 +332,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     toast.current?.show({
       severity: "success",
       summary: "تم فك القفل بنجاح! 🔓",
-      detail: "انطلقت المحطة الجديدة! تم خصم 10 مفاتيح تركيز.",
+      detail: "انطلقت الخطة الجديدة! تم خصم 10 مفاتيح تركيز.",
       life: 4000,
     });
     
@@ -350,7 +340,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     confetti({
       particleCount: 150,
       spread: 70,
-      origin: { y: 0.6 }
+      origin: { y: 0.6 },
+      zIndex: 30000000
     });
   };
 
@@ -420,6 +411,15 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     isCompleted: boolean,
     type: string,
   ) => {
+    if (user?.isFrozen) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "الرحلة مجمدة ❄️",
+        detail: "الرحلة في وضع التجميد حالياً لحماية إحصائياتك والستريك. يرجى إلغاء التجميد أولاً.",
+        life: 3000
+      });
+      return;
+    }
     // If we're trying to mark as completed via toggleTask, we block it 
     // unless it's already completed and we're un-completing it.
     if (!isCompleted) {
@@ -461,6 +461,9 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   };
 
   const processWorkdayAndStreak = (currentGameData: any) => {
+    if (user?.isFrozen) {
+      return currentGameData;
+    }
     const today = new Date();
     const todayStr = today.toDateString();
 
@@ -492,7 +495,13 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
         if (missedLearningDay) {
           newStreak = 1;
         } else {
-          newStreak += 1;
+          // Only increment streak if today is a scheduled learning day
+          const todayDay = today.getDay();
+          const isTodayLearningDay = !user?.learningDays || user.learningDays.length === 0 || user.learningDays.includes(todayDay);
+          
+          if (isTodayLearningDay) {
+            newStreak += 1;
+          }
         }
       }
     }
@@ -507,6 +516,15 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
   const completeTask = async (task: any) => {
     if (!user || task.isCompleted) return;
+    if (user.isFrozen) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "الرحلة مجمدة ❄️",
+        detail: "الرحلة في وضع التجميد حالياً لحماية إحصائياتك والستريك. يرجى إلغاء التجميد أولاً.",
+        life: 3000
+      });
+      return;
+    }
 
     if (task.type === "main") {
       const allStationTasks = await db.tasks.where("stationId").equals(task.stationId).toArray();
@@ -560,7 +578,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
           particleCount: 140,
           spread: 80,
           origin: { y: 0.55 },
-          colors: ['#1e40af', '#2563eb', '#3b82f6', '#f59e0b', '#fbbf24']
+          colors: ['#1e40af', '#2563eb', '#3b82f6', '#f59e0b', '#fbbf24'],
+          zIndex: 30000000
         });
       }
     } else if (task.type === "sub") {
@@ -592,6 +611,15 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
   const rewardActivity = async (isCompleted: boolean) => {
     if (!user) return;
+    if (user.isFrozen) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "الرحلة مجمدة ❄️",
+        detail: "الرحلة في وضع التجميد حالياً لحماية إحصائياتك والستريك. يرجى إلغاء التجميد أولاً.",
+        life: 3000
+      });
+      return;
+    }
     vibrate(isCompleted ? HAPITCS.COMPLETE : HAPITCS.MAJOR_CLICK);
     
     const xpChange = isCompleted ? 20 : -20;
@@ -605,7 +633,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       toast.current?.show({
         severity: "success",
         summary: "تطبيق ناجح! 🛠️",
-        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +20 XP وزادت طاقة المحطة بـ 15%.",
+        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +20 XP وزادت طاقة الخطة بـ 15%.",
         life: 3000,
       });
     }
@@ -613,6 +641,15 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
   const undertakeReflection = async () => {
     if (hasReflectedToday || !user) return;
+    if (user.isFrozen) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "الرحلة مجمدة ❄️",
+        detail: "الرحلة في وضع التجميد حالياً لحماية إحصائياتك والستريك. يرجى إلغاء التجميد أولاً.",
+        life: 3000
+      });
+      return;
+    }
     vibrate(HAPITCS.COMPLETE);
     const updatedGameData = processWorkdayAndStreak(gData);
     await db.userSettings.update(user.id, {
@@ -629,6 +666,15 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
   const takeRestDay = async () => {
     if (hasReflectedToday || !user) return;
+    if (user.isFrozen) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "الرحلة مجمدة ❄️",
+        detail: "الرحلة في وضع التجميد حالياً لحماية إحصائياتك والستريك. يرجى إلغاء التجميد أولاً.",
+        life: 3000
+      });
+      return;
+    }
     vibrate(HAPITCS.GUIDANCE);
     const newFuel = Math.min(100, gData.fuel + 7); // Rests recover fuel
     await db.userSettings.update(user.id, {
@@ -646,39 +692,63 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   const saveJournalNote = async () => {
     if (!user || !activeNoteStationId || !noteText.trim()) return;
     vibrate(HAPITCS.COMPLETE);
-    const prevNotes = user.notes || {};
-    const stationNotes = Array.isArray(prevNotes[activeNoteStationId]) 
-      ? prevNotes[activeNoteStationId] 
-      : [];
+    const prevNotes = { ...(user.notes || {}) };
     
-    // Support migration if old note was a single object or string
-    const migrationNotes = (!Array.isArray(prevNotes[activeNoteStationId]) && prevNotes[activeNoteStationId])
-      ? [typeof prevNotes[activeNoteStationId] === 'string' 
-          ? { text: prevNotes[activeNoteStationId], date: new Date().toISOString() } 
-          : prevNotes[activeNoteStationId] as any]
-      : [];
+    if (editingNoteIndex !== null && editingStationId) {
+      // Update existing note
+      const stationNotes = Array.isArray(prevNotes[editingStationId]) ? [...prevNotes[editingStationId]] : [];
+      if (stationNotes[editingNoteIndex]) {
+        stationNotes[editingNoteIndex] = {
+          ...stationNotes[editingNoteIndex],
+          text: noteText,
+          date: new Date().toISOString()
+        };
+        prevNotes[editingStationId] = stationNotes;
+      }
+      
+      await db.userSettings.update(user.id, { notes: prevNotes });
+      setEditingNoteIndex(null);
+      setEditingStationId(null);
+      toast.current?.show({
+        severity: "success",
+        summary: "تم تحديث الخاطرة ✨",
+        detail: "تم تعديل ملاحظتك بنجاح.",
+        life: 3000,
+      });
+    } else {
+      // Add new note
+      const stationNotes = Array.isArray(prevNotes[activeNoteStationId]) 
+        ? [...prevNotes[activeNoteStationId]] 
+        : [];
+      
+      const migrationNotes = (!Array.isArray(prevNotes[activeNoteStationId]) && prevNotes[activeNoteStationId])
+        ? [typeof prevNotes[activeNoteStationId] === 'string' 
+            ? { text: prevNotes[activeNoteStationId], date: new Date().toISOString() } 
+            : prevNotes[activeNoteStationId] as any]
+        : [];
 
-    await db.userSettings.update(user.id, {
-      notes: { 
-        ...prevNotes, 
-        [activeNoteStationId]: [
-          ...migrationNotes, 
-          ...stationNotes, 
-          { 
-            text: noteText, 
-            date: new Date().toISOString() 
-          }
-        ] 
-      },
-    });
+      await db.userSettings.update(user.id, {
+        notes: { 
+          ...prevNotes, 
+          [activeNoteStationId]: [
+            ...migrationNotes, 
+            ...stationNotes, 
+            { 
+              text: noteText, 
+              date: new Date().toISOString() 
+            }
+          ] 
+        },
+      });
+      toast.current?.show({
+        severity: "success",
+        summary: "تمت إضافة الخاطرة ✍️",
+        detail: "تم حفظ ملاحظتك الجديدة في سجل هذه الخطة بنجاح.",
+        life: 3000,
+      });
+    }
+    
     setNoteText("");
-    toast.current?.show({
-      severity: "success",
-      summary: "تمت إضافة الخاطرة ✍️",
-      detail:
-        "تم حفظ ملاحظتك الجديدة في سجل هذه المحطة بنجاح.",
-      life: 3000,
-    });
   };
 
   const deleteJournalNote = async (stationId: string, noteIndex: number) => {
@@ -704,6 +774,15 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     });
   };
 
+  const deleteResource = async (index: number) => {
+    if (!user || !user.id) return;
+    if (!window.confirm("هل أنت متأكد من حذف هذا المصدر؟")) return;
+    vibrate(HAPITCS.MAJOR_CLICK);
+    const updated = (user.resources || []).filter((_, i) => i !== index);
+    await db.userSettings.update(user.id, { resources: updated });
+    toast.current?.show({ severity: "info", summary: "تم الحذف", detail: "تم حذف المصدر بنجاح" });
+  };
+
   const saveTimeCapsule = async (targetStationId: string) => {
     if (!user || !capsuleText.trim()) return;
     
@@ -720,7 +799,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       severity: "success",
       summary: "تم إرسال الكبسولة ✉️",
       detail:
-        "لقد قمنا بغلق كبسولتك الزمنية وشحنها في مسيرتك العلمية، وستفتح تلقائياً فور فك قفل المحطة القادمة.",
+        "لقد قمنا بغلق كبسولتك الزمنية وشحنها في مسيرتك العلمية، وستفتح تلقائياً فور فك قفل الخطة القادمة.",
       life: 4000,
     });
   };
@@ -791,8 +870,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
     toast.current?.show({
       severity: "success",
-      summary: "تم تفعيل المحطة التطبيقية! 🛠️",
-      detail: "الآن حان وقت التطبيق العملي للوصول للمحطة التالية.",
+      summary: "تم تفعيل الخطة التطبيقية! 🛠️",
+      detail: "الآن حان وقت التطبيق العملي للوصول للخطة التالية.",
       life: 4000,
     });
 
@@ -1078,12 +1157,13 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
        confetti({
           particleCount: 150,
           spread: 70,
-          origin: { y: 0.6 }
+          origin: { y: 0.6 },
+          zIndex: 30000000
        });
        toast.current?.show({
           severity: "success",
           summary: "إنجاز عظيم! 🏆",
-          detail: "لقد أتممت أحد الأنشطة التطبيقية لهذه المحطة بنجاح.",
+          detail: "لقد أتممت أحد الأنشطة التطبيقية لهذه الخطة بنجاح.",
           life: 5000,
        });
     } else {
@@ -1112,6 +1192,12 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     setLockedDialogData,
     reflectionActiveTab,
     setReflectionActiveTab,
+    editingNoteIndex,
+    setEditingNoteIndex,
+    editingStationId,
+    setEditingStationId,
+    stationTabsIndex,
+    setStationTabsIndex,
     activeNoteStationId,
     setActiveNoteStationId,
     noteText,
@@ -1126,6 +1212,10 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     setShowSubStationCancelConfirm,
     showNotesPopup,
     setShowNotesPopup,
+    showRoutinePopup,
+    setShowRoutinePopup,
+    showPracticalPopup,
+    setShowPracticalPopup,
     showCapsulePopup,
     setShowCapsulePopup,
     showCompassPopup,
@@ -1185,6 +1275,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     takeRestDay,
     saveJournalNote,
     deleteJournalNote,
+    deleteResource,
     saveTimeCapsule,
     buyKeys,
     createSubStation,

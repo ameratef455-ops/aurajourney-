@@ -138,16 +138,28 @@ body {
   scrollbar-width: none;
 }
 
-/* Force PrimeReact Toast notifications to be on top of all dialogs */
+/* Force PrimeReact Toast notifications to be on top of ALL layers */
 .p-toast {
-  z-index: 999999999 !important;
+  z-index: 2147483647 !important;
+}
+.p-toast-message {
+  z-index: 2147483647 !important;
 }
 
-/* Ensure topmost dialogs (like Stumble Dialog) render in front of parent dialogs */
+/* Ensure ALL dialogs and masks render very high */
+.p-dialog-mask {
+  z-index: 20000000 !important;
+}
+
+.p-dialog {
+  z-index: 20000001 !important;
+}
+
+/* Ensure topmost dialogs (like Stumble Dialog) or specific overrides stay even higher */
 .topmost-dialog {
-  z-index: 20000002 !important;
+  z-index: 20000101 !important;
 }
 .topmost-mask {
-  z-index: 20000001 !important;
+  z-index: 20000100 !important;
 }
 
