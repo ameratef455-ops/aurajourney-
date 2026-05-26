@@ -8,6 +8,7 @@ import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast as toastHot } from "react-hot-toast";
+import { NotificationsPopover } from "./NotificationsPopover";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -644,6 +645,8 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
           </button>
           
           <div className="h-6 w-px bg-slate-200"></div>
+
+          <NotificationsPopover className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-blue-900 hover:bg-blue-50 transition-colors border-none bg-transparent cursor-pointer" />
 
           <button
             onClick={handleSettings}

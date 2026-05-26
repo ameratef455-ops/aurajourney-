@@ -21,6 +21,9 @@ import { safeRandomUUID } from "../lib/uuid";
 import { GamificationSidebar } from "./GamificationSidebar";
 import { ReflectionSidebar } from "./ReflectionSidebar";
 import { EvaluationSidebar } from "./EvaluationSidebar";
+import { NotificationsPopover } from "./NotificationsPopover";
+import { TaskReviewModal } from "./TaskReviewModal";
+import { TaskReflectionModal } from "./TaskReflectionModal";
 
 export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string | null }) {
   const toast = useRef({
@@ -281,6 +284,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [evaluationSidebarVisible, setEvaluationSidebarVisible] = useState(false);
   const [selectedTaskForAnalytics, setSelectedTaskForAnalytics] = useState<any>(null);
   const [taskReflectionData, setTaskReflectionData] = useState<any>(null);
+  
+  const [reviewingTask, setReviewingTask] = useState<any>(null);
+  const [reviewReflectionVisible, setReviewReflectionVisible] = useState(false);
   const [showStumbleForm, setShowStumbleForm] = useState(false);
   const [stumbleReason, setStumbleReason] = useState("");
   const [reflectionForceStationId, setReflectionForceStationId] = useState<string | null>(null);
@@ -301,8 +307,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     vibrate(HAPITCS.MAJOR_CLICK);
     setSelectedTaskForAnalytics(task);
     if (db.reflections) {
-      const ref = await db.reflections.where("taskId").equals(task.id).first();
-      setTaskReflectionData(ref || null);
+      const refs = await db.reflections.where("taskId").equals(task.id).toArray();
+      const sorted = refs.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      
+      // If there's an initial and review, return both. If only one, return it as array.
+      setTaskReflectionData(sorted.length > 0 ? sorted : null);
     } else {
       setTaskReflectionData(null);
     }
@@ -407,17 +416,31 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             {t.title}
           </span>
           {t.isCompleted && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                openTaskAnalytics(t);
-              }}
-              className="mr-auto p-1.5 text-indigo-600 hover:text-indigo-800 transition-colors rounded-lg hover:bg-slate-100 flex items-center justify-center cursor-pointer shadow-3xs"
-              title="عرض تحليلات المهمة"
-              type="button"
-            >
-              <i className="pi pi-chart-bar text-[10px] font-black"></i>
-            </button>
+            <div className="mr-auto flex items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setReviewingTask(t);
+                }}
+                className="p-1.5 px-2 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-105"
+                title="مراجعة الأنشطة"
+                type="button"
+              >
+                <i className="pi pi-compass text-[10px] font-black mr-1"></i>
+                <span className="text-[10px] font-bold">راجع</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openTaskAnalytics(t);
+                }}
+                className="p-1.5 text-indigo-600 hover:text-indigo-800 transition-colors rounded-lg hover:bg-slate-100 flex items-center justify-center cursor-pointer shadow-3xs"
+                title="عرض تحليلات المهمة"
+                type="button"
+              >
+                <i className="pi pi-chart-bar text-[10px] font-black"></i>
+              </button>
+            </div>
           )}
       </div>
     );
@@ -522,6 +545,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           transition: opacity 500ms cubic-bezier(0.16, 1, 0.3, 1), transform 500ms cubic-bezier(0.16, 1, 0.3, 1) !important;
         }
       `}</style>
+
+      {/* Notifications */}
+      <div className="absolute top-8 left-6 z-40">
+         <NotificationsPopover />
+      </div>
 
       {/* Standalone Back Button */}
       {onBack && (
@@ -943,6 +971,65 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         forceStationId={reflectionForceStationId}
       />
 
+      <TaskReviewModal
+        visible={reviewingTask !== null && !reviewReflectionVisible}
+        onHide={() => setReviewingTask(null)}
+        task={reviewingTask}
+        onFinishReview={() => {
+           setReviewReflectionVisible(true);
+        }}
+      />
+
+      <TaskReflectionModal
+        visible={reviewReflectionVisible}
+        onHide={() => {
+           setReviewReflectionVisible(false);
+           setReviewingTask(null);
+        }}
+        taskTitle={reviewingTask?.title || ""}
+        isReview={true}
+        onSubmit={async (data) => {
+           try {
+              let stationName = 'غير محدد';
+              if (reviewingTask?.stationId) {
+                const station = await db.stations.get(reviewingTask.stationId);
+                if (station) stationName = station.name;
+              }
+  
+              await db.reflections.add({
+                id: crypto.randomUUID(),
+                taskId: reviewingTask?.id || '',
+                taskTitle: reviewingTask?.title || '',
+                stationId: reviewingTask?.stationId || '',
+                stationName: stationName,
+                focus: data.focus,
+                mastery: data.mastery,
+                strengths: data.strengths,
+                weaknesses: data.weaknesses,
+                learnings: data.learnings,
+                didPractical: data.didPractical,
+                practicalIssues: data.practicalIssues,
+                createdAt: new Date().toISOString(),
+                type: 'review'
+              });
+              
+              if (user && user.gameData) {
+                 await db.userSettings.update(user.id, {
+                    gameData: { ...user.gameData, tasksCompletedSinceReview: 0 }
+                 });
+              }
+
+              toast.current?.show({
+                 severity: "success",
+                 summary: "تمت المراجعة!",
+                 detail: "تم تحديث التقييم للمهمة بنجاح، استمر في التقدم!"
+              });
+           } catch(e) {
+              console.error(e);
+           }
+        }}
+      />
+
       {/* Detail Tasks Dialog for Selected Station */}
       <Dialog
         visible={!!(selectedStation && unlockedStations.includes(selectedStation))}
@@ -1190,22 +1277,35 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                          : "text-slate-800 hover:text-blue-900 underline decoration-blue-200/50"
                                       }`}
                                   >
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span>{parentTask.title}</span>
-                                      {parentTask.isCompleted && (
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            openTaskAnalytics(parentTask);
-                                          }}
-                                          className="p-1 px-1.5 bg-indigo-50 border border-indigo-100/50 hover:bg-indigo-100 hover:border-indigo-200 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs"
-                                          title="عرض تحليلات المهمة"
-                                        >
-                                          <i className="pi pi-chart-bar text-[10px] font-black"></i>
-                                        </button>
-                                      )}
-                                    </div>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span>{parentTask.title}</span>
+                                        {parentTask.isCompleted && (
+                                          <div className="flex gap-1 mt-1">
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setReviewingTask(parentTask);
+                                              }}
+                                              className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105"
+                                              title="مراجعة الأنشطة"
+                                            >
+                                              <span className="text-[9px] font-bold mx-1">راجع</span>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                openTaskAnalytics(parentTask);
+                                              }}
+                                              className="p-1 px-1.5 bg-indigo-50 border border-indigo-100/50 hover:bg-indigo-100 hover:border-indigo-200 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs"
+                                              title="عرض تحليلات المهمة"
+                                            >
+                                              <i className="pi pi-chart-bar text-[10px] font-black"></i>
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
                                   </span>
 
                                   {/* Progress pill/badge for child items */}
@@ -1298,7 +1398,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                                 setEvaluationSidebarVisible(true);
                                               }}
                                             >
-                                              <div className="flex items-center gap-2 flex-wrap justify-start"><span>{subTask.title}</span>{subTask.isCompleted && (<button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(subTask); }} className="p-1 bg-indigo-50/75 border border-indigo-100/30 hover:bg-indigo-100/90 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button>)}</div>
+                                              <div className="flex items-center gap-2 flex-wrap justify-start"><span>{subTask.title}</span>{subTask.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(subTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(subTask); }} className="p-1 bg-indigo-50/75 border border-indigo-100/30 hover:bg-indigo-100/90 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button></div>)}</div>
                                             </span>
                                           </div>
                                         );
@@ -1387,7 +1487,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         className={`font-black text-sm transition-all cursor-pointer flex-1 text-right
                              ${t.isCompleted ? "text-amber-800 line-through opacity-65" : "text-blue-950 hover:text-amber-700 underline decoration-amber-200/40"}`}
                       >
-                        <div className="flex items-center gap-2 flex-wrap"><span>{t.title}</span>{t.isCompleted && (<button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(t); }} className="p-1 px-1.5 bg-amber-50 border border-amber-100/50 hover:bg-amber-100 hover:border-amber-200 text-amber-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[10px] font-black"></i></button>)}</div>
+                        <div className="flex items-center gap-2 flex-wrap"><span>{t.title}</span>{t.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(t); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(t); }} className="p-1 px-1.5 bg-amber-50 border border-amber-100/50 hover:bg-amber-100 hover:border-amber-200 text-amber-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[10px] font-black"></i></button></div>)}</div>
                       </span>
                     </div>
                   ))}
@@ -1491,9 +1591,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                 <div className="flex items-center gap-2 flex-wrap justify-end">
                                   <span>{stTask.title}</span>
                                   {stTask.isCompleted && (
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(stTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-150 hover:border-indigo-300 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة">
-                                      <i className="pi pi-chart-bar text-[10px] font-black"></i>
-                                    </button>
+                                    <div className="flex gap-1">
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(stTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-150 hover:border-indigo-300 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="مراجعة الأنشطة">
+                                        <span className="text-[9px] font-bold mx-1">راجع</span>
+                                      </button>
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(stTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-150 hover:border-indigo-300 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة">
+                                        <i className="pi pi-chart-bar text-[10px] font-black"></i>
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               </span>
@@ -1523,7 +1628,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                         setEvaluationSidebarVisible(true);
                                       }}
                                       className={`text-xs font-bold cursor-pointer flex-1 text-right ${inner.isCompleted ? 'text-slate-300 line-through' : 'text-slate-600 hover:text-indigo-900 underline decoration-indigo-200/30'}`}>
-                                      <div className="flex items-center gap-2 flex-wrap justify-start"><span>{inner.title}</span>{inner.isCompleted && (<button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(inner); }} className="p-1 bg-indigo-50/70 border border-indigo-100/30 hover:bg-indigo-100/80 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button>)}</div>
+                                      <div className="flex items-center gap-2 flex-wrap justify-start"><span>{inner.title}</span>{inner.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(inner); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(inner); }} className="p-1 bg-indigo-50/70 border border-indigo-100/30 hover:bg-indigo-100/80 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button></div>)}</div>
                                     </span>
                                   </div>
                                 ))}
@@ -2405,97 +2510,107 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 <h3 className="font-black text-blue-950 text-base leading-snug">{selectedTaskForAnalytics.title}</h3>
               </div>
 
-              {taskReflectionData ? (
-                <div className="space-y-5">
-                  {/* Focus & Mastery metrics row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Focus metric */}
-                    <div className="bg-gradient-to-br from-indigo-50/70 to-blue-50/50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center justify-center text-center">
-                      <p className="text-[10px] text-indigo-950/70 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                        <Brain className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> تركيزك أثناء المهمة:
-                      </p>
-                      <div className="text-3xl font-black text-indigo-700 font-mono">
-                        {taskReflectionData.focus} <span className="text-xs font-bold text-indigo-400">/ 5</span>
+              {taskReflectionData && taskReflectionData.length > 0 ? (
+                <div className="space-y-8">
+                  {taskReflectionData.map((refData: any, idx: number) => (
+                    <div key={idx} className="space-y-5 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative">
+                      
+                      {/* Type Badge */}
+                      <div className="absolute -top-3 right-6 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-sm border-2 border-white">
+                         {refData.type === 'review' ? 'تقييم بعد المراجعة 🔄' : 'التقييم الأصلي 📝'}
                       </div>
-                      <div className="flex gap-1 mt-2.5">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <div
-                            key={s}
-                            className={`w-2.5 h-2.5 rounded-full ${
-                              s <= taskReflectionData.focus ? "bg-indigo-600" : "bg-indigo-100"
-                            }`}
-                          />
-                        ))}
+
+                      {/* Focus & Mastery metrics row */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        {/* Focus metric */}
+                        <div className="bg-gradient-to-br from-indigo-50/70 to-blue-50/50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center justify-center text-center">
+                          <p className="text-[10px] text-indigo-950/70 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <Brain className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> تركيزك أثناء المهمة:
+                          </p>
+                          <div className="text-3xl font-black text-indigo-700 font-mono">
+                            {refData.focus} <span className="text-xs font-bold text-indigo-400">/ 5</span>
+                          </div>
+                          <div className="flex gap-1 mt-2.5">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <div
+                                key={s}
+                                className={`w-2.5 h-2.5 rounded-full ${
+                                  s <= refData.focus ? "bg-indigo-600" : "bg-indigo-100"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Mastery metric */}
+                        <div className="bg-gradient-to-br from-amber-50/70 to-yellow-50/50 p-4 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center">
+                          <p className="text-[10px] text-amber-950/75 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <Trophy className="w-3.5 h-3.5 text-amber-600" /> مستوى الإتقان والفهم:
+                          </p>
+                          <div className="text-3xl font-black text-amber-700 font-mono">
+                            {refData.mastery} <span className="text-xs font-bold text-amber-400">/ 10</span>
+                          </div>
+                          <div className="w-32 h-2 bg-amber-200/50 rounded-full overflow-hidden mt-3 p-0.5">
+                            <div
+                              className="h-full bg-amber-600 rounded-full"
+                              style={{ width: `${(refData.mastery / 10) * 100}%` }}
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Mastery metric */}
-                    <div className="bg-gradient-to-br from-amber-50/70 to-yellow-50/50 p-4 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center">
-                      <p className="text-[10px] text-amber-950/75 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                        <Trophy className="w-3.5 h-3.5 text-amber-600" /> مستوى الإتقان والفهم:
-                      </p>
-                      <div className="text-3xl font-black text-amber-700 font-mono">
-                        {taskReflectionData.mastery} <span className="text-xs font-bold text-amber-400">/ 10</span>
+                      {/* Date Badge */}
+                      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 text-slate-500 rounded-xl w-fit text-[11px] font-bold border border-slate-100">
+                        <i className="pi pi-calendar text-[11px] text-slate-400"></i>
+                        <span>تاريخ تسجيل الإنجاز: {new Date(refData.createdAt).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                       </div>
-                      <div className="w-32 h-2 bg-amber-200/50 rounded-full overflow-hidden mt-3 p-0.5">
-                        <div
-                          className="h-full bg-amber-600 rounded-full"
-                          style={{ width: `${(taskReflectionData.mastery / 10) * 100}%` }}
-                        />
+
+                      {/* Strengths & Weaknesses */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Strengths */}
+                        <div className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 flex flex-col gap-1.5">
+                          <p className="text-[10px] text-emerald-800 font-black tracking-widest uppercase flex items-center gap-1.5">
+                            <span className="text-emerald-500">💪</span> نقاط القوة المسجلة:
+                          </p>
+                          <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-emerald-50/30 font-medium leading-relaxed">
+                            {refData.strengths || "لم يتم تدوين نقاط قوة معينة."}
+                          </p>
+                        </div>
+
+                        {/* Weaknesses */}
+                        <div className="bg-rose-50/30 p-4 rounded-2xl border border-rose-100 flex flex-col gap-1.5">
+                          <p className="text-[10px] text-rose-800 font-black tracking-widest uppercase flex items-center gap-1.5">
+                            <span className="text-rose-500">🧨</span> مجالات التحسين (الضعف):
+                          </p>
+                          <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-rose-50/30 font-medium leading-relaxed">
+                            {refData.weaknesses || "لم يتم تدوين مجالات تحسين معينة."}
+                          </p>
+                        </div>
                       </div>
+
+                      {/* Key Learnings */}
+                      <div className="bg-blue-50/30 p-5 rounded-2xl border border-blue-100/60 flex flex-col gap-2">
+                        <p className="text-[11px] text-blue-900 font-black tracking-widest uppercase flex items-center gap-2">
+                          <Lightbulb className="w-4 h-4 text-amber-500" /> أهم الخلاصات والأفكار المسجلة:
+                        </p>
+                        <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-blue-50/60 leading-relaxed font-bold">
+                          {refData.learnings || "لم تنشأ خلاصات مدونة."}
+                        </p>
+                      </div>
+
+                      {/* Practical aspect */}
+                      {refData.didPractical && (
+                        <div className="bg-teal-50/30 p-5 rounded-2xl border border-teal-100 flex flex-col gap-2">
+                          <p className="text-[11px] text-teal-900/80 font-black tracking-widest uppercase flex items-center gap-2">
+                            <i className="pi pi-verified text-teal-600 text-xs"></i> التطبيق العملي والعوائق:
+                          </p>
+                          <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-teal-50 font-medium leading-relaxed">
+                            {refData.practicalIssues || "تم تفعيل وتطبيق المعرفة بسلاسة ودون مشاكل تقنية."}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-
-                  {/* Date Badge */}
-                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 text-slate-500 rounded-xl w-fit text-[11px] font-bold border border-slate-100">
-                    <i className="pi pi-calendar text-[11px] text-slate-400"></i>
-                    <span>تاريخ تسجيل الإنجاز: {new Date(taskReflectionData.createdAt).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                  </div>
-
-                  {/* Strengths & Weaknesses */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Strengths */}
-                    <div className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 flex flex-col gap-1.5">
-                      <p className="text-[10px] text-emerald-800 font-black tracking-widest uppercase flex items-center gap-1.5">
-                        <span className="text-emerald-500">💪</span> نقاط القوة المسجلة:
-                      </p>
-                      <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-emerald-50/30 font-medium leading-relaxed">
-                        {taskReflectionData.strengths || "لم يتم تدوين نقاط قوة معينة."}
-                      </p>
-                    </div>
-
-                    {/* Weaknesses */}
-                    <div className="bg-rose-50/30 p-4 rounded-2xl border border-rose-100 flex flex-col gap-1.5">
-                      <p className="text-[10px] text-rose-800 font-black tracking-widest uppercase flex items-center gap-1.5">
-                        <span className="text-rose-500">🧨</span> مجالات التحسين (الضعف):
-                      </p>
-                      <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-rose-50/30 font-medium leading-relaxed">
-                        {taskReflectionData.weaknesses || "لم يتم تدوين مجالات تحسين معينة."}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Key Learnings */}
-                  <div className="bg-blue-50/30 p-5 rounded-2xl border border-blue-100/60 flex flex-col gap-2">
-                    <p className="text-[11px] text-blue-900 font-black tracking-widest uppercase flex items-center gap-2">
-                      <Lightbulb className="w-4 h-4 text-amber-500" /> أهم الخلاصات والأفكار المسجلة:
-                    </p>
-                    <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-blue-50/60 leading-relaxed font-bold">
-                      {taskReflectionData.learnings || "لم تنشأ خلاصات مدونة."}
-                    </p>
-                  </div>
-
-                  {/* Practical aspect */}
-                  {taskReflectionData.didPractical && (
-                    <div className="bg-teal-50/30 p-5 rounded-2xl border border-teal-100 flex flex-col gap-2">
-                      <p className="text-[11px] text-teal-900/80 font-black tracking-widest uppercase flex items-center gap-2">
-                        <i className="pi pi-verified text-teal-600 text-xs"></i> التطبيق العملي والعوائق:
-                      </p>
-                      <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-teal-50 font-medium leading-relaxed">
-                        {taskReflectionData.practicalIssues || "تم تفعيل وتطبيق المعرفة بسلاسة ودون مشاكل تقنية."}
-                      </p>
-                    </div>
-                  )}
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-10 px-6 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col items-center gap-4">

@@ -603,6 +603,20 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
     const baseGameData = { ...gData, xp: newXp, keys: newKeys };
     const updatedGameData = processWorkdayAndStreak(baseGameData);
+    
+    if (task.type === 'sub' || task.type === 'side') {
+       updatedGameData.tasksCompletedSinceReview = (updatedGameData.tasksCompletedSinceReview || 0) + 1;
+       if (updatedGameData.tasksCompletedSinceReview === 2) {
+          await db.notifications.add({
+             id: crypto.randomUUID(),
+             title: 'مراجعة المهام 🌟',
+             message: 'لقد أنهيت مهمتين مؤخراً، قم بمراجعة إحداهما للحصول على أقصى الدفعة المعنوية وتحديث سجل التقييم.',
+             isRead: false,
+             type: 'info',
+             createdAt: new Date().toISOString()
+          });
+       }
+    }
 
     await db.userSettings.update(user.id, {
       gameData: updatedGameData,

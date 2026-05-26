@@ -278,7 +278,8 @@ export function EvaluationSidebar({
         position="bottom"
         className="w-full h-auto max-h-[90vh] md:w-[600px] md:mx-auto !bg-transparent p-0 border-none shadow-none"
         showCloseIcon={false}
-        modal={false}
+        modal={true}
+        baseZIndex={3000000}
       >
         <div className="flex flex-col h-[85vh] md:h-[70vh] mb-0 mx-2 md:mx-auto bg-slate-50/100 rounded-t-[2.5rem] md:rounded-[2.5rem] overflow-hidden border border-white/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] relative" dir="rtl">
           {/* Header */}
@@ -464,6 +465,7 @@ export function EvaluationSidebar({
         closable
         dismissableMask
         blockScroll
+        baseZIndex={3050000}
       >
         <style>{`
           .force-blue-gradient {
@@ -565,7 +567,8 @@ export function EvaluationSidebar({
               learnings: data.learnings,
               didPractical: data.didPractical,
               practicalIssues: data.practicalIssues,
-              createdAt: new Date().toISOString()
+              createdAt: new Date().toISOString(),
+              type: 'initial'
             });
 
             if (taskToReflect._source === 'practical' && onCompletePracticalTask) {

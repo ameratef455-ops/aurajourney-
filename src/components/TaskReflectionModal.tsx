@@ -12,9 +12,11 @@ interface TaskReflectionModalProps {
   onHide: () => void;
   onSubmit: (data: any) => void;
   taskTitle: string;
+  isReview?: boolean;
+  baseZIndex?: number;
 }
 
-export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle }: TaskReflectionModalProps) {
+export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isReview, baseZIndex }: TaskReflectionModalProps) {
   const [focus, setFocus] = useState<number>(3);
   const [mastery, setMastery] = useState<number>(5);
   const [strengths, setStrengths] = useState('');
@@ -49,14 +51,15 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle }: Ta
       visible={visible} 
       onHide={onHide}
       header={<div className="flex flex-col gap-1">
-        <span className="text-xl font-black text-indigo-950">تقييم إنجاز المهمة ✨</span>
-        <span className="text-xs text-indigo-500 font-medium">{taskTitle}</span>
-      </div>}
+        <span className="text-xl font-black text-indigo-950">{isReview ? "تقييم بعد المراجعة 🔄" : "تقييم إنجاز المهمة ✨"}</span>
+         <span className="text-xs text-indigo-500 font-medium">{taskTitle}</span>
+       </div>}
       className="w-full max-w-2xl font-sans"
       showHeader
       modal
       dismissableMask
       breakpoints={{ '960px': '75vw', '641px': '95vw' }}
+      baseZIndex={baseZIndex || 3000000}
     >
       <div className="space-y-8 py-4" dir="rtl">
         
