@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useAuraJourney } from "../hooks/useAuraJourney";
+import { LAYERS } from "../constants/layers";
 import { db } from "../db";
 import { motion, AnimatePresence } from "motion/react";
 import { vibrate, HAPITCS } from "../lib/haptics";
@@ -14,8 +15,9 @@ import { DataView } from "primereact/dataview";
 import { Tree } from "primereact/tree";
 import { toast as toastHot } from "react-hot-toast";
 import { 
-  Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy
+  Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy, History, TrendingUp, Calendar
 } from "lucide-react";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import confetti from "canvas-confetti";
 import { safeRandomUUID } from "../lib/uuid";
 import { GamificationSidebar } from "./GamificationSidebar";
@@ -24,6 +26,10 @@ import { EvaluationSidebar } from "./EvaluationSidebar";
 import { NotificationsPopover } from "./NotificationsPopover";
 import { TaskReviewModal } from "./TaskReviewModal";
 import { TaskReflectionModal } from "./TaskReflectionModal";
+import { TreeTheme } from "./themes/TreeTheme";
+import { CalendarTheme } from "./themes/CalendarTheme";
+import { addDays, getDay, format } from "date-fns";
+import { ar } from "date-fns/locale";
 
 export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string | null }) {
   const toast = useRef({
@@ -282,6 +288,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   }, [gData.fuel, user?.isVacation, user?.isFrozen, user?.id]);
 
   const [evaluationSidebarVisible, setEvaluationSidebarVisible] = useState(false);
+  const [selectedTaskForEvaluation, setSelectedTaskForEvaluation] = useState<any>(null);
   const [selectedTaskForAnalytics, setSelectedTaskForAnalytics] = useState<any>(null);
   const [taskReflectionData, setTaskReflectionData] = useState<any>(null);
   
@@ -293,6 +300,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [newResourceName, setNewResourceName] = useState("");
   const [newResourceUrl, setNewResourceUrl] = useState("");
   const [stationDialVisible, setStationDialVisible] = useState(false);
+  const [showCalendarAddTask, setShowCalendarAddTask] = useState(false);
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | null>(null);
+  const [calendarSelectedStationId, setCalendarSelectedStationId] = useState<string | null>(null);
+  const [compassCapsuleText, setCompassCapsuleText] = useState("");
 
   const allStumbles = useLiveQuery(() => {
     try {
@@ -452,6 +463,54 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     if (stTasks.length === 0) return true;
     return stTasks.every(t => t.isCompleted);
   }, [selectedStation, tasks]);
+
+  const currentTheme = user?.theme || 'cards';
+
+  const handleStationClick = (id: string, isUnlocked: boolean, i: number) => {
+    if (isUnlocked) {
+      vibrate(HAPITCS.MAJOR_CLICK);
+      setPoppedStationId(id);
+      setTimeout(() => setSelectedStation(id), 300);
+    } else if (i === unlockedStations.length) {
+      vibrate(HAPITCS.GUIDANCE);
+      setSelectedStation(id);
+      const st = stations[i];
+      const prevSt = stations[i - 1];
+      const prevName = prevSt ? prevSt.name : "";
+      const prevEnergy = prevSt
+        ? stationEnergy[prevSt.id] || 0
+        : 0;
+      setLockedDialogData({
+        stationName: st.name,
+        stationIcon: st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill",
+        requiredKeys: 10,
+        currentKeys: gData.keys,
+        prevStationName: prevName,
+        prevStationEnergy: prevEnergy,
+      });
+      setLockedDialogVisible(true);
+    }
+  };
+
+  const handleCalendarAddTask = async (title: string) => {
+    const targetId = calendarSelectedStationId || activeStationId;
+    if (!title.trim() || !targetId) return;
+    await db.tasks.add({
+      id: safeRandomUUID(),
+      stationId: targetId,
+      title: title.trim(),
+      type: 'main',
+      isCompleted: false
+    });
+    setShowCalendarAddTask(false);
+    const targetStation = stations.find(s => s.id === targetId);
+    toast.current?.show({
+      severity: 'success',
+      summary: 'تمت إضافة المهمة ✨',
+      detail: `تمت إضافة المهمة إلى "${targetStation?.name || 'الخطة'}"`,
+      life: 3000
+    });
+  };
 
   if (!stations || !tasks || !user) return null;
 
@@ -624,303 +683,310 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             </div>
           )}
 
-          {/* Card Stack Container */}
-          <div className="w-full relative h-[440px] mb-6 flex items-center justify-center">
-            <AnimatePresence mode="popLayout">
-              {stations.map((st, i) => {
-                // Only render active card and the next card to preserve memory and token performance
-                if (i < activeCardIndex || i > activeCardIndex + 1) {
-                  return null;
-                }
+          {/* Theme Views Selector */}
+          {currentTheme === 'cards' && (
+            <div className="w-full relative h-[440px] mb-6 flex items-center justify-center">
+              <AnimatePresence mode="popLayout">
+                {stations.map((st, i) => {
+                  // Only render active card and the next card to preserve memory and token performance
+                  if (i < activeCardIndex || i > activeCardIndex + 1) {
+                    return null;
+                  }
 
-                const isCurrent = (i === activeCardIndex);
-                const isNextCard = (i === activeCardIndex + 1);
+                  const isCurrent = (i === activeCardIndex);
+                  const isNextCard = (i === activeCardIndex + 1);
 
-                const isUnlocked = unlockedStations.includes(st.id);
-                const isActive = isUnlocked && st.id === activeStationId;
-                const isCompleted =
-                  isUnlocked && !isActive && stationEnergy[st.id] >= 130;
-                const isNextLocked = !isUnlocked && i === unlockedStations.length;
-                const isFutureLocked = !isUnlocked && i > unlockedStations.length;
+                  const isUnlocked = unlockedStations.includes(st.id);
+                  const isActive = isUnlocked && st.id === activeStationId;
+                  const isCompleted =
+                    isUnlocked && !isActive && stationEnergy[st.id] >= 130;
+                  const isNextLocked = !isUnlocked && i === unlockedStations.length;
+                  const isFutureLocked = !isUnlocked && i > unlockedStations.length;
 
-                const energy = stationEnergy[st.id] || 0;
-                const rawSubs = user.subStations?.[st.id];
-                const stationSubData = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
+                  const energy = stationEnergy[st.id] || 0;
+                  const rawSubs = user.subStations?.[st.id];
+                  const stationSubData = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
 
-                // Design overlapping stacked variables:
-                // If it is 'isNextCard', it peeks slightly out from the bottom to show its "edge"
-                const animateProps = isCurrent 
-                  ? { 
-                      scale: 1, 
-                      y: 0, 
-                      rotate: 0,
-                      opacity: 1,
-                      zIndex: 20,
-                    }
-                  : { 
-                      scale: 0.93, 
-                      y: 35, // Sticks out from the bottom!
-                      rotate: -1.5,
-                      opacity: 0.7,
-                      zIndex: 10,
-                    };
-
-                return (
-                  <motion.div
-                    key={st.id}
-                    initial={isCurrent ? { scale: 0.95, opacity: 0, y: 15 } : false}
-                    animate={animateProps}
-                    exit={{ 
-                      x: -350, 
-                      opacity: 0, 
-                      scale: 0.9, 
-                      rotate: -8,
-                      transition: { duration: 0.3 } 
-                    }}
-                    transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                    drag={isCurrent ? "x" : false}
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.5}
-                    onDragEnd={(event, info) => {
-                      if (!isCurrent) return;
-                      // swipe left (info.offset.x < -100) -> Next station
-                      if (info.offset.x < -100 && activeCardIndex < stations.length - 1) {
-                        vibrate(HAPITCS.MAJOR_CLICK);
-                        setActiveCardIndex(prev => prev + 1);
+                  // Design overlapping stacked variables:
+                  // If it is 'isNextCard', it peeks slightly out from the bottom to show its "edge"
+                  const animateProps = isCurrent 
+                    ? { 
+                        scale: 1, 
+                        y: 0, 
+                        rotate: 0,
+                        opacity: 1,
+                        zIndex: 20,
                       }
-                      // swipe right (info.offset.x > 100) -> Previous station
-                      else if (info.offset.x > 100 && activeCardIndex > 0) {
-                        vibrate(HAPITCS.MAJOR_CLICK);
-                        setActiveCardIndex(prev => prev - 1);
-                      }
-                    }}
-                    whileHover={isCurrent && isUnlocked ? { scale: 1.01 } : {}}
-                    whileTap={isCurrent && isUnlocked ? { scale: 0.99 } : {}}
-                    onClick={() => {
-                      if (!isCurrent) return; // Only clicks on current top card are responsive
+                    : { 
+                        scale: 0.93, 
+                        y: 35, // Sticks out from the bottom!
+                        rotate: -1.5,
+                        opacity: 0.7,
+                        zIndex: 10,
+                      };
 
-                      if (isUnlocked) {
-                        vibrate(HAPITCS.MAJOR_CLICK);
-                        setPoppedStationId(st.id);
-                        setTimeout(() => setSelectedStation(st.id), 300);
-                      } else if (isNextLocked) {
-                        vibrate(HAPITCS.GUIDANCE);
-                        setSelectedStation(st.id);
-                        const prevSt = stations[i - 1];
-                        const prevName = prevSt ? prevSt.name : "";
-                        const prevEnergy = prevSt
-                          ? stationEnergy[prevSt.id] || 0
-                          : 0;
-                        setLockedDialogData({
-                          stationName: st.name,
-                          stationIcon: st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill",
-                          requiredKeys: 10,
-                          currentKeys: gData.keys,
-                          prevStationName: prevName,
-                          prevStationEnergy: prevEnergy,
-                        });
-                        setLockedDialogVisible(true);
-                      }
-                    }}
-                    style={{
-                      position: "absolute",
-                      width: "100%",
-                      cursor: isCurrent ? "grab" : "default",
-                      touchAction: "none",
-                    }}
-                    className={`p-6 rounded-[32px] overflow-hidden flex flex-col justify-between text-right border select-none h-full min-h-[380px] max-h-[415px]
-                      ${isActive 
-                        ? "bg-gradient-to-br from-[#0c183e] via-[#091024] to-[#020512] border-blue-500 shadow-[0_25px_50px_rgba(37,99,235,0.25)] ring-1 ring-blue-500/20" 
-                        : ""}
-                      ${isCompleted 
-                        ? "bg-gradient-to-br from-[#07132b] via-[#030819] to-[#01030e] border-emerald-500/40 shadow-[0_20px_40px_rgba(16,185,129,0.12)]" 
-                        : ""}
-                      ${!isActive && !isCompleted && isUnlocked 
-                        ? "bg-gradient-to-br from-[#0b142d] via-[#05091a] to-[#01030e] border-indigo-500/20 shadow-[0_20px_40px_rgba(10,17,40,0.3)]" 
-                        : ""}
-                      ${isNextLocked 
-                        ? "bg-gradient-to-br from-[#121c33] to-[#0a0d16] border-slate-800 opacity-90 shadow-sm" 
-                        : ""}
-                      ${isFutureLocked 
-                        ? "bg-[#0b0e16] border-slate-900 opacity-60 filter grayscale shadow-none" 
-                        : ""}
-                    `}
-                  >
-                    {/* Embedded luxury glass ambient overlay to enhance premium look */}
-                    <div className="absolute inset-x-0 top-0 h-[40%] bg-gradient-to-b from-white/[0.04] to-transparent pointer-events-none" />
-                    
-                    {/* Top Row: Station index, icon and active indicator */}
-                    <div className="flex justify-between items-start mb-4 relative z-10 w-full">
-                      <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-lg shadow-inner">
-                          {isUnlocked ? (
-                            <i className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-xl bg-gradient-to-b from-blue-100 to-blue-300 bg-clip-text text-transparent`} />
-                          ) : (
-                            <i className={`pi pi-lock text-sm ${isNextLocked ? 'text-amber-400 animate-pulse' : 'text-slate-500'}`} />
-                          )}
-                        </div>
-                        <div>
-                          <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/15 tracking-wider uppercase block shadow-[0_0_12px_rgba(59,130,246,0.1)]">
-                            الخطة {i + 1}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {/* Status indicator pill */}
-                        {isActive && (
-                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-[9px] font-black text-blue-300 shadow-[0_0_10px_rgba(59,130,246,0.3)]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
-                            النشطة حالياً
-                          </span>
-                        )}
-                        {isCompleted && (
-                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-[9px] font-black text-emerald-300">
-                            <i className="pi pi-check-circle" />
-                            مكتملة
-                          </span>
-                        )}
-                        {isNextLocked && (
-                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black text-amber-300">
-                            مقفلة ({i * 10} مفتاح)
-                          </span>
-                        )}
-                        {isFutureLocked && (
-                          <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800 border border-slate-700/50 text-[9px] font-black text-slate-400">
-                            ضباب المستقبل
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Main Content Area */}
-                    <div className="relative z-10 pr-1 flex-1 mb-4">
-                      <h3 className="font-sans font-black text-lg md:text-xl text-white tracking-tight leading-snug">
-                        {st.name}
-                      </h3>
-                      {st.description && isUnlocked && (
-                        <p className="text-xs text-blue-200/70 font-bold leading-relaxed mt-2 line-clamp-3">
-                          {st.description}
-                        </p>
-                      )}
-                      {!isUnlocked && (
-                        <p className="text-xs text-slate-400/80 font-semibold leading-relaxed mt-2">
-                          {isNextLocked 
-                            ? "أطلق العنان لهذه الخطة الفكرية باستخدام المفاتيح للمضي قدماً." 
-                            : "يتطلب إنهاء الخطط السابقة لتطوير الفكر وكشف معالم الطريق."}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Subtasks and Progress indicators inside card */}
-                    {isUnlocked && (
-                      <div className="relative z-10 border-t border-white/5 pt-4 mt-1">
-                        {/* Progress bar */}
-                        <div className="flex justify-between items-center text-[10px] text-blue-300 mb-1.5 font-bold">
-                          <span>الاستيعاب والبطارية</span>
-                          <span className="font-mono">{energy}%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-900/80 rounded-full overflow-hidden border border-white/5">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-1000 ${
-                              isCompleted 
-                                ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400' 
-                                : 'bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 shadow-[0_0_12px_rgba(59,130,246,0.4)]'
-                            }`}
-                            style={{ width: `${Math.min(100, (energy / 130) * 100)}%` }}
-                          />
-                        </div>
-
-                        {/* Mini practical subtasks pill grid */}
-                        {stationSubData.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-3 justify-start">
-                            {stationSubData.slice(0, 3).map((ss, ssIdx) => (
-                              <div 
-                                key={ssIdx}
-                                className={`px-2 py-0.5 rounded-lg text-[9px] font-black border flex items-center gap-1
-                                  ${ss.isCompleted 
-                                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" 
-                                    : "bg-blue-500/10 border-blue-500/20 text-blue-300"
-                                  }
-                                `}
-                              >
-                                <i className={`pi ${ss.isCompleted ? 'pi-check' : 'pi-hammer'} text-[7px]`}></i>
-                                <span>تطبيق م# {ssIdx + 1}</span>
-                              </div>
-                            ))}
-                            {stationSubData.length > 3 && (
-                              <span className="text-[9px] text-blue-400 font-bold self-center">
-                                +{stationSubData.length - 3} أخرى
-                              </span>
+                  return (
+                    <motion.div
+                      key={st.id}
+                      initial={isCurrent ? { scale: 0.95, opacity: 0, y: 15 } : false}
+                      animate={animateProps}
+                      exit={{ 
+                        x: -350, 
+                        opacity: 0, 
+                        scale: 0.9, 
+                        rotate: -8,
+                        transition: { duration: 0.3 } 
+                      }}
+                      transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                      drag={isCurrent ? "x" : false}
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={0.5}
+                      onDragEnd={(event, info) => {
+                        if (!isCurrent) return;
+                        // swipe left (info.offset.x < -100) -> Next station
+                        if (info.offset.x < -100 && activeCardIndex < stations.length - 1) {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          setActiveCardIndex(prev => prev + 1);
+                        }
+                        // swipe right (info.offset.x > 100) -> Previous station
+                        else if (info.offset.x > 100 && activeCardIndex > 0) {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          setActiveCardIndex(prev => prev - 1);
+                        }
+                      }}
+                      whileHover={isCurrent && isUnlocked ? { scale: 1.01 } : {}}
+                      whileTap={isCurrent && isUnlocked ? { scale: 0.99 } : {}}
+                      onClick={() => handleStationClick(st.id, isUnlocked, i)}
+                      style={{
+                        position: "absolute",
+                        width: "100%",
+                        cursor: isCurrent ? "grab" : "default",
+                        touchAction: "none",
+                      }}
+                      className={`p-6 rounded-[32px] overflow-hidden flex flex-col justify-between text-right border select-none h-full min-h-[380px] max-h-[415px]
+                        ${isActive 
+                          ? "bg-gradient-to-br from-[#0c183e] via-[#091024] to-[#020512] border-blue-500 shadow-[0_25px_50px_rgba(37,99,235,0.25)] ring-1 ring-blue-500/20" 
+                          : ""}
+                        ${isCompleted 
+                          ? "bg-gradient-to-br from-[#07132b] via-[#030819] to-[#01030e] border-emerald-500/40 shadow-[0_20px_40px_rgba(16,185,129,0.12)]" 
+                          : ""}
+                        ${!isActive && !isCompleted && isUnlocked 
+                          ? "bg-gradient-to-br from-[#0b142d] via-[#05091a] to-[#01030e] border-indigo-500/20 shadow-[0_20px_40px_rgba(10,17,40,0.3)]" 
+                          : ""}
+                        ${isNextLocked 
+                          ? "bg-gradient-to-br from-[#121c33] to-[#0a0d16] border-slate-800 opacity-90 shadow-sm" 
+                          : ""}
+                        ${isFutureLocked 
+                          ? "bg-[#0b0e16] border-slate-900 opacity-60 filter grayscale shadow-none" 
+                          : ""}
+                      `}
+                    >
+                      {/* Embedded luxury glass ambient overlay to enhance premium look */}
+                      <div className="absolute inset-x-0 top-0 h-[40%] bg-gradient-to-b from-white/[0.04] to-transparent pointer-events-none" />
+                      
+                      {/* Top Row: Station index, icon and active indicator */}
+                      <div className="flex justify-between items-start mb-4 relative z-10 w-full">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-lg shadow-inner">
+                            {isUnlocked ? (
+                              <i className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-xl bg-gradient-to-b from-blue-100 to-blue-300 bg-clip-text text-transparent`} />
+                            ) : (
+                              <i className={`pi pi-lock text-sm ${isNextLocked ? 'text-amber-400 animate-pulse' : 'text-slate-500'}`} />
                             )}
                           </div>
+                          <div>
+                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/15 tracking-wider uppercase block shadow-[0_0_12px_rgba(59,130,246,0.1)]">
+                              الخطة {i + 1}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {/* Status indicator pill */}
+                          {isActive && (
+                            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-[9px] font-black text-blue-300 shadow-[0_0_10px_rgba(59,130,246,0.3)]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
+                              النشطة حالياً
+                            </span>
+                          )}
+                          {isCompleted && (
+                            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-[9px] font-black text-emerald-300">
+                              <i className="pi pi-check-circle" />
+                              مكتملة
+                            </span>
+                          )}
+                          {isNextLocked && (
+                            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black text-amber-300">
+                              مقفلة ({i * 10} مفتاح)
+                            </span>
+                          )}
+                          {isFutureLocked && (
+                            <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800 border border-slate-700/50 text-[9px] font-black text-slate-400">
+                              ضباب المستقبل
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Main Content Area */}
+                      <div className="relative z-10 pr-1 flex-1 mb-4">
+                        <h3 className="font-sans font-black text-lg md:text-xl text-white tracking-tight leading-snug">
+                          {st.name}
+                        </h3>
+                        {st.description && isUnlocked && (
+                          <p className="text-xs text-blue-200/70 font-bold leading-relaxed mt-2 line-clamp-3">
+                            {st.description}
+                          </p>
+                        )}
+                        {!isUnlocked && (
+                          <p className="text-xs text-slate-400/80 font-semibold leading-relaxed mt-2">
+                            {isNextLocked 
+                              ? "أطلق العنان لهذه الخطة الفكرية باستخدام المفاتيح للمضي قدماً." 
+                              : "يتطلب إنهاء الخطط السابقة لتطوير الفكر وكشف معالم الطريق."}
+                          </p>
                         )}
                       </div>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </div>
 
-          {/* Card Stack Navigation Controls & Indicators below the stack */}
-          <div className="w-full flex flex-col items-center justify-center gap-3 select-none relative z-20">
-            {/* Visual Progress Line or Dot Indicator */}
-            <div className="flex gap-1.5 items-center justify-center">
-              {stations.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => {
-                    vibrate(HAPITCS.MAJOR_CLICK);
-                    setActiveCardIndex(i);
-                  }}
-                  className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                    i === activeCardIndex 
-                      ? "w-6 bg-blue-600" 
-                      : i === activeCardIndex + 1 
-                        ? "w-2.5 bg-blue-400/60" 
-                        : "w-1.5 bg-slate-200"
-                  }`}
-                  title={`الخطة ${i + 1}`}
-                />
-              ))}
+                      {/* Subtasks and Progress indicators inside card */}
+                      {isUnlocked && (
+                        <div className="relative z-10 border-t border-white/5 pt-4 mt-1">
+                          {/* Progress bar */}
+                          <div className="flex justify-between items-center text-[10px] text-blue-300 mb-1.5 font-bold">
+                            <span>الاستيعاب والبطارية</span>
+                            <span className="font-mono">{energy}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-900/80 rounded-full overflow-hidden border border-white/5">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-1000 ${
+                                isCompleted 
+                                  ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400' 
+                                  : 'bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 shadow-[0_0_12px_rgba(59,130,246,0.4)]'
+                              }`}
+                              style={{ width: `${Math.min(100, (energy / 130) * 100)}%` }}
+                            />
+                          </div>
+
+                          {/* Mini practical subtasks pill grid */}
+                          {stationSubData.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-3 justify-start">
+                              {stationSubData.slice(0, 3).map((ss, ssIdx) => (
+                                <div 
+                                  key={ssIdx}
+                                  className={`px-2 py-0.5 rounded-lg text-[9px] font-black border flex items-center gap-1
+                                    ${ss.isCompleted 
+                                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" 
+                                      : "bg-blue-500/10 border-blue-500/20 text-blue-300"
+                                    }
+                                  `}
+                                >
+                                  <i className={`pi ${ss.isCompleted ? 'pi-check' : 'pi-hammer'} text-[7px]`}></i>
+                                  <span>تطبيق م# {ssIdx + 1}</span>
+                                </div>
+                              ))}
+                              {stationSubData.length > 3 && (
+                                <span className="text-[9px] text-blue-400 font-bold self-center">
+                                  +{stationSubData.length - 3} أخرى
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
+          )}
 
-            {/* Pagination numbers & Swipe Help label */}
-            <div className="flex justify-between items-center w-full px-2 mt-1">
-              <button 
-                disabled={activeCardIndex === 0}
-                onClick={() => {
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  setActiveCardIndex(prev => prev - 1);
+          {currentTheme === 'tree' && (
+             <TreeTheme 
+                stations={stations}
+                unlockedStations={unlockedStations}
+                activeStationId={activeStationId}
+                stationEnergy={stationEnergy}
+                onStationClick={handleStationClick}
+             />
+          )}
+
+          {currentTheme === 'calendar' && (
+             <CalendarTheme 
+                stations={stations}
+                unlockedStations={unlockedStations}
+                activeStationId={activeStationId}
+                stationEnergy={stationEnergy}
+                onStationClick={handleStationClick}
+                learningDays={user.learningDays || []}
+                onAddTaskClick={(date, stationId) => {
+                   setCalendarSelectedDate(date);
+                   setCalendarSelectedStationId(stationId);
+                   setShowCalendarAddTask(true);
                 }}
-                className="w-10 h-10 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
-              >
-                <i className="pi pi-chevron-right text-xs"></i>
-              </button>
+                tasks={tasks}
+                toggleTask={toggleTask}
+             />
+          )}
 
-              <div className="text-center font-sans">
-                <p className="text-xs font-black text-slate-800">
-                  الخطة <span className="text-blue-600 font-bold">{activeCardIndex + 1}</span> من <span className="text-slate-500">{stations.length}</span>
-                </p>
-                <p className="text-[10px] text-slate-400 font-medium mt-0.5 animate-pulse flex items-center justify-center gap-1">
-                  <i className="pi pi-directions text-[9px]"></i>
-                  <span>اسحب البطاقة يميناً أو يساراً للتنقل 🗺️</span>
-                </p>
+          {/* Card Stack Navigation Controls - Only in Cards theme */}
+          {currentTheme === 'cards' && (
+            <div className="w-full flex flex-col items-center justify-center gap-3 select-none relative z-20">
+              {/* Visual Progress Line or Dot Indicator */}
+              <div className="flex gap-1.5 items-center justify-center">
+                {stations.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      vibrate(HAPITCS.MAJOR_CLICK);
+                      setActiveCardIndex(i);
+                    }}
+                    className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                      i === activeCardIndex 
+                        ? "w-6 bg-blue-600" 
+                        : i === activeCardIndex + 1 
+                          ? "w-2.5 bg-blue-400/60" 
+                          : "w-1.5 bg-slate-200"
+                    }`}
+                    title={`الخطة ${i + 1}`}
+                  />
+                ))}
               </div>
 
-              <button 
-                disabled={activeCardIndex === stations.length - 1}
-                onClick={() => {
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  setActiveCardIndex(prev => prev + 1);
-                }}
-                className="w-10 h-10 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
-              >
-                <i className="pi pi-chevron-left text-xs"></i>
-              </button>
+              {/* Pagination numbers & Swipe Help label */}
+              <div className="flex justify-between items-center w-full px-2 mt-1">
+                <button 
+                  disabled={activeCardIndex === 0}
+                  onClick={() => {
+                    vibrate(HAPITCS.MAJOR_CLICK);
+                    setActiveCardIndex(prev => prev - 1);
+                  }}
+                  className="w-10 h-10 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                >
+                  <i className="pi pi-chevron-right text-xs"></i>
+                </button>
+
+                <div className="text-center font-sans">
+                  <p className="text-xs font-black text-slate-800">
+                    الخطة <span className="text-blue-600 font-bold">{activeCardIndex + 1}</span> من <span className="text-slate-500">{stations.length}</span>
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-medium mt-0.5 animate-pulse flex items-center justify-center gap-1">
+                    <i className="pi pi-directions text-[9px]"></i>
+                    <span>اسحب البطاقة يميناً أو يساراً للتنقل 🗺️</span>
+                  </p>
+                </div>
+
+                <button 
+                  disabled={activeCardIndex === stations.length - 1}
+                  onClick={() => {
+                    vibrate(HAPITCS.MAJOR_CLICK);
+                    setActiveCardIndex(prev => prev + 1);
+                  }}
+                  className="w-10 h-10 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                >
+                  <i className="pi pi-chevron-left text-xs"></i>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
       </div>
@@ -928,7 +994,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       {/* Evaluation Log Sidebar */}
       <EvaluationSidebar 
         visible={evaluationSidebarVisible}
-        onHide={() => setEvaluationSidebarVisible(false)}
+        onHide={() => {
+          setEvaluationSidebarVisible(false);
+          setSelectedTaskForEvaluation(null);
+        }}
+        initialSelectedTask={selectedTaskForEvaluation}
         stations={stations || []}
         mainTasks={tasks.filter(t => t.type === 'main')}
         sideTasks={tasks.filter(t => t.type === 'side')}
@@ -989,29 +1059,33 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         taskTitle={reviewingTask?.title || ""}
         isReview={true}
         onSubmit={async (data) => {
+           const currentTask = reviewingTask;
+           if (!currentTask) return;
            try {
               let stationName = 'غير محدد';
-              if (reviewingTask?.stationId) {
-                const station = await db.stations.get(reviewingTask.stationId);
+              if (currentTask.stationId) {
+                const station = await db.stations.get(currentTask.stationId);
                 if (station) stationName = station.name;
               }
   
               await db.reflections.add({
-                id: crypto.randomUUID(),
-                taskId: reviewingTask?.id || '',
-                taskTitle: reviewingTask?.title || '',
-                stationId: reviewingTask?.stationId || '',
+                id: safeRandomUUID(),
+                taskId: currentTask.id || '',
+                taskTitle: currentTask.title || '',
+                stationId: currentTask.stationId || '',
                 stationName: stationName,
                 focus: data.focus,
                 mastery: data.mastery,
-                strengths: data.strengths,
-                weaknesses: data.weaknesses,
-                learnings: data.learnings,
-                didPractical: data.didPractical,
-                practicalIssues: data.practicalIssues,
+                strengths: data.strengths || '',
+                weaknesses: data.weaknesses || '',
+                learnings: data.learnings || '',
+                didPractical: !!data.didPractical,
+                practicalIssues: data.practicalIssues || '',
                 createdAt: new Date().toISOString(),
                 type: 'review'
               });
+
+              rewardActivity(true);
               
               if (user && user.gameData) {
                  await db.userSettings.update(user.id, {
@@ -1041,7 +1115,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             </span>
           </div>
         }
-        className="w-[96vw] max-w-[850px] font-sans !rounded-[40px] overflow-hidden"
+        className="w-[96vw] max-w-[850px] font-sans !rounded-[40px] overflow-hidden station-details-dialog"
         style={{ borderRadius: '40px', minHeight: '620px' }}
         maskClassName="backdrop-blur-md bg-blue-950/20"
         closable
@@ -1238,6 +1312,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                     toggleTask(parentTask.id, parentTask.isCompleted, parentTask.type);
                                     if (!parentTask.isCompleted) {
                                       vibrate(HAPITCS.MAJOR_CLICK);
+                                      setSelectedTaskForEvaluation(parentTask);
                                       setEvaluationSidebarVisible(true);
                                     }
                                   }}
@@ -1269,6 +1344,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                         return;
                                       }
                                       vibrate(HAPITCS.MAJOR_CLICK);
+                                      setSelectedTaskForEvaluation(parentTask);
                                       setEvaluationSidebarVisible(true);
                                     }}
                                     className={`font-black text-sm block leading-relaxed break-words cursor-pointer transition-all
@@ -1363,6 +1439,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                               toggleTask(subTask.id, subTask.isCompleted, subTask.type);
                                               if (!subTask.isCompleted) {
                                                 vibrate(HAPITCS.MAJOR_CLICK);
+                                                setSelectedTaskForEvaluation(subTask);
                                                 setEvaluationSidebarVisible(true);
                                               }
                                             }}
@@ -1395,6 +1472,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 vibrate(HAPITCS.MAJOR_CLICK);
+                                                setSelectedTaskForEvaluation(subTask);
                                                 setEvaluationSidebarVisible(true);
                                               }}
                                             >
@@ -1464,6 +1542,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                           toggleTask(t.id, t.isCompleted, t.type);
                           if (!t.isCompleted) {
                             vibrate(HAPITCS.MAJOR_CLICK);
+                            setSelectedTaskForEvaluation(t);
                             setEvaluationSidebarVisible(true);
                           }
                         }}
@@ -1482,6 +1561,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       <span
                         onClick={() => {
                           vibrate(HAPITCS.MAJOR_CLICK);
+                          setSelectedTaskForEvaluation(t);
                           setEvaluationSidebarVisible(true);
                         }}
                         className={`font-black text-sm transition-all cursor-pointer flex-1 text-right
@@ -1576,6 +1656,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                   toggleSubStationTask(selectedStation!, sIdx, stTask.id);
                                   if (!stTask.isCompleted) {
                                     vibrate(HAPITCS.MAJOR_CLICK);
+                                    setSelectedTaskForEvaluation({ ...stTask, subStationId: selectedStation, sIdx });
                                     setEvaluationSidebarVisible(true);
                                   }
                                 }}
@@ -1585,6 +1666,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                               <span 
                                 onClick={() => {
                                   vibrate(HAPITCS.MAJOR_CLICK);
+                                  setSelectedTaskForEvaluation({ ...stTask, subStationId: selectedStation, sIdx });
                                   setEvaluationSidebarVisible(true);
                                 }}
                                 className={`font-black text-sm cursor-pointer flex-1 text-right ${stTask.isCompleted ? 'text-slate-400 line-through opacity-60' : 'text-blue-950 hover:text-indigo-800 underline decoration-indigo-200/50'}`}>
@@ -1616,6 +1698,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                         toggleSubStationInnerTask(selectedStation!, sIdx, stTask.id, inner.id);
                                         if (!inner.isCompleted) {
                                           vibrate(HAPITCS.MAJOR_CLICK);
+                                          setSelectedTaskForEvaluation({ ...inner, subStationId: selectedStation, sIdx, parentPracticalTaskId: stTask.id });
                                           setEvaluationSidebarVisible(true);
                                         }
                                       }}
@@ -1625,6 +1708,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                     <span 
                                       onClick={() => {
                                         vibrate(HAPITCS.MAJOR_CLICK);
+                                        setSelectedTaskForEvaluation({ ...inner, subStationId: selectedStation, sIdx, parentPracticalTaskId: stTask.id });
                                         setEvaluationSidebarVisible(true);
                                       }}
                                       className={`text-xs font-bold cursor-pointer flex-1 text-right ${inner.isCompleted ? 'text-slate-300 line-through' : 'text-slate-600 hover:text-indigo-900 underline decoration-indigo-200/30'}`}>
@@ -1740,16 +1824,34 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 وصلت بنجاح للخطة، واحتضنت رسالة ماضيك
               </p>
 
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5 mb-6 text-right relative">
-                <span className="absolute top-2 left-3 text-3xl font-black text-gray-200 select-none">
-                  ”
-                </span>
-                <p className="text-blue-950 font-medium text-sm leading-relaxed whitespace-pre-line">
-                  {celebratedCapsule.message}
-                </p>
-                <p className="text-[10px] text-gray-400 font-bold text-left mt-4">
-                  — كُتبت بواسطة نفسك السابقة
-                </p>
+              <div className="max-h-[250px] overflow-y-auto no-scrollbar space-y-3 mb-6">
+                {celebratedCapsule.messages && celebratedCapsule.messages.length > 0 ? (
+                  celebratedCapsule.messages.map((item: any, idx: number) => (
+                    <div key={idx} className="bg-gray-50 border border-gray-100 rounded-2xl p-4 text-right relative shadow-xs">
+                      <span className="absolute top-1 left-3 text-2xl font-black text-indigo-100 select-none">
+                        ”
+                      </span>
+                      <p className="text-blue-950 font-bold text-xs leading-relaxed whitespace-pre-line">
+                        {item.message}
+                      </p>
+                      <p className="text-[9px] text-gray-400 font-bold text-left mt-3">
+                        — كُتبت في: {item.writtenAt}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5 text-right relative">
+                    <span className="absolute top-2 left-3 text-3xl font-black text-gray-200 select-none">
+                      ”
+                    </span>
+                    <p className="text-blue-950 font-medium text-sm leading-relaxed whitespace-pre-line">
+                      {celebratedCapsule.message}
+                    </p>
+                    <p className="text-[10px] text-gray-400 font-bold text-left mt-4">
+                      — كُتبت بواسطة نفسك السابقة
+                    </p>
+                  </div>
+                )}
               </div>
 
               <Button
@@ -2494,6 +2596,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         closable
         dismissableMask
         maskClassName="backdrop-blur-md bg-blue-950/20"
+        baseZIndex={LAYERS.ANALYTICS_DIALOG}
       >
         <AnimatePresence>
           {selectedTaskForAnalytics && (
@@ -2509,6 +2612,100 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 font-extrabold px-2.5 py-1 rounded-full uppercase">المهمة المنجزة</span>
                 <h3 className="font-black text-blue-950 text-base leading-snug">{selectedTaskForAnalytics.title}</h3>
               </div>
+
+              {taskReflectionData && taskReflectionData.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                   <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2">
+                        <History className="w-5 h-5" />
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">عدد المراجعات</p>
+                      <p className="text-xl font-black text-slate-800">{taskReflectionData.filter((r:any) => r.type === 'review').length}</p>
+                   </div>
+                   <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center col-span-2">
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
+                        <TrendingUp className="w-5 h-5" />
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">الفجوات الزمنية بين التقييمات (بالأيام)</p>
+                      <div className="flex gap-2 mt-1">
+                        {taskReflectionData.length > 1 ? taskReflectionData.slice(1).map((r: any, i: number) => {
+                          const prev = taskReflectionData[i];
+                          const diff = new Date(r.createdAt).getTime() - new Date(prev.createdAt).getTime();
+                          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                          return (
+                            <span key={i} className="text-xs font-black bg-slate-100 px-3 py-1 rounded-lg text-slate-600">
+                               {days > 0 ? `${days} يوم` : 'نفس اليوم'}
+                            </span>
+                          );
+                        }) : <span className="text-xs font-bold text-slate-300">لا توجد مراجعات لاحتساب الفجوات</span>}
+                      </div>
+                   </div>
+                </div>
+              )}
+
+              {taskReflectionData && taskReflectionData.length > 1 && (
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                   <h4 className="text-xs font-black text-slate-400 tracking-widest uppercase flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-indigo-500" /> مخطط تطور الإتقان والتركيز
+                   </h4>
+                   <div className="h-64 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={taskReflectionData.map((r: any, i: number) => ({
+                          name: i === 0 ? 'الأصلي' : `مراجعة ${i}`,
+                          mastery: r.mastery,
+                          focus: r.focus,
+                          fullDate: new Date(r.createdAt).toLocaleDateString('ar-EG')
+                        }))}>
+                          <defs>
+                            <linearGradient id="colorMastery" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.2}/>
+                              <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="colorFocus" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#d97706" stopOpacity={0.2}/>
+                              <stop offset="95%" stopColor="#d97706" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis 
+                            dataKey="name" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} 
+                            dy={10}
+                          />
+                          <YAxis 
+                            hide={true}
+                            domain={[0, 10]}
+                          />
+                          <RechartsTooltip 
+                             contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', direction: 'rtl'}}
+                             itemStyle={{fontSize: '11px', fontWeight: 'bold'}}
+                             labelStyle={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="mastery" 
+                            name="الإتقان"
+                            stroke="#1e3a8a" 
+                            strokeWidth={3}
+                            fillOpacity={1} 
+                            fill="url(#colorMastery)" 
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="focus" 
+                            name="التركيز"
+                            stroke="#d97706" 
+                            strokeWidth={3}
+                            fillOpacity={1} 
+                            fill="url(#colorFocus)" 
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                   </div>
+                </div>
+              )}
 
               {taskReflectionData && taskReflectionData.length > 0 ? (
                 <div className="space-y-8">
@@ -2677,13 +2874,138 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   </p>
                 </div>
 
-                <div className="bg-gradient-to-br from-rose-50/70 to-red-50/50 p-5 rounded-2xl border border-rose-100/30">
+                 <div className="bg-gradient-to-br from-rose-50/70 to-red-50/50 p-5 rounded-2xl border border-rose-100/30">
                   <p className="text-[10px] text-rose-900/60 font-black uppercase tracking-widest flex items-center gap-2 mb-2">
                     <i className="pi pi-exclamation-triangle text-rose-600 text-[10px]"></i> المخاوف (التي تخاف الوقوع فيها):
                   </p>
                   <p className="text-red-950 font-bold text-sm bg-white/80 p-3.5 rounded-xl border border-white leading-relaxed text-red-800 shadow-xs">
                     {user.psychology.anxieties || "لم يتم تسجيله بعد"}
                   </p>
+                </div>
+              </div>
+
+              {/* Time Capsule Integration inside the Compass popup */}
+              <div className="border-t border-slate-100 pt-6 mt-6">
+                <div className="bg-gradient-to-br from-[#faf8ff] to-[#f4f2ff] p-6 rounded-3xl border border-indigo-100/50 space-y-4">
+                  <h4 className="font-black text-indigo-950 text-base flex items-center gap-2">
+                    <span className="text-xl">✉️</span> الكبسولة الزمنية لمستقبلك
+                  </h4>
+                  <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                     هنا يمكنك كتابة كبسولات ورسائل وتنبيهات لنفسك المستقبلية. ستُقفل هذه الكبسولات تلقائيًا وتُبث في الفضاء لتُفتح فقط عندما تفتح قفل خطتك القادمة!
+                  </p>
+
+                  {/* If there is a next station */}
+                  {(() => {
+                    const activeIdx = stations.findIndex(s => s.id === activeStationId);
+                    const nextSt = (activeIdx !== -1 && activeIdx < stations.length - 1) ? stations[activeIdx + 1] : null;
+
+                    if (nextSt) {
+                      const capsuleForNext = user.timeCapsules?.[nextSt.id];
+                      const messageList = capsuleForNext?.messages || [];
+
+                      return (
+                        <div className="space-y-4">
+                          <div className="bg-white/85 p-4 rounded-2xl border border-indigo-50/80 space-y-2.5">
+                            <span className="text-xs font-black text-indigo-900 flex items-center gap-1.5">
+                              🎯 الكبسولة موجهة للخطة القادمة: <span className="text-blue-600">"{nextSt.name}"</span>
+                            </span>
+                            
+                            <textarea
+                              className="w-full h-20 p-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 ring-indigo-500/10 text-xs font-bold text-slate-800 resize-none placeholder:text-slate-300 transition-all font-sans"
+                              placeholder="اكتب رسالة لنفسك لتقرأها فور بدء خطة العمل القادمة..."
+                              value={compassCapsuleText}
+                              onChange={(e) => setCompassCapsuleText(e.target.value)}
+                            />
+
+                            <button
+                              onClick={async () => {
+                                if (!compassCapsuleText.trim()) return;
+                                await saveTimeCapsule(nextSt.id, compassCapsuleText);
+                                setCompassCapsuleText("");
+                              }}
+                              disabled={!compassCapsuleText.trim()}
+                              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all cursor-pointer border-none flex items-center justify-center gap-2 shadow-md shadow-indigo-600/10"
+                            >
+                              <i className="pi pi-send"></i> إرسال وشحن الكبسولة الزمنية
+                            </button>
+                          </div>
+
+                          {/* Render lists of sealed capsules for next plan */}
+                          {messageList.length > 0 && (
+                            <div className="space-y-3 pt-1">
+                              <h5 className="text-xs font-black text-slate-600 flex items-center gap-1.5">
+                                🔒 الكبسولات المشحونة والمؤمنة حالياً لهذه الخطة ({messageList.length}):
+                              </h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {messageList.map((msg: any, mIdx: number) => (
+                                  <div key={mIdx} className="bg-slate-50/70 border border-dashed border-slate-200/80 p-3 rounded-xl flex items-center justify-between text-[11px] font-bold text-slate-500">
+                                    <span className="flex items-center gap-1.5 text-indigo-900/70">
+                                      🔒 ملاحظة مؤمنة {mIdx + 1}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-mono">
+                                      {msg.writtenAt}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="p-4 bg-yellow-50 border border-yellow-101 rounded-2xl text-center">
+                          <i className="pi pi-verified text-2xl text-yellow-600 mb-2 block"></i>
+                          <p className="text-xs text-yellow-800 font-black">🎉 لقد وصلت للخطة النهائية!</p>
+                          <p className="text-[10px] text-yellow-600 mt-1 font-bold">لا توجد خطة قادمة متبقية لإرسال كبسولة زمنية لها.</p>
+                        </div>
+                      );
+                    }
+                  })()}
+
+                  {/* Render unlocked capsules from previous plans so they can review their journey */}
+                  {(() => {
+                    const unlockedCapsules = Object.entries(user.timeCapsules || {}).filter(
+                      ([_, cap]: any) => (cap as any).isRead
+                    );
+
+                    if (unlockedCapsules.length > 0) {
+                      return (
+                        <div className="border-t border-slate-100 pb-2 pt-4 space-y-3">
+                          <h5 className="text-xs font-black text-emerald-800 flex items-center gap-1.5">
+                            🔓 كبسولات مفتوحة من محطاتك السابقة ومسجلة بالتاريخ ({unlockedCapsules.length}):
+                          </h5>
+                          <div className="max-h-[220px] overflow-y-auto no-scrollbar space-y-3">
+                            {unlockedCapsules.map(([sId, cap]: any) => {
+                              const st = stations.find(s => s.id === sId);
+                              const msgs = cap.messages || (cap.message ? [{ message: cap.message, writtenAt: cap.writtenAt }] : []);
+
+                              return (
+                                <div key={sId} className="bg-emerald-50/30 border border-emerald-100/50 p-4 rounded-2xl space-y-2">
+                                  <span className="text-[11px] font-black text-emerald-950 bg-emerald-100/50 px-2.5 py-1 rounded-lg">
+                                    🎖️ الخطة: "{st?.name || 'مرحلة سابقة'}"
+                                  </span>
+                                  <div className="space-y-2 pt-2">
+                                    {msgs.map((item: any, itemIdx: number) => (
+                                      <div key={itemIdx} className="bg-white p-3 rounded-xl border border-emerald-50 shadow-3xs flex flex-col gap-1.5">
+                                        <p className="text-xs font-bold text-slate-800 leading-relaxed italic text-right">
+                                          "{item.message}"
+                                        </p>
+                                        <span className="text-[9px] text-slate-400 font-bold self-start mt-1">
+                                          ⏱️ {item.writtenAt}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
             </motion.div>
@@ -2994,6 +3316,41 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               }}
             />
           </div>
+        </div>
+      </Dialog>
+
+      {/* Calendar Add Task Dialog */}
+      <Dialog
+        header={
+          <div className="flex items-center gap-2 text-blue-950 font-black pr-4 text-sm font-sans" dir="rtl">
+            ➕ إضافة مهمة ليوم {calendarSelectedDate ? format(calendarSelectedDate, 'EEEE d MMMM', { locale: ar }) : ''}
+          </div>
+        }
+        visible={showCalendarAddTask}
+        onHide={() => setShowCalendarAddTask(false)}
+        className="w-[90vw] max-w-sm font-sans mx-4 shadow-2xl"
+        closable
+        dismissableMask
+      >
+        <div className="p-4 flex flex-col gap-4 text-right font-sans" dir="rtl">
+           <p className="text-sm font-bold text-slate-500">سيتم إضافة هذه المهمة للخطة النشطة حالياً: <span className="font-black text-blue-900 leading-snug">"{activeStation?.name}"</span></p>
+           <input 
+             id="calendar-task-input"
+             autoFocus
+             className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 ring-blue-500/10 text-sm font-bold text-slate-800 placeholder-slate-300 transition-all font-sans"
+             placeholder="ما هي المهمة التي تود إنجازها؟"
+             onKeyDown={(e) => {
+               if (e.key === 'Enter') handleCalendarAddTask((e.target as HTMLInputElement).value);
+             }}
+           />
+           <Button 
+             label="إضافة المهمة" 
+             className="w-full bg-blue-900 border-none rounded-2xl py-4 font-black shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-white cursor-pointer"
+             onClick={() => {
+               const input = document.getElementById('calendar-task-input') as HTMLInputElement;
+               if (input) handleCalendarAddTask(input.value);
+             }}
+           />
         </div>
       </Dialog>
     </motion.div>

@@ -6,9 +6,11 @@ import { FileUpload } from "primereact/fileupload";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
+import { Menu } from "primereact/menu";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast as toastHot } from "react-hot-toast";
 import { NotificationsPopover } from "./NotificationsPopover";
+import { Plus } from "lucide-react";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -257,7 +259,7 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
 
   return (
     <div className="w-full max-w-2xl mt-8 mx-auto" dir="rtl">
-      <div className="flex justify-center mb-8">
+      <div className="flex justify-center mb-8 mt-12">
          <span className="px-8 py-3 bg-gradient-to-r from-blue-800 to-indigo-900 text-white rounded-full font-black text-sm shadow-lg flex items-center gap-3 border border-white/20">
             <i className="pi pi-compass text-lg animate-spin" style={{ animationDuration: '4s' }}></i>
             الرحلات النشطة الحالية
@@ -601,6 +603,7 @@ interface LandingProps {
 
 export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const menu = useRef<Menu>(null);
 
   const handleStart = () => {
     vibrate(HAPITCS.MAJOR_CLICK);
@@ -611,6 +614,30 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
     vibrate(HAPITCS.MAJOR_CLICK);
     setSettingsOpen(true);
   };
+
+  const menuItems = [
+    {
+      label: 'اصنع رحلتك',
+      icon: 'pi pi-map',
+      template: (item: any, options: any) => {
+        return (
+          <button 
+            onClick={(e) => {
+              vibrate(HAPITCS.MAJOR_CLICK);
+              options.onClick(e);
+            }} 
+            className="w-full flex items-center justify-between gap-4 p-4 mb-2 bg-gradient-to-r from-blue-800 to-blue-950 text-white rounded-2xl border-none cursor-pointer hover:brightness-110 transition-all font-sans"
+          >
+            <span className="text-sm font-black tracking-tight">{item.label}</span>
+            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+              <i className={`${item.icon} text-xs`}></i>
+            </div>
+          </button>
+        )
+      },
+      command: handleStart
+    }
+  ];
 
   return (
     <div className="w-full max-h-[85vh] overflow-y-auto py-12 px-6 flex flex-col items-center justify-start text-center z-10 space-y-12 max-w-2xl relative scroll-smooth no-scrollbar">
@@ -637,11 +664,15 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
         </div>
         
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
+          <Menu model={menuItems} popup ref={menu} id="create_menu" className="font-sans text-xs font-bold rounded-3xl shadow-2xl border-none bg-transparent p-0 overflow-visible" />
           <button
-            onClick={handleStart}
-            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-gradient-to-r from-blue-800 to-blue-950 text-white rounded-full text-xs md:text-sm font-black shadow-md hover:brightness-110 active:scale-95 transition-all border-none cursor-pointer whitespace-nowrap"
+            onClick={(e) => {
+              vibrate(HAPITCS.MAJOR_CLICK);
+              menu.current?.toggle(e);
+            }}
+            className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-gradient-to-r from-blue-800 to-blue-950 text-white rounded-2xl shadow-lg hover:brightness-110 active:scale-95 transition-all border-none cursor-pointer"
           >
-            اصنع رحلتك
+            <Plus className="w-6 h-6" />
           </button>
           
           <div className="h-6 w-px bg-slate-200"></div>

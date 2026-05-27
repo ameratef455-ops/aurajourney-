@@ -46,6 +46,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   const [celebratedCapsule, setCelebratedCapsule] = useState<{
     stationId: string;
     message: string;
+    messages?: { message: string; writtenAt: string }[];
   } | null>(null);
 
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -228,18 +229,30 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     const map: Record<string, number> = {};
     for (const st of stations) {
       const stTasks = tasks.filter((t) => t.stationId === st.id);
-      const mainAndSubTasks = stTasks.filter((t) => t.type === "main" || t.type === "sub");
+      const mainTasks = stTasks.filter((t) => t.type === "main");
       
       let baseEnergy = 0;
-      if (mainAndSubTasks.length === 0) {
+      if (mainTasks.length === 0) {
         baseEnergy = 100;
       } else {
-        const completed = mainAndSubTasks.filter((t) => t.isCompleted).length;
-        baseEnergy = Math.round((completed / mainAndSubTasks.length) * 100);
+        const energyPerMain = 100 / mainTasks.length;
+        mainTasks.forEach(mainTask => {
+          const subTasks = stTasks.filter(t => t.parentId === mainTask.id && t.type === "sub");
+          if (subTasks.length === 0) {
+            if (mainTask.isCompleted) baseEnergy += energyPerMain;
+          } else {
+            const energyPerSub = energyPerMain / subTasks.length;
+            const completedSubs = subTasks.filter(t => t.isCompleted).length;
+            baseEnergy += (completedSubs * energyPerSub);
+          }
+        });
       }
       
-      // Calculate Activity Bonus: Each completed activity in any task for this station adds 15%
-      let activityBonus = 0;
+      // Calculate Activity Bonus: Each completed activity (practical task) adds 15%
+      // Up to 30% total bonus
+      let practicalBonus = 0;
+      
+      // 1. Task interior activities
       stTasks.forEach(task => {
         if (task.activities) {
           const countCompleted = (list: any[]) => {
@@ -250,23 +263,19 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
             });
             return total;
           };
-          activityBonus += countCompleted(task.activities) * 15;
+          practicalBonus += countCompleted(task.activities) * 15;
         }
       });
 
-      // If we have sub-stations, each completed practical task adds 15% bonus to the station battery
+      // 2. Sub-stations (Alternative practical plans)
       const rawSubStations = user.subStations?.[st.id];
-      const subStations = Array.isArray(rawSubStations) ? rawSubStations : (rawSubStations ? [rawSubStations] : []);
-      
-      let completedPracticalTasksCount = 0;
-      subStations.forEach(sub => {
+      const subStationsList = Array.isArray(rawSubStations) ? rawSubStations : (rawSubStations ? [rawSubStations] : []);
+      subStationsList.forEach(sub => {
         const sTasks = sub.tasks || [];
-        completedPracticalTasksCount += sTasks.filter(t => t.isCompleted).length;
+        practicalBonus += sTasks.filter(t => t.isCompleted).length * 15;
       });
 
-      const practicalBonus = completedPracticalTasksCount * 15;
-
-      map[st.id] = Math.min(100, baseEnergy) + practicalBonus + activityBonus;
+      map[st.id] = Math.min(130, Math.min(100, Math.round(baseEnergy)) + Math.min(30, practicalBonus));
     }
     return map;
   }, [stations, tasks, user]);
@@ -383,7 +392,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       if (capsule && !capsule.isRead) {
         setCelebratedCapsule({
           stationId: activeStationId,
-          message: capsule.message,
+          message: capsule.message || "",
+          messages: capsule.messages || []
         });
         vibrate(HAPITCS.COMPLETE);
       }
@@ -550,11 +560,11 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     let newKeys = gData.keys;
 
     if (task.type === "main") {
-      newXp += 30;
+      newXp += task.xp || 30;
       toast.current?.show({
         severity: "success",
         summary: "إنجاز رائع! ⚡",
-        detail: "أكملت مهمة أساسية مكثفة بنجاح! نلت +30 XP لمسيرتك.",
+        detail: `أكملت مهمة أساسية مكثفة بنجاح! نلت +${task.xp || 30} XP لمسيرتك.`,
         life: 2500,
       });
       
@@ -583,20 +593,20 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
         });
       }
     } else if (task.type === "sub") {
-      newXp += 15;
+      newXp += task.xp || 15;
       toast.current?.show({
         severity: "success",
         summary: "خطوة بخطوة! 🧩",
-        detail: "أكملت مهمة فرعية! نلت +15 XP لمسيرتك.",
+        detail: `أكملت مهمة فرعية! نلت +${task.xp || 15} XP لمسيرتك.`,
         life: 2000,
       });
     } else if (task.type === "side") {
-      newXp += 25;
+      newXp += task.xp || 25;
       newKeys += 1;
       toast.current?.show({
         severity: "success",
         summary: "مهارة استثنائية! ⭐",
-        detail: "أنجزت مهارة بونص جانبية ومكثفة! ربحت +25 XP ومفتاح تركيز إضافي.",
+        detail: `أنجزت مهارة بونص جانبية ومكثفة! ربحت +${task.xp || 25} XP ومفتاح تركيز إضافي.`,
         life: 3000,
       });
     }
@@ -608,7 +618,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
        updatedGameData.tasksCompletedSinceReview = (updatedGameData.tasksCompletedSinceReview || 0) + 1;
        if (updatedGameData.tasksCompletedSinceReview === 2) {
           await db.notifications.add({
-             id: crypto.randomUUID(),
+             id: safeRandomUUID(),
              title: 'مراجعة المهام 🌟',
              message: 'لقد أنهيت مهمتين مؤخراً، قم بمراجعة إحداهما للحصول على أقصى الدفعة المعنوية وتحديث سجل التقييم.',
              isRead: false,
@@ -625,29 +635,19 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
   const rewardActivity = async (isCompleted: boolean) => {
     if (!user) return;
-    if (user.isFrozen) {
-      toast.current?.show({
-        severity: "warn",
-        summary: "الرحلة مجمدة ❄️",
-        detail: "الرحلة في وضع التجميد حالياً لحماية إحصائياتك والستريك. يرجى إلغاء التجميد أولاً.",
-        life: 3000
-      });
-      return;
-    }
     vibrate(isCompleted ? HAPITCS.COMPLETE : HAPITCS.MAJOR_CLICK);
     
-    const xpChange = isCompleted ? 20 : -20;
-    const newXp = Math.max(0, gData.xp + xpChange);
-    
-    await db.userSettings.update(user.id, {
-      gameData: { ...gData, xp: newXp }
-    });
-
-    if (isCompleted) {
+    // Each activity (practical task) gives 15 XP and 15% bonus
+    if (isCompleted && user) {
+      const newXp = gData.xp + 15;
+      await db.userSettings.update(user.id, {
+        gameData: { ...gData, xp: newXp }
+      });
+      
       toast.current?.show({
         severity: "success",
         summary: "تطبيق ناجح! 🛠️",
-        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +20 XP وزادت طاقة الخطة بـ 15%.",
+        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +15 XP وزادت طاقة الخطة بـ 15%.",
         life: 3000,
       });
     }
@@ -797,18 +797,48 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     toast.current?.show({ severity: "info", summary: "تم الحذف", detail: "تم حذف المصدر بنجاح" });
   };
 
-  const saveTimeCapsule = async (targetStationId: string) => {
-    if (!user || !capsuleText.trim()) return;
+  const saveTimeCapsule = async (targetStationId: string, customText?: string) => {
+    const textToSave = customText !== undefined ? customText : capsuleText;
+    if (!user || !textToSave.trim()) return;
     
     vibrate(HAPITCS.COMPLETE);
-    const capsules = user.timeCapsules || {};
-    capsules[targetStationId] = {
-      message: capsuleText,
-      writtenAt: new Date().toLocaleDateString("ar-EG"),
+    const capsules = { ...(user.timeCapsules || {}) };
+    
+    const existing = capsules[targetStationId] || {
+      message: "",
+      writtenAt: "",
       isRead: false,
+      messages: []
     };
+    
+    const timestamp = new Date().toLocaleDateString("ar-EG") + " " + new Date().toLocaleTimeString("ar-EG", { hour: '2-digit', minute: '2-digit' });
+    
+    const currentMessages = existing.messages || [];
+    if (existing.message && currentMessages.length === 0) {
+      currentMessages.push({
+        message: existing.message,
+        writtenAt: existing.writtenAt || new Date().toLocaleDateString("ar-EG")
+      });
+    }
+    
+    currentMessages.push({
+      message: textToSave.trim(),
+      writtenAt: timestamp
+    });
+    
+    capsules[targetStationId] = {
+      message: textToSave.trim(),
+      writtenAt: timestamp,
+      isRead: false,
+      messages: currentMessages
+    };
+    
     await db.userSettings.update(user.id, { timeCapsules: capsules });
-    setCapsuleText("");
+    
+    if (customText === undefined) {
+      setCapsuleText("");
+    }
+    
     toast.current?.show({
       severity: "success",
       summary: "تم إرسال الكبسولة ✉️",
@@ -818,17 +848,18 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     });
   };
 
-  const buyKeys = async () => {
-    if (gData.xp >= 70) {
+  const buyKeys = async (count: 5 | 10 = 10) => {
+    const cost = count === 5 ? 60 : 120;
+    if (gData.xp >= cost) {
       vibrate(HAPITCS.MAJOR_CLICK);
       await db.userSettings.update(user!.id, {
-        gameData: { ...gData, xp: gData.xp - 70, keys: gData.keys + 10 },
+        gameData: { ...gData, xp: gData.xp - cost, keys: gData.keys + count },
       });
       toast.current?.show({
         severity: "success",
         summary: "مقايضة ناجحة! 🧠",
         detail:
-          "استثمرت 70 XP بنجاح وحصلت on 10 مفاتيح تركيز لفك قفل الدروس والمحطات الجديدة.",
+          `استثمرت ${cost} XP بنجاح وحصلت على ${count} مفاتيح تركيز لفك قفل الدروس والمحطات الجديدة.`,
         life: 3000,
       });
     }
@@ -1155,7 +1186,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     
     const baseGameData = {
       ...gData,
-      xp: gData.xp + 20 // Rewarding xp for practical task completion
+      xp: gData.xp + 15 // Rewarding 15 xp for practical task completion
     };
     const updatedGameData = processWorkdayAndStreak(baseGameData);
 
@@ -1184,7 +1215,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       toast.current?.show({
         severity: "success",
         summary: "تطبيق ناجح! 🛠️",
-        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +20 XP.",
+        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +15 XP وزادت طاقة الخطة بـ 15%.",
         life: 3000,
       });
     }

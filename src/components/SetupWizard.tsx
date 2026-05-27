@@ -22,10 +22,10 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
   const [state, setState] = useState<WizardState>({
     learningGoal: '',
     psychology: { reason: '', motivation: '', target: '', anxieties: '' },
-    attachments: [''],
     stations: [],
     dailyDuration: 30,
-    learningDays: [0, 1, 2, 3, 4]
+    learningDays: [0, 1, 2, 3, 4],
+    theme: 'cards'
   });
 
   useEffect(() => {
@@ -51,10 +51,10 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
             setState({
               learningGoal: trip.learningGoal,
               psychology: trip.psychology || { reason: '', motivation: '', target: '', anxieties: '' },
-              attachments: trip.attachments && trip.attachments.length > 0 ? trip.attachments : [''],
               stations: mappedStations,
               dailyDuration: trip.dailyDuration || 30,
-              learningDays: trip.learningDays || [0, 1, 2, 3, 4]
+              learningDays: trip.learningDays || [0, 1, 2, 3, 4],
+              theme: trip.theme || 'cards'
             });
           }
         } catch (error) {
@@ -93,9 +93,9 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
       id: uid,
       learningGoal: state.learningGoal,
       psychology: state.psychology,
-      attachments: state.attachments.filter(a => a.trim() !== ''),
       dailyDuration: state.dailyDuration || 30,
       learningDays: state.learningDays || [0, 1, 2, 3, 4],
+      theme: state.theme || 'cards',
       gameData,
       notes: existingTrip?.notes || {},
       timeCapsules: existingTrip?.timeCapsules || {}
@@ -162,12 +162,12 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
                >
                  {step === 1 && <Step1 state={state} setState={setState} />}
                  {step === 2 && <Step2 state={state} setState={setState} />}
-                 {step === 3 && <Step3 state={state} setState={setState} />}
-                 {step === 4 && <Step4 state={state} setState={setState} />}
-                  {step === 5 && <Step5 state={state} setState={setState} />}
+                 {step === 3 && <Step4 state={state} setState={setState} />}
+                 {step === 4 && <Step5 state={state} setState={setState} />}
+                  {step === 5 && <Step6 state={state} setState={setState} />}
                  {step === 6 && (
                     <div className="flex flex-col h-full overflow-y-auto no-scrollbar pr-1">
-                       <Step6 state={state} setState={setState} />
+                       <StepTheme state={state} setState={setState} />
                        <div className="mt-4 flex flex-col items-center">
                           <motion.div 
                             initial={{ scale: 0.9, opacity: 0 }}
@@ -329,54 +329,70 @@ const Step2 = ({ state, setState }: any) => (
   </div>
 );
 
-const Step3 = ({ state, setState }: any) => {
-  const addAttachment = () => setState({...state, attachments: [...state.attachments, '']});
-  const updateAttachment = (i: number, val: string) => {
-    const arr = [...state.attachments];
-    arr[i] = val;
-    setState({...state, attachments: arr});
-  };
-  const removeAttachment = (i: number) => {
-    const arr = state.attachments.filter((_, idx) => idx !== i);
-    setState({...state, attachments: arr});
-  };
+const StepTheme = ({ state, setState }: any) => {
+  const themes = [
+    { 
+      id: 'cards', 
+      name: 'ثيم الكروت', 
+      desc: 'الثيم الحالي، يعرض المحطات كبطاقات متتالية بتصميم عصري وأنيق.',
+      icon: 'pi pi-clone'
+    },
+    { 
+      id: 'tree', 
+      name: 'ثيم الشجرة', 
+      desc: 'يعرض الخطط كأفرع شجرة متفرعة، مناسب لتخيل التسلسل والترابط بين المهام.',
+      icon: 'pi pi-sitemap' 
+    },
+    { 
+      id: 'calendar', 
+      name: 'ثيم الكالندر', 
+      desc: 'يعرض المحطات في تقويم شهري مع إمكانية إضافة مهام يومية محددة لكل يوم عمل.',
+      icon: 'pi pi-calendar' 
+    }
+  ];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 pb-6 text-right font-sans" dir="rtl">
       <div>
-        <h2 className="text-3xl font-extrabold text-blue-950 mb-2">المرفقات والروابط</h2>
-        <p className="text-gray-400 font-medium text-sm leading-relaxed">ضيف أي مصادر، كورسات، أو روابط هتحتاجها في الرحلة.</p>
+        <h2 className="text-2xl font-black text-blue-950 mb-2">اختر الثيم المفضل</h2>
+        <p className="text-slate-400 font-bold text-xs">خصص مظهر رحلتك بالطريقة التي تفضل رؤية خططك بها.</p>
       </div>
-      
-      <div className="flex flex-col gap-4">
-        {state.attachments.map((url: string, i: number) => (
-          <div key={i} className="flex items-center gap-3">
-            <input
-              type="url"
-              placeholder="https://"
-              className="flex-1 border-0 rounded-xl p-4 outline-none focus:ring-2 ring-blue-900/10 bg-gray-50 transition-all font-medium text-blue-950"
-              value={url}
-              onChange={e => updateAttachment(i, e.target.value)}
-            />
-            {state.attachments.length > 1 && (
-              <button 
-                onClick={() => removeAttachment(i)} 
-                className="p-4 text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-red-500 transition-colors rounded-xl"
-              >
-                <X size={20} />
-              </button>
+
+      <div className="grid grid-cols-1 gap-4 mt-4">
+        {themes.map(t => (
+          <div 
+            key={t.id}
+            onClick={() => {
+              vibrate(HAPITCS.MAJOR_CLICK);
+              setState({...state, theme: t.id});
+            }}
+            className={`p-6 border-2 rounded-3xl cursor-pointer transition-all flex items-center gap-6 ${
+              state.theme === t.id 
+              ? 'border-blue-900 bg-blue-50/50 shadow-lg scale-[1.01]' 
+              : 'border-slate-100 hover:border-blue-200 bg-white shadow-sm'
+            }`}
+          >
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 ${
+              state.theme === t.id ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-400'
+            }`}>
+              <i className={`${t.icon} text-2xl`}></i>
+            </div>
+            <div className="flex-1">
+              <h3 className={`text-lg font-black mb-1 ${state.theme === t.id ? 'text-blue-900' : 'text-slate-800'}`}>
+                {t.name}
+              </h3>
+              <p className="text-xs font-medium text-slate-500 leading-relaxed">
+                {t.desc}
+              </p>
+            </div>
+            {state.theme === t.id && (
+              <div className="w-8 h-8 rounded-full bg-blue-900 text-white flex items-center justify-center">
+                 <i className="pi pi-check text-[10px] font-black"></i>
+              </div>
             )}
           </div>
         ))}
       </div>
-      
-      <button 
-        onClick={addAttachment} 
-        className="flex items-center justify-center gap-2 py-4 rounded-xl border-0 bg-blue-50/50 text-blue-900 font-bold hover:bg-blue-100/50 transition-all mt-2"
-      >
-        <Plus size={20} />
-        <span>إضافة رابط جديد</span>
-      </button>
     </div>
   );
 };

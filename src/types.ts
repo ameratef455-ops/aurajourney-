@@ -6,10 +6,10 @@ export interface WizardState {
     target: string;
     anxieties: string;
   };
-  attachments: string[];
   stations: WizardStation[];
   dailyDuration?: number;
   learningDays?: number[];
+  theme?: 'cards' | 'tree' | 'calendar';
 }
 
 export interface WizardStation {

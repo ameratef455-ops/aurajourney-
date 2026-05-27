@@ -25,6 +25,7 @@ export interface Task {
   parentId?: string; // If sub, points to main
   isCompleted: boolean;
   activities?: TaskActivity[];
+  dueDate?: string;
 }
 
 export interface SubStationTask {
@@ -53,10 +54,11 @@ export interface UserSettings {
     target: string;
     anxieties: string;
   };
-  attachments: string[];
+  attachments?: string[];
   resources?: { name: string; url: string }[];
   dailyDuration?: number;
   learningDays?: number[];
+  theme?: 'cards' | 'tree' | 'calendar'; // Theme selection
   gameData?: {
     fuel: number;
     xp: number;
@@ -67,7 +69,7 @@ export interface UserSettings {
   };
   notes?: Record<string, { text: string; date: string; updatedAt?: string }[]>; // Station notes map
   unlockedStationIds?: string[]; // IDs of explicitly unlocked stations
-  timeCapsules?: Record<string, { message: string; writtenAt: string; isRead: boolean }>; // Station ID -> Time capsule
+  timeCapsules?: Record<string, { message: string; writtenAt: string; isRead: boolean; messages?: { message: string; writtenAt: string }[] }>; // Station ID -> Time capsule
   subStations?: Record<string, SubStation[]>; // Station ID -> Array of SubStation details
 }
 
@@ -149,6 +151,25 @@ db.version(4).stores({
 });
 
 db.version(5).stores({
+  stations: 'id, order',
+  tasks: 'id, stationId, type, parentId',
+  userSettings: 'id',
+  reflections: 'id, taskId, stationId, createdAt',
+  stumbles: 'id, stationId, createdAt',
+  notifications: 'id, isRead, createdAt'
+});
+
+db.version(6).stores({
+  stations: 'id, order',
+  tasks: 'id, stationId, type, parentId',
+  userSettings: 'id',
+  reflections: 'id, taskId, stationId, createdAt',
+  stumbles: 'id, stationId, createdAt',
+  notifications: 'id, isRead, createdAt',
+  businessSpaces: 'id'
+});
+
+db.version(7).stores({
   stations: 'id, order',
   tasks: 'id, stationId, type, parentId',
   userSettings: 'id',

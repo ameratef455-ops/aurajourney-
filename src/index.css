@@ -146,13 +146,13 @@ body {
   z-index: 2147483647 !important;
 }
 
-/* Ensure ALL dialogs and masks render very high */
+/* Ensure ALL dialogs and masks render high, but allow dynamic stacking */
 .p-dialog-mask {
-  z-index: 20000000 !important;
+  z-index: auto;
 }
 
 .p-dialog {
-  z-index: 20000001 !important;
+  z-index: auto;
 }
 
 /* Ensure topmost dialogs (like Stumble Dialog) or specific overrides stay even higher */
@@ -161,5 +161,11 @@ body {
 }
 .topmost-mask {
   z-index: 20000100 !important;
+}
+
+/* Move the close button slightly inward for the highly rounded station details dialog */
+.p-dialog.station-details-dialog .p-dialog-header .p-dialog-header-icons {
+  top: 2.3rem !important;
+  left: 2.3rem !important;
 }
 

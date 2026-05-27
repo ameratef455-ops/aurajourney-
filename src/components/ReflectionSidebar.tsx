@@ -410,9 +410,16 @@ export function ReflectionSidebar({
       {/* Hidden container for PDF export that renders everything sequentially */}
       <div className="absolute top-[-9999px] left-[-9999px]">
         <div ref={fullPdfRef} className="bg-slate-50 w-[800px] p-8 text-right font-sans" dir="rtl">
-           <div className="text-center mb-8 border-b border-slate-200 pb-6">
-              <h1 className="text-3xl font-black text-blue-950 mb-2">تقرير التقدم واليوميات الشامل</h1>
-              <p className="text-slate-500">تم إنشاء التقرير بتاريخ: {new Date().toLocaleDateString('ar-EG')}</p>
+           <div className="text-center mb-12 border-b-4 border-indigo-600 pb-10 pt-4">
+              <div className="flex flex-col items-center justify-center mb-6">
+                <div className="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-xl">
+                  <i className="pi pi-sparkles text-4xl text-white"></i>
+                </div>
+                <h1 className="text-6xl font-black text-blue-950 tracking-tighter">AURA JOURNEY</h1>
+                <div className="w-32 h-1.5 bg-indigo-500 mt-2 rounded-full"></div>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">تقرير التقدم واليوميات الشامل</h2>
+              <p className="text-slate-500 font-medium">تم إنشاء التقرير بتاريخ: {new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
            </div>
            
            <h2 className="text-xl font-black text-indigo-700 mb-4 border-b border-indigo-100 pb-2">التحليلات والمؤشرات</h2>

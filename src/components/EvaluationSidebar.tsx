@@ -8,10 +8,11 @@ import { Button } from "primereact/button";
 import { Menu } from "primereact/menu";
 import { ConfirmPopup, confirmPopup } from "primereact/confirmpopup";
 import { Toast } from "primereact/toast";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from 'canvas-confetti';
 import { ListChecks, Target, Trophy, Clock, Plus, Trash2, ChevronRight, ChevronDown, CheckCircle2, Circle, Edit2, MoreVertical, Info, Briefcase } from "lucide-react";
+import { LAYERS } from "../constants/layers";
 import { db, TaskActivity } from "../db";
 import { safeRandomUUID } from "../lib/uuid";
 import { TaskReflectionModal } from "./TaskReflectionModal";
@@ -28,6 +29,7 @@ export interface EvaluationSidebarProps {
   onRewardActivity?: (isCompleted: boolean) => void;
   onCompleteTask?: (task: any) => void;
   onCompletePracticalTask?: (stationId: string, subStationIndex: number, taskId: string) => void;
+  initialSelectedTask?: any;
 }
 
 export function EvaluationSidebar({
@@ -40,7 +42,8 @@ export function EvaluationSidebar({
   practicalSubStations = {},
   onRewardActivity,
   onCompleteTask,
-  onCompletePracticalTask
+  onCompletePracticalTask,
+  initialSelectedTask
 }: EvaluationSidebarProps) {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const toast = useRef({
@@ -112,6 +115,12 @@ export function EvaluationSidebar({
   const [newActivityDuration, setNewActivityDuration] = useState<number | null>(30);
   const [reflectionVisible, setReflectionVisible] = useState(false);
   const [taskToReflect, setTaskToReflect] = useState<any>(null);
+
+  useEffect(() => {
+    if (visible && initialSelectedTask) {
+      handleTaskClick(initialSelectedTask, initialSelectedTask._source || 'dexie');
+    }
+  }, [visible, initialSelectedTask]);
 
   const handleTaskClick = (task: any, source: 'dexie' | 'weekly' | 'practical') => {
     if (task.type === 'main') {
@@ -252,7 +261,8 @@ export function EvaluationSidebar({
       setReflectionVisible(true);
     }
 
-    // Call reward callback if provided
+    // Call reward callback removed from here to prevent duplicate rewards
+    /*
     if (onRewardActivity) {
       const findStatus = (list: TaskActivity[]): boolean | null => {
         for (const act of list) {
@@ -267,52 +277,47 @@ export function EvaluationSidebar({
       const status = findStatus(updatedActivities);
       if (status !== null) onRewardActivity(status);
     }
+    */
   };
 
   return (
     <>
       <ConfirmPopup />
       <Sidebar
-        visible={visible}
+        visible={visible && !initialSelectedTask}
         onHide={onHide}
         position="bottom"
         className="w-full h-auto max-h-[90vh] md:w-[600px] md:mx-auto !bg-transparent p-0 border-none shadow-none"
         showCloseIcon={false}
         modal={true}
-        baseZIndex={3000000}
+        baseZIndex={LAYERS.EVALUATION_LOG}
       >
         <div className="flex flex-col h-[85vh] md:h-[70vh] mb-0 mx-2 md:mx-auto bg-slate-50/100 rounded-t-[2.5rem] md:rounded-[2.5rem] overflow-hidden border border-white/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] relative" dir="rtl">
           {/* Header */}
-          <div className="p-6 bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 text-white relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full opacity-10">
-              <div className="absolute top-[-10%] left-[-10%] w-64 h-64 bg-indigo-500 rounded-full blur-3xl animate-pulse"></div>
-            </div>
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
-                  <ListChecks className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-black tracking-tight">سجل التقييم</h2>
-                  <p className="text-xs text-blue-200 font-medium">تتبع إنجازاتك ومهامك الجارية</p>
-                </div>
+          <div className="p-6 bg-white border-b border-slate-100 flex items-center justify-between z-10 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 px-5 py-2 rounded-2xl shadow-md border border-white/10">
+                <h2 className="text-lg font-black tracking-tighter text-white uppercase flex items-center gap-2">
+                  <ListChecks className="w-5 h-5 opacity-70" />
+                  سجل التقييم
+                </h2>
               </div>
-              <button 
-                onClick={onHide}
-                className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all border border-white/10 active:scale-95"
-              >
-                <i className="pi pi-times text-sm"></i>
-              </button>
             </div>
+            <button 
+              onClick={onHide}
+              className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center transition-all border border-slate-200 active:scale-95 text-slate-400 group"
+            >
+              <i className="pi pi-times text-sm group-hover:rotate-90 transition-transform duration-300"></i>
+            </button>
           </div>
 
           {/* Content with Tabs */}
-          <div className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="flex-1 overflow-y-auto px-4 py-6 bg-white">
             <TabView className="custom-evaluation-tabs">
-              <TabPanel header="الرئيسية" leftIcon={<Target className="w-4 h-4 ml-2" />}>
+              <TabPanel header="" leftIcon={<Target className="w-5 h-5" />}>
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   className="space-y-4 pt-4"
                 >
                   {mainTasks.length > 0 ? mainTasks.map((task) => {
@@ -330,10 +335,10 @@ export function EvaluationSidebar({
                 </motion.div>
               </TabPanel>
 
-              <TabPanel header="الجانبية" leftIcon={<Clock className="w-4 h-4 ml-2" />}>
+              <TabPanel header="" leftIcon={<Clock className="w-5 h-5" />}>
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   className="space-y-4 pt-4"
                 >
                   {sideTasks.length > 0 ? sideTasks.map((task) => {
@@ -351,10 +356,10 @@ export function EvaluationSidebar({
                 </motion.div>
               </TabPanel>
 
-              <TabPanel header="الفرعية" leftIcon={<ListChecks className="w-4 h-4 ml-2" />}>
+              <TabPanel header="" leftIcon={<ListChecks className="w-5 h-5" />}>
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   className="space-y-4 pt-4"
                 >
                   {subTasks.length > 0 ? subTasks.map((task) => {
@@ -374,10 +379,10 @@ export function EvaluationSidebar({
                 </motion.div>
               </TabPanel>
 
-              <TabPanel header="العملية" leftIcon={<Briefcase className="w-4 h-4 ml-2" />}>
+              <TabPanel header="" leftIcon={<Briefcase className="w-5 h-5" />}>
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   className="space-y-4 pt-4"
                 >
                   {Object.entries(practicalSubStations).flatMap(([stId, subs]) => 
@@ -412,36 +417,60 @@ export function EvaluationSidebar({
         <style>{`
           .custom-evaluation-tabs .p-tabview-nav {
             display: flex;
-            background: #f1f5f9;
-            padding: 4px;
-            border-radius: 16px;
+            background: #f8fafc;
+            padding: 6px;
+            border-radius: 20px;
             border: 1px solid #e2e8f0;
             margin-bottom: 24px;
           }
           .custom-evaluation-tabs .p-tabview-nav li {
             flex: 1;
+            display: flex;
+            justify-content: center;
           }
           .custom-evaluation-tabs .p-tabview-nav li .p-tabview-nav-link {
             background: transparent;
             border: none;
-            padding: 12px;
+            padding: 0;
+            width: 48px;
+            height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 800;
-            font-size: 13px;
-            color: #64748b;
-            border-radius: 12px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #94a3b8;
+            border-radius: 16px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
           }
           .custom-evaluation-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
-            background: white;
-            color: #1e3a8a;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            background: linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(30, 58, 138, 0.3);
+            transform: translateY(-2px);
+          }
+          .custom-evaluation-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            width: 6px;
+            height: 6px;
+            background: #2563eb;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #2563eb;
           }
           .custom-evaluation-tabs .p-tabview-panels {
             background: transparent;
             padding: 0;
+          }
+          
+          /* Adjust TaskItem for white background */
+          .custom-evaluation-tabs .TaskItemContainer {
+             background: #f8fafc;
+             border: 1px solid #f1f5f9;
+          }
+          .custom-evaluation-tabs .TaskItemContainer:hover {
+             background: #f1f5f9;
+             border-color: #e2e8f0;
           }
         `}</style>
       </Sidebar>
@@ -449,7 +478,10 @@ export function EvaluationSidebar({
       {/* Task Details & Activities Modal */}
       <Dialog
         visible={detailModalVisible}
-        onHide={() => setDetailModalVisible(false)}
+        onHide={() => {
+          setDetailModalVisible(false);
+          if (initialSelectedTask) onHide();
+        }}
         header={
           <div className="flex items-center gap-3 pr-2" dir="rtl">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
@@ -465,7 +497,7 @@ export function EvaluationSidebar({
         closable
         dismissableMask
         blockScroll
-        baseZIndex={3050000}
+        baseZIndex={LAYERS.ANALYTICS_DIALOG}
       >
         <style>{`
           .force-blue-gradient {
@@ -564,12 +596,17 @@ export function EvaluationSidebar({
               mastery: data.mastery,
               strengths: data.strengths,
               weaknesses: data.weaknesses,
-              learnings: data.learnings,
-              didPractical: data.didPractical,
-              practicalIssues: data.practicalIssues,
+              learnings: data.learnings || '',
+              didPractical: !!data.didPractical,
+              practicalIssues: data.practicalIssues || '',
               createdAt: new Date().toISOString(),
               type: 'initial'
             });
+
+            // Reward once after evaluation is submitted
+            if (onRewardActivity) {
+              onRewardActivity(true);
+            }
 
             if (taskToReflect._source === 'practical' && onCompletePracticalTask) {
               onCompletePracticalTask(taskToReflect.stationId, taskToReflect.subStationIndex, taskToReflect.id);
@@ -764,7 +801,7 @@ function TaskItem({
   return (
     <div 
       onClick={onClick}
-      className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between group hover:shadow-lg transition-all hover:border-indigo-200 cursor-pointer active:scale-98"
+      className="TaskItemContainer rounded-2xl p-4 flex items-center justify-between group transition-all cursor-pointer active:scale-98 mb-3"
     >
       <div className="flex items-center gap-4 flex-1 min-w-0">
         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colors[type]} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform shrink-0`}>
@@ -776,7 +813,7 @@ function TaskItem({
             <p className="text-[10px] text-slate-400 font-bold">{(task.isCompleted || task.completed) ? 'مكتملة' : 'قيد الانتظار'}</p>
             {stationName && (
               <>
-                <span className="text-[10px] text-slate-300">•</span>
+                <span className="text-[10px] text-slate-200">•</span>
                 <span className="text-[10px] text-indigo-500 font-black truncate max-w-[120px]">{stationName}</span>
               </>
             )}
@@ -822,14 +859,14 @@ function TaskItem({
 
       <div className="flex items-center gap-2 shrink-0">
         {task.activities?.length > 0 && (
-          <div className="bg-slate-50 px-2 py-1 rounded-md border border-slate-100 flex items-center gap-1">
+          <div className="bg-slate-100 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1">
             <ListChecks className="w-3 h-3 text-slate-400" />
-            <span className="text-[9px] font-black text-slate-500">{task.activities.length}</span>
+            <span className="text-[9px] font-black text-slate-600">{task.activities.length}</span>
           </div>
         )}
         {task.xp && (
-          <div className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
-            <span className="text-[10px] font-black text-indigo-600 tracking-tighter">+{task.xp} XP</span>
+          <div className="bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+            <span className="text-[10px] font-black text-emerald-400 tracking-tighter">+{task.xp} XP</span>
           </div>
         )}
       </div>
@@ -840,7 +877,7 @@ function TaskItem({
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-      <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center border border-slate-200 text-slate-300">
+      <div className="w-16 h-16 rounded-3xl bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-300">
         <Clock className="w-8 h-8" />
       </div>
       <p className="text-xs font-black text-slate-400 max-w-[200px] leading-relaxed">

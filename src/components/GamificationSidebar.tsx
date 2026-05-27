@@ -2,6 +2,7 @@ import { Dialog } from "primereact/dialog";
 import { TabView, TabPanel } from "primereact/tabview";
 import { Button } from "primereact/button";
 import { motion, AnimatePresence } from "motion/react";
+import { LAYERS } from "../constants/layers";
 import { vibrate, HAPITCS } from "../lib/haptics";
 
 export interface GamificationSidebarProps {
@@ -11,7 +12,7 @@ export interface GamificationSidebarProps {
   setGamificationActiveTab: (val: number) => void;
   createTabHeader: (icon: string, label: string) => (options: any) => React.ReactNode;
   gData: { xp: number; keys: number; fuel?: number; streak?: number };
-  buyKeys: () => void;
+  buyKeys: (count: 5 | 10) => void;
   activeStationEnergy?: number;
 }
 
@@ -27,7 +28,7 @@ export function GamificationSidebar({
 }: GamificationSidebarProps) {
   return (
     <Dialog
-      baseZIndex={30000}
+      baseZIndex={LAYERS.GAMIFICATION_SIDEBAR}
       visible={gamificationSidebar}
       onHide={() => setGamificationSidebar(false)}
       className="w-[98vw] max-w-4xl font-sans text-xl"
@@ -114,22 +115,52 @@ export function GamificationSidebar({
                   <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-black text-blue-950 text-sm flex items-center gap-2">
-                        <i className="pi pi-sync text-blue-500"></i> تبديل نقاط الخبرة
+                        <i className="pi pi-sync text-indigo-600"></i> تبديل نقاط الخبرة (XP) بمفاتيح تركيز
                       </h3>
-                      <span className="text-[10px] bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-bold">
+                      <span className="text-[10px] bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full font-bold">
                         متاح للاستبدال
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 mb-5 font-light leading-relaxed">
-                      هل تحتاج إلى مفاتيح تركيز لفك قفل الخطة التالية؟ يمكنك مقايضة نقاط خبرتك. معدل الاستبدال: <b className="font-bold">10 مفاتيح مقابل 70 XP</b>.
+                      هل تحتاج إلى مفاتيح تركيز لفك قفل الخطة التالية؟ يمكنك مقايضة نقاط خبرتك (XP) للحصول على مفاتيح فوراً بالمعدلات التالية:
                     </p>
-                    <Button
-                      label={`مقايضة: شراء 10 مفاتيح بـ 70 XP`}
-                      icon="pi pi-sync"
-                      className="w-full justify-center p-3.5 rounded-xl font-bold bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 text-white border-none shadow-md shadow-blue-950/10 hover:brightness-110 transition-all text-xs outline-none cursor-pointer disabled:opacity-50"
-                      disabled={gData.xp < 70}
-                      onClick={buyKeys}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Option 1: 5 Keys */}
+                      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between space-y-3">
+                        <div>
+                          <div className="flex justify-between items-center">
+                            <span className="font-black text-slate-800 text-xs">حزمة مبتدئ 🧠</span>
+                            <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">5 مفاتيح</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-1">تمنحك 5 مفاتيح تركيز لتقدم مرن.</p>
+                        </div>
+                        <Button
+                          label={`مقايضة: 5 مفاتيح بـ 60 XP`}
+                          icon="pi pi-sync"
+                          className="w-full justify-center py-2.5 rounded-lg font-bold bg-slate-150 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-350 transition-all text-[11px] outline-none cursor-pointer disabled:opacity-50"
+                          disabled={gData.xp < 60}
+                          onClick={() => buyKeys(5)}
+                        />
+                      </div>
+
+                      {/* Option 2: 10 Keys */}
+                      <div className="bg-white p-4 rounded-xl border-indigo-100 border bg-indigo-50/10 shadow-sm flex flex-col justify-between space-y-3">
+                        <div>
+                          <div className="flex justify-between items-center">
+                            <span className="font-black text-indigo-950 text-xs">الحزمة القياسية ⚡</span>
+                            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">10 مفاتيح</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-1">القيمة الأفضل لفتح محطات متكاملة.</p>
+                        </div>
+                        <Button
+                          label={`مقايضة: 10 مفاتيح بـ 120 XP`}
+                          icon="pi pi-sync"
+                          className="w-full justify-center py-2.5 rounded-lg font-bold bg-gradient-to-r from-indigo-700 to-blue-800 text-white border-none shadow-md shadow-indigo-700/10 hover:brightness-110 transition-all text-[11px] outline-none cursor-pointer disabled:opacity-50"
+                          disabled={gData.xp < 120}
+                          onClick={() => buyKeys(10)}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </TabPanel>

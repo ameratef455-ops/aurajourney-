@@ -1,6 +1,7 @@
 import React from 'react';
 import { Dialog } from 'primereact/dialog';
 import { CheckCircle2, Clock } from 'lucide-react';
+import { LAYERS } from '../constants/layers';
 import { TaskActivity } from '../db';
 
 interface TaskReviewModalProps {
@@ -46,7 +47,7 @@ export function TaskReviewModal({ visible, onHide, task, onFinishReview }: TaskR
       className="w-full max-w-xl font-sans"
       modal
       dismissableMask
-      baseZIndex={3000000}
+      baseZIndex={LAYERS.TASK_REVIEW}
     >
       <div className="py-4 font-sans" dir="rtl">
          <p className="text-sm text-slate-500 mb-6 font-bold">هذه هي الأنشطة التي قمت بتسجيلها لهذه المهمة. راجعها بعناية قبل التقييم النهائي:</p>

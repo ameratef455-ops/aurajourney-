@@ -6,6 +6,7 @@ import { Slider } from 'primereact/slider';
 import { Checkbox } from 'primereact/checkbox';
 import { motion, AnimatePresence } from 'motion/react';
 import { Brain, Trophy, Lightbulb, Wrench, ListChecks, CheckCircle2 } from 'lucide-react';
+import { LAYERS } from '../constants/layers';
 
 interface TaskReflectionModalProps {
   visible: boolean;
@@ -24,6 +25,19 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
   const [learnings, setLearnings] = useState('');
   const [didPractical, setDidPractical] = useState(false);
   const [practicalIssues, setPracticalIssues] = useState('');
+
+  // Reset state when modal opens
+  React.useEffect(() => {
+    if (visible) {
+      setFocus(3);
+      setMastery(5);
+      setStrengths('');
+      setWeaknesses('');
+      setLearnings('');
+      setDidPractical(false);
+      setPracticalIssues('');
+    }
+  }, [visible]);
 
   const focusLevels = [
     { value: 1, color: 'bg-rose-100 text-rose-600', active: 'bg-rose-500 text-white shadow-rose-200' },
@@ -59,7 +73,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
       modal
       dismissableMask
       breakpoints={{ '960px': '75vw', '641px': '95vw' }}
-      baseZIndex={baseZIndex || 3000000}
+      baseZIndex={baseZIndex || LAYERS.TASK_REFLECTION}
     >
       <div className="space-y-8 py-4" dir="rtl">
         
