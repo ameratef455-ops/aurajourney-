@@ -3,12 +3,16 @@ import {
   format, 
   startOfWeek, 
   endOfWeek, 
+  startOfMonth,
+  endOfMonth,
   eachDayOfInterval, 
   isSameDay, 
-  addWeeks, 
-  subWeeks,
+  addMonths, 
+  subMonths,
   getDay,
-  isToday
+  isToday,
+  isPast,
+  isSameMonth
 } from "date-fns";
 import { ar } from "date-fns/locale";
 import { motion, AnimatePresence } from "motion/react";
@@ -56,12 +60,15 @@ export function CalendarTheme({
   onSaveArrangement,
   toggleSubStationTask
 }: CalendarThemeProps) {
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedStationId, setSelectedStationId] = useState<string | null>(activeStationId || (stations.length > 0 ? stations[0].id : null));
 
-  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
-  const calendarDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(monthStart);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
 
   const { totalHours, totalTasks, completedTasksCount, complianceRate } = useMemo(() => {
     let totalMins = 0;
@@ -139,8 +146,8 @@ export function CalendarTheme({
     };
   }, [calendarDays, tasks, selectedStationId, user?.subStations]);
 
-  const nextWeek = () => setCurrentWeek(addWeeks(currentWeek, 1));
-  const prevWeek = () => setCurrentWeek(subWeeks(currentWeek, 1));
+  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
   const selectedStation = stations.find(s => s.id === selectedStationId);
   const isSelectedUnlocked = selectedStation ? unlockedStations.includes(selectedStation.id) : false;
@@ -198,6 +205,86 @@ export function CalendarTheme({
 
     return { mains, subs, sides, practicals };
   }, [tasks, selectedStationId, user?.subStations]);
+
+  const [selectedDay, setSelectedDay] = useState(new Date());
+
+  const monthStateMapping = useMemo(() => {
+     const mapping: Record<string, 'today' | 'completed' | 'work' | 'missed' | 'rest'> = {};
+     
+     calendarDays.forEach((day) => {
+         const formattedDate = format(day, 'yyyy-MM-dd');
+         const isDayToday = isToday(day);
+         const isDayPast = isPast(day) && !isDayToday;
+         const isWorkDay = learningDays.includes(getDay(day));
+         
+         const dayDbTasks = (tasks || []).filter(t => t.stationId === selectedStationId && t.dueDate === formattedDate);
+         const dayPracticalTasks: any[] = [];
+         
+         const rawSubs = user?.subStations?.[selectedStationId!] || [];
+         const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
+         stationSubs.forEach((sub: any, subIdx: number) => {
+           (sub.tasks || []).forEach((t: any, taskIdx: number) => {
+             if (t.dueDate === formattedDate) {
+               dayPracticalTasks.push({
+                 id: `practical-${subIdx}-${taskIdx}`,
+                 actualId: t.id || `${subIdx}-${taskIdx}`,
+                 title: t.title,
+                 isCompleted: t.isCompleted,
+                 type: 'practical',
+                 subIdx,
+                 taskIdx,
+                 stationId: selectedStationId
+               });
+             }
+           });
+         });
+
+         const combined = [...dayDbTasks, ...dayPracticalTasks];
+         const hasTasks = combined.length > 0;
+         const allCompleted = hasTasks && combined.every(t => t.isCompleted);
+
+         if (isDayToday) {
+             mapping[formattedDate] = 'today';
+         } else if (allCompleted) {
+             mapping[formattedDate] = 'completed';
+         } else if (isDayPast && hasTasks && !allCompleted) {
+             mapping[formattedDate] = 'missed';
+         } else if (isWorkDay) {
+             mapping[formattedDate] = 'work';
+         } else {
+             mapping[formattedDate] = 'rest';
+         }
+     });
+     return mapping;
+  }, [calendarDays, tasks, user?.subStations, selectedStationId, learningDays]);
+
+  const selectedDayTasks = useMemo(() => {
+    if (!selectedDay) return [];
+    const formattedDate = format(selectedDay, 'yyyy-MM-dd');
+    const dayDbTasks = (tasks || []).filter(t => t.stationId === selectedStationId && t.dueDate === formattedDate);
+    const dayPracticalTasks: any[] = [];
+         
+    const rawSubs = user?.subStations?.[selectedStationId!] || [];
+    const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
+    stationSubs.forEach((sub: any, subIdx: number) => {
+      (sub.tasks || []).forEach((t: any, taskIdx: number) => {
+        if (t.dueDate === formattedDate) {
+          dayPracticalTasks.push({
+            id: `practical-${subIdx}-${taskIdx}`,
+            actualId: t.id || `${subIdx}-${taskIdx}`,
+            title: t.title,
+            isCompleted: t.isCompleted,
+            type: 'practical',
+            subIdx,
+            taskIdx,
+            stationId: selectedStationId
+          });
+        }
+      });
+    });
+
+    return [...dayDbTasks, ...dayPracticalTasks];
+  }, [selectedDay, tasks, user?.subStations, selectedStationId]);
 
   const handleAutoDistribute = () => {
     vibrate(HAPITCS.COMPLETE);
@@ -341,61 +428,67 @@ export function CalendarTheme({
 
           <div className="p-8 md:p-12">
             {/* Weekly Summary Dashboard */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 mb-12">
                {/* 1. Total Hours */}
-               <div className="bg-gradient-to-br from-indigo-50/50 via-white to-indigo-100/10 p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-                  <div className="space-y-1.5 leading-none">
-                     <span className="text-[11px] font-black text-indigo-500 uppercase tracking-wider block">إجمالي الساعات المستثمرة</span>
-                     <div className="flex items-baseline gap-1 my-1">
-                        <span className="text-3xl font-black text-indigo-950">{totalHours}</span>
-                        <span className="text-xs font-bold text-slate-500">ساعة</span>
+               <div className="bg-gradient-to-br from-indigo-50/50 via-white to-indigo-100/10 p-8 rounded-[32px] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-center min-h-[160px]">
+                  <div className="flex items-start justify-between w-full">
+                     <div className="space-y-2 leading-none">
+                        <span className="text-[13px] font-black text-indigo-500 uppercase tracking-widest block">إجمالي الساعات</span>
+                        <div className="flex items-baseline gap-2 my-3">
+                           <span className="text-5xl lg:text-6xl font-black text-indigo-950 tracking-tight">{totalHours}</span>
+                           <span className="text-sm font-bold text-slate-500">ساعة</span>
+                        </div>
+                        <span className="text-xs text-slate-400 font-bold block pt-1">مخصصة للتعلم هذا الشهر</span>
                      </div>
-                     <span className="text-[10px] text-slate-400 font-semibold block">ساعات مخصصة للتعلم الفعلي هذا الأسبوع</span>
-                  </div>
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-xs shrink-0">
-                     <i className="pi pi-clock text-2xl"></i>
+                     <div className="w-16 h-16 rounded-[24px] bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-inner shrink-0">
+                        <i className="pi pi-clock text-3xl"></i>
+                     </div>
                   </div>
                </div>
 
                {/* 2. Tasks Completed */}
-               <div className="bg-gradient-to-br from-emerald-50/50 via-white to-emerald-100/10 p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-                  <div className="space-y-1.5 leading-none">
-                     <span className="text-[11px] font-black text-emerald-600 uppercase tracking-wider block">المهام المنجزة</span>
-                     <div className="flex items-baseline gap-1 my-1">
-                        <span className="text-3xl font-black text-emerald-950">{completedTasksCount}</span>
-                        <span className="text-xs font-bold text-slate-400">/ {totalTasks} مهام</span>
+               <div className="bg-gradient-to-br from-emerald-50/50 via-white to-emerald-100/10 p-8 rounded-[32px] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-center min-h-[160px]">
+                  <div className="flex items-start justify-between w-full">
+                     <div className="space-y-2 leading-none">
+                        <span className="text-[13px] font-black text-emerald-600 uppercase tracking-widest block">المهام المنجزة</span>
+                        <div className="flex items-baseline gap-2 my-3">
+                           <span className="text-5xl lg:text-6xl font-black text-emerald-950 tracking-tight">{completedTasksCount}</span>
+                           <span className="text-sm font-bold text-slate-400">/ {totalTasks} مهام</span>
+                        </div>
+                        <span className="text-xs text-slate-400 font-bold block pt-1">إجمالي المهام المكتملة بنجاح</span>
                      </div>
-                     <span className="text-[10px] text-slate-400 font-semibold block">مجموع ما تم إنجازه بنجاح</span>
-                  </div>
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs shrink-0">
-                     <i className="pi pi-check-square text-2xl"></i>
+                     <div className="w-16 h-16 rounded-[24px] bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-inner shrink-0">
+                        <i className="pi pi-check-square text-3xl"></i>
+                     </div>
                   </div>
                </div>
 
                {/* 3. Commitment Rate */}
-               <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-100/10 p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-                  <div className="space-y-1.5 leading-none">
-                     <span className="text-[11px] font-black text-blue-600 uppercase tracking-wider block">معدل الالتزام والفاعلية</span>
-                     <div className="flex items-baseline gap-1 my-1">
-                        <span className="text-3xl font-black text-blue-950">{complianceRate}%</span>
+               <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-100/10 p-8 rounded-[32px] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-center min-h-[160px]">
+                  <div className="flex items-start justify-between w-full">
+                     <div className="space-y-2 leading-none">
+                        <span className="text-[13px] font-black text-blue-600 uppercase tracking-widest block">الالتزام</span>
+                        <div className="flex items-baseline gap-2 my-3">
+                           <span className="text-5xl lg:text-6xl font-black text-blue-950 tracking-tight">{complianceRate}%</span>
+                        </div>
+                        <span className="text-xs text-slate-400 font-bold block pt-1">نسبة التغطية ونسبة الإنجاز</span>
                      </div>
-                     <span className="text-[10px] text-slate-400 font-semibold block">نسبة التغطية الزمنية بالمحطة</span>
-                  </div>
-                  <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs shrink-0">
-                     <i className="pi pi-chart-line text-2xl"></i>
+                     <div className="w-16 h-16 rounded-[24px] bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner shrink-0">
+                        <i className="pi pi-chart-line text-3xl"></i>
+                     </div>
                   </div>
                </div>
             </div>
-            {/* Week Nav */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12 border-b border-slate-100 pb-8">
+            {/* Month Nav */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 border-b border-slate-100 pb-8">
               <div className="flex items-center gap-5">
-                 <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
+                 <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
                     <CalendarIcon className="w-6 h-6" />
                  </div>
                  <div>
-                    <h3 className="text-2xl font-black text-slate-800">توزيع المهام للأسبوع الحالي</h3>
+                    <h3 className="text-2xl font-black text-slate-800">توزيع المهام الشهري</h3>
                     <p className="text-sm font-bold text-slate-400 mt-1">
-                       بين {format(weekStart, 'd MMMM yyyy', { locale: ar })} و {format(weekEnd, 'd MMMM yyyy', { locale: ar })}
+                       {format(currentMonth, 'MMMM yyyy', { locale: ar })}
                     </p>
                  </div>
               </div>
@@ -408,185 +501,228 @@ export function CalendarTheme({
                   رتب التقويم
                 </button>
                 <div className="flex gap-2">
-                   <button onClick={prevWeek} className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 transition-all border-none cursor-pointer flex items-center justify-center shrink-0"><ChevronRight size={24} /></button>
-                   <button onClick={nextWeek} className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 transition-all border-none cursor-pointer flex items-center justify-center shrink-0"><ChevronLeft size={24} /></button>
+                   <button onClick={prevMonth} className="px-5 py-3 rounded-2xl bg-white border-2 border-slate-100 hover:border-blue-200 hover:bg-slate-50 text-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0 font-black text-xs gap-1.5 shadow-sm">
+                     <ChevronRight size={18} /> السابق
+                   </button>
+                   <button onClick={() => setCurrentMonth(new Date())} className="px-5 py-3 rounded-2xl bg-white border-2 border-slate-100 hover:border-blue-200 hover:bg-slate-50 text-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0 font-black text-xs shadow-sm">
+                     اليوم
+                   </button>
+                   <button onClick={nextMonth} className="px-5 py-3 rounded-2xl bg-white border-2 border-slate-100 hover:border-blue-200 hover:bg-slate-50 text-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0 font-black text-xs gap-1.5 shadow-sm">
+                     التالي <ChevronLeft size={18} />
+                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Weekly Grid - EXTRA SPACIOUS AND INTEGRATED */}
-            <div className="flex overflow-x-auto snap-x gap-6 lg:gap-8 no-scrollbar pb-8 px-2 md:px-4">
-               {calendarDays.map((day, dIdx) => {
-                 const isLearningDay = learningDays.includes(getDay(day));
-                 const dayIsToday = isToday(day);
-                 const formattedDate = format(day, 'yyyy-MM-dd');
+            <div className="flex flex-col lg:flex-row gap-8">
+              {/* === LEFT/TOP: MONTH GRID === */}
+              <div className="w-full lg:w-3/5 border-2 border-slate-100 bg-white rounded-[32px] p-6 lg:p-8 shadow-sm">
+                 {/* Weekday Headers */}
+                 <div className="grid grid-cols-7 gap-3 lg:gap-4 mb-6 text-center">
+                   {['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'].map(dayName => (
+                     <span key={dayName} className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{dayName}</span>
+                   ))}
+                  </div>
                  
-                 // Fetch tasks assigned to this active station on this calendar day
-                 const dayTasks = (tasks || []).filter(
-                   t => t.stationId === selectedStationId && t.dueDate === formattedDate
-                  );
-                  const dayPracticalTasks: any[] = [];
-                  const rawSubs = user?.subStations?.[selectedStationId!] || [];
-                  const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
-                  stationSubs.forEach((sub: any, subIdx: number) => {
-                    (sub.tasks || []).forEach((t: any, taskIdx: number) => {
-                      if (t.dueDate === formattedDate) {
-                        dayPracticalTasks.push({
-                          id: `practical-${subIdx}-${taskIdx}`,
-                          actualId: t.id || `${subIdx}-${taskIdx}`,
-                          title: t.title,
-                          isCompleted: t.isCompleted,
-                          type: 'practical',
-                          subIdx,
-                          taskIdx,
-                          stationId: selectedStationId
-                        });
-                      }
-                    });
-                  });
-                  const combinedDayTasks = [...dayTasks, ...dayPracticalTasks];
-                  const _ignored = (1
-                 );
+                 {/* Calendar Days */}
+                 <div className="grid grid-cols-7 gap-3 lg:gap-4">
+                   {calendarDays.map((day, dIdx) => {
+                     const formattedDate = format(day, 'yyyy-MM-dd');
+                     const state = monthStateMapping[formattedDate] || 'rest';
+                     const isSelectedDayObj = selectedDay && isSameDay(day, selectedDay);
+                     const isCurrentMonth = isSameMonth(day, currentMonth);
+                     
+                     // State Styling definitions
+                     let styleClasses = "bg-white border-transparent text-slate-600 hover:border-slate-200";
+                     let dotClasses = "hidden";
+                     let labelClasses = "text-slate-600 font-black text-base";
+                     
+                     if (!isCurrentMonth) {
+                        styleClasses = "bg-slate-50/20 opacity-30 border-transparent pointer-events-none";
+                        labelClasses = "text-slate-400 font-bold";
+                     } else {
+                        switch (state) {
+                          case 'today':
+                            styleClasses = "bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#1e1b4b] border-indigo-500 text-white shadow-[0_10px_30px_rgba(30,41,59,0.3)] z-10 font-bold scale-105";
+                            labelClasses = "text-white font-black text-lg";
+                            dotClasses = "w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse mt-1";
+                            break;
+                          case 'completed':
+                            styleClasses = "bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-400 text-white shadow-[0_4px_15px_rgba(16,185,129,0.25)] font-bold";
+                            labelClasses = "text-white font-black text-lg";
+                            dotClasses = "w-1.5 h-1.5 rounded-full bg-white mt-1 shadow-sm";
+                            break;
+                          case 'work':
+                            styleClasses = "bg-gradient-to-br from-blue-500 to-indigo-600 border-blue-400 text-white shadow-[0_4px_15px_rgba(59,130,246,0.25)] font-bold";
+                            labelClasses = "text-white font-black text-lg";
+                            dotClasses = "w-1.5 h-1.5 rounded-full bg-blue-100 mt-1 shadow-sm";
+                            break;
+                          case 'missed':
+                            styleClasses = "bg-rose-50 border-rose-100 text-rose-700/80 font-medium hover:bg-rose-100/30";
+                            labelClasses = "text-rose-600 font-bold text-base";
+                            dotClasses = "w-1.5 h-1.5 rounded-full bg-rose-400 mt-1";
+                            break;
+                          case 'rest':
+                          default:
+                            styleClasses = "bg-slate-50/50 border-slate-100/60 text-slate-300 opacity-60 hover:bg-slate-100/50 hover:border-slate-200 hover:text-slate-500 font-medium";
+                            labelClasses = "text-slate-400 font-bold text-base";
+                            dotClasses = "hidden";
+                            break;
+                        }
+                        
+                        if (isSelectedDayObj) {
+                          if (state === 'today') {
+                            styleClasses += " ring-4 ring-indigo-400 shadow-xl scale-110 z-10";
+                          } else if (state === 'completed') {
+                            styleClasses += " ring-4 ring-emerald-300 shadow-xl scale-110 z-10";
+                          } else if (state === 'work') {
+                            styleClasses += " ring-4 ring-blue-300 shadow-xl scale-110 z-10";
+                          } else {
+                            styleClasses = styleClasses.replace('border-transparent', '').replace('border-slate-100/60', '') + " border-indigo-400 bg-indigo-50/50 scale-110 shadow-lg ring-4 ring-indigo-200 z-10";
+                          }
+                        }
+                     }
 
-                 return (
-                    <div 
-                      key={dIdx}
-                      className={`snap-center shrink-0 w-[88vw] md:w-[380px] lg:w-[420px] flex flex-col justify-between gap-6 p-6 rounded-[36px] border-2 transition-all min-h-[400px] mb-4 lg:min-h-[600px] lg:h-[calc(100vh-280px)] relative group overflow-hidden ${
-                        dayIsToday 
-                        ? 'bg-gradient-to-b from-blue-50/50 to-indigo-50/15 border-blue-400 shadow-xl shadow-blue-500/10 md:scale-[1.02] z-10' 
-                        : (isLearningDay ? 'bg-blue-50/40 border-blue-100 hover:border-blue-300 shadow-lg shadow-blue-100/40 hover:shadow-xl hover:shadow-blue-500/10' : 'bg-slate-50/60 border-transparent opacity-65')
-                      }`}
-                    >
-                     {/* Day Stamp Header */}
-                     <div className="flex-1 flex flex-col min-h-0">
-                       <div className="flex justify-between items-start gap-2 max-h-min shrink-0">
-                          <div className="flex flex-col">
-                            <span className={`text-[11px] font-black uppercase tracking-widest ${dayIsToday ? 'text-blue-700' : 'text-slate-400'}`}>
-                               {format(day, 'EEEE', { locale: ar })}
-                            </span>
-                            <span className={`text-xs font-bold text-slate-400 ${dayIsToday ? 'text-blue-400/90' : ''} mt-0.5`}>
-                               {format(day, 'MMM d', { locale: ar })}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                             <span className={`text-3xl md:text-4xl font-black ${dayIsToday ? 'text-blue-900 scale-110' : 'text-slate-800'}`}>
-                               {format(day, 'd')}
-                             </span>
-                             {dayIsToday && <div className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></div>}
-                          </div>
-                       </div>
+                     return (
+                       <motion.button
+                         key={dIdx}
+                         whileHover={isCurrentMonth ? { scale: 1.05 } : {}}
+                         whileTap={isCurrentMonth ? { scale: 0.95 } : {}}
+                         onClick={() => {
+                           if (isCurrentMonth) {
+                             vibrate(HAPITCS.MAJOR_CLICK);
+                             setSelectedDay(day);
+                           }
+                         }}
+                         className={`aspect-square sm:aspect-auto sm:h-20 flex flex-col items-center justify-center rounded-2xl border-2 transition-all cursor-pointer relative p-1 ${styleClasses}`}
+                       >
+                         <span className={labelClasses}>{format(day, 'd')}</span>
+                         <div className={dotClasses}></div>
+                       </motion.button>
+                     );
+                   })}
+                 </div>
+              </div>
 
-                       {/* List of Scheduled Tasks for This Day */}
-                       <div className="mt-8 space-y-3 flex-1 overflow-y-auto no-scrollbar scroll-smooth">
-                          {combinedDayTasks.length > 0 ? (
-                            combinedDayTasks.map((task) => {
-                              // Define task-type styled metadata or badges for visual hierarchy
-                              const taskType = task.type || 'sub';
-                              let colorClasses = '';
-                              let badgeText = '';
-                              let typeBadgeColor = '';
-
-                              if (task.isCompleted) {
-                                switch (taskType) {
-                                  case 'main':
-                                    colorClasses = 'bg-emerald-50/30 border-emerald-100/80 text-slate-400 line-through border-r-4 border-r-emerald-500';
-                                    badgeText = 'رئيسي';
-                                    typeBadgeColor = 'bg-slate-100 text-slate-400';
-                                    break;
-                                  case 'side':
-                                    colorClasses = 'bg-emerald-50/20 border-emerald-100/60 text-slate-400 line-through border-r-4 border-r-amber-400/60';
-                                    badgeText = 'جانبي';
-                                    typeBadgeColor = 'bg-slate-100 text-slate-400';
-                                    break;
-                                  default: // sub
-                                    colorClasses = 'bg-emerald-50/20 border-emerald-100/60 text-slate-400 line-through border-r-4 border-r-purple-400/60';
-                                    badgeText = 'فرعي';
-                                    typeBadgeColor = 'bg-slate-100 text-slate-400';
-                                    break;
-                                }
-                              } else {
-                                switch (taskType) {
-                                  case 'main':
-                                    colorClasses = 'bg-blue-50/80 hover:bg-blue-100/90 border-blue-200/70 text-blue-950 border-r-4 border-r-blue-600 shadow-3xs';
-                                    badgeText = 'رئيسي';
-                                    typeBadgeColor = 'bg-blue-100 text-blue-800';
-                                    break;
-                                  case 'side':
-                                    colorClasses = 'bg-amber-50/80 hover:bg-amber-100/90 border-amber-200/70 text-amber-950 border-r-4 border-r-amber-500 shadow-3xs';
-                                    badgeText = 'جانبي';
-                                    typeBadgeColor = 'bg-amber-100 text-amber-800';
-                                    break;
-                                  default: // sub
-                                    colorClasses = 'bg-purple-50/80 hover:bg-purple-100/95 border-purple-200/70 text-purple-950 border-r-4 border-r-purple-500 shadow-3xs';
-                                    badgeText = 'فرعي';
-                                    typeBadgeColor = 'bg-purple-100 text-purple-800';
-                                    break;
-                                }
-                              }
-
-                              return (
-                                <motion.div 
-                                  key={task.id}
-                                  whileTap={{ scale: 0.98 }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    vibrate(HAPITCS.MAJOR_CLICK);
-                                    if (task.type === 'practical') {
-                                      toggleSubStationTask(selectedStationId!, task.subIdx, task.actualId);
-                                    } else {
-                                      toggleTask(task.id, task.isCompleted, task.type);
-                                    }
-                                  }}
-                                  className={`p-3 rounded-2xl border text-xs font-bold flex flex-col gap-2 transition-all cursor-pointer ${colorClasses}`}
-                                >
-                                  <div className="flex items-start justify-between gap-2.5">
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
-                                        task.isCompleted ? 'text-emerald-600' : 'text-slate-300'
-                                      }`}>
-                                        {task.isCompleted ? (
-                                          <CheckCircle2 size={16} className="fill-emerald-100" />
-                                        ) : (
-                                          <Circle size={16} />
-                                        )}
-                                      </div>
-                                      <span className="truncate leading-tight font-black text-[12px]">{task.title}</span>
-                                    </div>
-                                  </div>
-                                  {/* Task Type badge indicator */}
-                                  <div className="flex items-center justify-end">
-                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${typeBadgeColor} uppercase tracking-wider`}>
-                                      {badgeText}
-                                    </span>
-                                  </div>
-                                </motion.div>
-                              );
-                            })
-                          ) : (
-                            isLearningDay && (
-                              <div className="text-xs text-slate-300 py-10 text-center font-bold border border-dashed border-slate-100 rounded-3xl">
-                                لا توجد مهام حالياً
-                              </div>
-                            )
-                          )}
-                       </div>
-                     </div>
-
-                     {/* Action Zone/Plus Button - Replaced with indicator for type of day */}
-                     <div className="mt-auto pt-3">
-                        {isLearningDay ? (
-                          <div className="text-xs font-black text-blue-500 text-center py-4 border border-blue-100 rounded-2xl bg-white shadow-sm shadow-blue-500/5">
-                             يوم تعليمي
-                          </div>
-                        ) : (
-                          <div className="text-xs font-black text-slate-400 text-center py-4 border border-dashed border-slate-200/50 rounded-2xl bg-slate-100/50">
-                             🛋️ يوم راحة مقترح
-                          </div>
-                        )}
-                     </div>
+              {/* === RIGHT/BOTTOM: SELECTED DAY TASKS === */}
+              <div className="w-full lg:w-2/5 border-2 border-indigo-50/80 bg-gradient-to-b from-slate-50/50 to-white rounded-[32px] p-8 shadow-sm flex flex-col">
+                 <div className="flex items-center justify-between mb-8">
+                   <div>
+                     <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider mb-1">
+                       {selectedDay ? format(selectedDay, 'EEEE', { locale: ar }) : 'مهام اليوم'}
+                     </h4>
+                     <h3 className="text-3xl font-black text-indigo-950 tracking-tight">
+                       {selectedDay ? format(selectedDay, 'd MMMM', { locale: ar }) : ''}
+                     </h3>
                    </div>
-                 );
-               })}
+                   {selectedDay && isToday(selectedDay) && (
+                     <span className="px-4 py-2 bg-blue-100 text-blue-700 font-black text-xs rounded-xl border border-blue-200">
+                       اليوم
+                     </span>
+                   )}
+                 </div>
+
+                 <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-3">
+                   {selectedDayTasks.length > 0 ? (
+                     selectedDayTasks.map(task => {
+                       const taskType = task.type || 'sub';
+                       let colorClasses = '';
+                       let badgeText = '';
+                       let typeBadgeColor = '';
+
+                       if (task.isRestDayTask) {
+                          if (task.isCompleted) {
+                            colorClasses = 'bg-rose-50/10 border-rose-100/60 text-slate-400 line-through border-r-4 border-r-rose-400/60';
+                            badgeText = 'يوم إجازة';
+                            typeBadgeColor = 'bg-slate-100 text-slate-400';
+                          } else {
+                            colorClasses = 'bg-rose-50 hover:bg-rose-100/90 border-rose-200 text-rose-950 border-r-4 border-r-rose-500 shadow-3xs';
+                            badgeText = 'يوم إجازة';
+                            typeBadgeColor = 'bg-rose-100 text-rose-800 font-bold';
+                          }
+                        } else if (task.isCompleted) {
+                         switch (taskType) {
+                           case 'main':
+                             colorClasses = 'bg-emerald-50/30 border-emerald-100/80 text-slate-400 line-through border-r-4 border-r-emerald-500';
+                             badgeText = 'رئيسي';
+                             typeBadgeColor = 'bg-slate-100 text-slate-400';
+                             break;
+                           case 'side':
+                             colorClasses = 'bg-emerald-50/20 border-emerald-100/60 text-slate-400 line-through border-r-4 border-r-amber-400/60';
+                             badgeText = 'جانبي';
+                             typeBadgeColor = 'bg-slate-100 text-slate-400';
+                             break;
+                           default: // sub
+                             colorClasses = 'bg-emerald-50/20 border-emerald-100/60 text-slate-400 line-through border-r-4 border-r-purple-400/60';
+                             badgeText = 'فرعي';
+                             typeBadgeColor = 'bg-slate-100 text-slate-400';
+                             break;
+                         }
+                       } else {
+                         switch (taskType) {
+                           case 'main':
+                             colorClasses = 'bg-blue-50/80 hover:bg-blue-100/90 border-blue-200/70 text-blue-950 border-r-4 border-r-blue-600 shadow-3xs';
+                             badgeText = 'رئيسي';
+                             typeBadgeColor = 'bg-blue-100 text-blue-800';
+                             break;
+                           case 'side':
+                             colorClasses = 'bg-amber-50/80 hover:bg-amber-100/90 border-amber-200/70 text-amber-950 border-r-4 border-r-amber-500 shadow-3xs';
+                             badgeText = 'جانبي';
+                             typeBadgeColor = 'bg-amber-100 text-amber-800';
+                             break;
+                           default: // sub
+                             colorClasses = 'bg-purple-50/80 hover:bg-purple-100/95 border-purple-200/70 text-purple-950 border-r-4 border-r-purple-500 shadow-3xs';
+                             badgeText = 'فرعي';
+                             typeBadgeColor = 'bg-purple-100 text-purple-800';
+                             break;
+                         }
+                       }
+
+                       return (
+                         <motion.div 
+                           key={task.id}
+                           whileTap={{ scale: 0.98 }}
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             vibrate(HAPITCS.MAJOR_CLICK);
+                             if (task.type === 'practical') {
+                               toggleSubStationTask(selectedStationId!, task.subIdx, task.actualId);
+                             } else {
+                               toggleTask(task.id, task.isCompleted, task.type);
+                             }
+                           }}
+                           className={`p-4 rounded-[20px] border text-xs font-bold flex flex-col gap-2 transition-all cursor-pointer ${colorClasses}`}
+                         >
+                           <div className="flex items-start justify-between gap-3">
+                             <div className="flex items-start gap-3 min-w-0">
+                               <div className={`w-5 h-5 mt-0.5 rounded-full flex items-center justify-center shrink-0 ${
+                                 task.isCompleted ? 'text-emerald-600' : 'text-slate-300'
+                               }`}>
+                                 {task.isCompleted ? (
+                                   <CheckCircle2 size={20} className="fill-emerald-100" />
+                                 ) : (
+                                   <Circle size={20} />
+                                 )}
+                               </div>
+                               <span className="leading-snug font-black text-[13px]">{task.title}</span>
+                             </div>
+                           </div>
+                           <div className="flex items-center justify-end">
+                             <span className={`text-[9px] font-black px-2.5 py-1 rounded-md ${typeBadgeColor} uppercase tracking-wider`}>
+                               {badgeText}
+                             </span>
+                           </div>
+                         </motion.div>
+                       );
+                     })
+                   ) : (
+                     <div className="flex flex-col items-center justify-center py-16 opacity-50">
+                       <i className="pi pi-box text-5xl text-slate-300 mb-4"></i>
+                       <p className="text-sm font-bold text-slate-400">لا توجد مهام لهذا اليوم</p>
+                     </div>
+                   )}
+                 </div>
+              </div>
             </div>
           </div>
         </motion.div>

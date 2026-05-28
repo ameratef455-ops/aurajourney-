@@ -14,6 +14,9 @@ import confetti from 'canvas-confetti';
 import { ListChecks, Target, Trophy, Clock, Plus, Trash2, ChevronRight, ChevronDown, CheckCircle2, Circle, Edit2, MoreVertical, Info, Briefcase } from "lucide-react";
 import { LAYERS } from "../constants/layers";
 import { db, TaskActivity } from "../db";
+import { useLiveQuery } from "dexie-react-hooks";
+import { format, getDay } from "date-fns";
+import { ar } from "date-fns/locale";
 import { safeRandomUUID } from "../lib/uuid";
 import { TaskReflectionModal } from "./TaskReflectionModal";
 import { toast as toastHot } from "react-hot-toast";
@@ -46,6 +49,26 @@ export function EvaluationSidebar({
   initialSelectedTask
 }: EvaluationSidebarProps) {
   const [selectedTask, setSelectedTask] = useState<any>(null);
+  const settings = useLiveQuery(() => db.userSettings.toArray());
+  const user = settings?.[0];
+
+  const [showRestDayDialog, setShowRestDayDialog] = useState(false);
+  const [pendingActivity, setPendingActivity] = useState<TaskActivity | null>(null);
+  const [pendingParentId, setPendingParentId] = useState<string | undefined>(undefined);
+
+  const getNextDateForDayOfWeek = (dayIndex: number) => {
+    const resultDate = new Date();
+    const currentDayIndex = resultDate.getDay();
+    let daysToAdd = (dayIndex - currentDayIndex + 7) % 7;
+    if (daysToAdd === 0) {
+      daysToAdd = 7;
+    }
+    resultDate.setDate(resultDate.getDate() + daysToAdd);
+    const yyyy = resultDate.getFullYear();
+    const mm = String(resultDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(resultDate.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
   const toast = useRef({
     show: (options: { severity?: string; summary?: string; detail?: string; life?: number }) => {
       const msg = options.detail || options.summary || "";
@@ -150,17 +173,7 @@ export function EvaluationSidebar({
     setSelectedTask((prev: any) => ({ ...prev, activities: updatedActivities }));
   };
 
-  const addActivity = (parentId?: string) => {
-    if (!newActivityTitle.trim()) return;
-
-    const newAct: TaskActivity = {
-      id: safeRandomUUID(),
-      title: newActivityTitle.trim(),
-      duration: newActivityDuration || undefined,
-      isCompleted: false,
-      children: []
-    };
-
+  const executeAddActivity = async (newAct: TaskActivity, parentId?: string, forceRestDayDate?: string) => {
     const updatedActivities = selectedTask.activities ? [...selectedTask.activities] : [];
     
     if (!parentId) {
@@ -179,9 +192,97 @@ export function EvaluationSidebar({
       addToParent(updatedActivities);
     }
 
-    saveActivities(updatedActivities);
+    if (forceRestDayDate) {
+      if (selectedTask._source === 'dexie') {
+        await (db.tasks as any).update(selectedTask.id, { 
+          activities: updatedActivities,
+          dueDate: forceRestDayDate,
+          isRestDayTask: true
+        });
+      }
+      setSelectedTask((prev: any) => ({ 
+        ...prev, 
+        activities: updatedActivities,
+        dueDate: forceRestDayDate,
+        isRestDayTask: true
+      }));
+    } else {
+      await saveActivities(updatedActivities);
+    }
+
     setNewActivityTitle("");
     setNewActivityDuration(30);
+  };
+
+  const addActivity = async (parentId?: string) => {
+    if (!newActivityTitle.trim()) return;
+
+    const newAct: TaskActivity = {
+      id: safeRandomUUID(),
+      title: newActivityTitle.trim(),
+      duration: newActivityDuration || undefined,
+      isCompleted: false,
+      children: []
+    };
+
+    if (user && user.dailyDuration && user.dailyDuration > 0 && selectedTask) {
+      const formattedDate = selectedTask.dueDate || format(new Date(), 'yyyy-MM-dd');
+      
+      const allTasks = await db.tasks.toArray();
+      const dayTasks = allTasks.filter(t => t.dueDate === formattedDate);
+      
+      let totalTasksMins = 0;
+      dayTasks.forEach(task => {
+        let taskMins = 0;
+        if (task.activities && task.activities.length > 0) {
+          const sumMins = (list: any[]) => {
+            let sum = 0;
+            list.forEach((act) => {
+              sum += (act.duration || 30);
+              if (act.children) {
+                sum += sumMins(act.children);
+              }
+            });
+            return sum;
+          };
+          taskMins = sumMins(task.activities);
+        } else if (task.id !== selectedTask.id) {
+          if (task.type === "main") {
+            taskMins = 45;
+          } else if (task.type === "side") {
+            taskMins = 30;
+          } else {
+            taskMins = 20;
+          }
+        }
+        totalTasksMins += taskMins;
+      });
+
+      let totalPracticalMins = 0;
+      const rawSubs = user.subStations || {};
+      Object.keys(rawSubs).forEach(stId => {
+        const stationSubs = Array.isArray(rawSubs[stId]) ? rawSubs[stId] : (rawSubs[stId] ? [rawSubs[stId]] : []);
+        stationSubs.forEach((sub: any) => {
+          (sub.tasks || []).forEach((pTask: any) => {
+            if (pTask.dueDate === formattedDate) {
+              totalPracticalMins += (pTask.duration || 30);
+            }
+          });
+        });
+      });
+
+      const currentAllocatedMins = totalTasksMins + totalPracticalMins;
+      const prospectiveMins = currentAllocatedMins + (newActivityDuration || 30);
+
+      if (prospectiveMins > user.dailyDuration) {
+        setPendingActivity(newAct);
+        setPendingParentId(parentId);
+        setShowRestDayDialog(true);
+        return;
+      }
+    }
+
+    executeAddActivity(newAct, parentId);
   };
 
   const deleteActivity = (id: string) => {
@@ -618,6 +719,116 @@ export function EvaluationSidebar({
           }
         }}
       />
+
+      <Dialog
+        visible={showRestDayDialog}
+        onHide={() => {
+          setShowRestDayDialog(false);
+          setPendingActivity(null);
+          setPendingParentId(undefined);
+        }}
+        header={
+          <div className="flex items-center gap-2 text-rose-700 font-sans font-black pr-4 text-sm" dir="rtl">
+            ⚠️ تنبيه: تجاوز الهدف اليومي
+          </div>
+        }
+        className="w-[90vw] max-w-md font-sans mx-4 shadow-2xl"
+        closable
+        dismissableMask
+      >
+        <div className="p-4 flex flex-col gap-4 text-right font-sans" dir="rtl">
+          <p className="text-slate-700 text-sm font-bold leading-relaxed">
+            مرحباً! إضافة هذا النشاط تسبب تجاوزاً لـ <strong>الهدف اليومي</strong> المسموح به للدراسة/التعلم والمقدر بـ ({user?.dailyDuration} دقيقة يوماً).
+          </p>
+          <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+            الهدف اليومي يساعدك على الحفاظ على مستويات طاقة متوازنة وتجنب الإرهاق. هل ترغب في ترحيل هذه المهمة مع كل أنشطتها إلى أحد <strong>أيام الإجازة</strong> المتاحة والعمل عليها براحة؟
+          </p>
+          
+          <div className="mt-2">
+            <h5 className="text-xs font-black text-indigo-900 mb-2">اختر يوم الإجازة المناسب لتأجيل المهمة إليه:</h5>
+            <div className="grid grid-cols-1 gap-2">
+              {(() => {
+                const learningDaysRefs = user?.learningDays || [];
+                const fullWeekDays = [0, 1, 2, 3, 4, 5, 6];
+                const restDayIndices = fullWeekDays.filter(dayNum => !learningDaysRefs.includes(dayNum));
+                const finalRestDaysList = restDayIndices.length > 0 ? restDayIndices : [5, 6];
+                const dayNameMapping: Record<number, string> = {
+                  0: "الأحد",
+                  1: "الإثنين",
+                  2: "الثلاثاء",
+                  3: "الأربعاء",
+                  4: "الخميس",
+                  5: "الجمعة",
+                  6: "السبت"
+                };
+                return finalRestDaysList.map(dayNum => {
+                  const dayLabel = dayNameMapping[dayNum] || `يوم ${dayNum}`;
+                  const targetDateString = getNextDateForDayOfWeek(dayNum);
+                  return (
+                    <button
+                      key={dayNum}
+                      type="button"
+                      onClick={async () => {
+                        if (pendingActivity) {
+                          try {
+                            await executeAddActivity(pendingActivity, pendingParentId, targetDateString);
+                            
+                            toast.current?.show({
+                              severity: "success",
+                              summary: "تم الترحيل بنجاح 🗓️✨",
+                              detail: `تم ترحيل المهمة وتغيير موعدها إلى يوم إجازتك (${dayLabel}) الموافق ${targetDateString} بلون مميز في التقويم!`,
+                              life: 5000
+                            });
+
+                            confetti({
+                              particleCount: 80,
+                              spread: 50,
+                              origin: { y: 0.7 }
+                            });
+                          } catch (err) {
+                            console.error('Failed to move task:', err);
+                          }
+                        }
+                        setShowRestDayDialog(false);
+                        setPendingActivity(null);
+                        setPendingParentId(undefined);
+                      }}
+                      className="w-full p-4 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/50 hover:border-rose-300 text-rose-950 rounded-2xl text-xs font-black text-right transition-all flex justify-between items-center cursor-pointer shadow-3xs"
+                    >
+                      <span>{dayLabel}</span>
+                      <span className="text-[10px] font-bold text-rose-700 bg-rose-100/60 px-2 py-1 rounded-lg">{targetDateString}</span>
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+
+          <div className="flex gap-2.5 mt-4">
+            <Button
+              label="إلغاء إضافة النشاط"
+              className="flex-1 bg-slate-100 hover:bg-slate-200 border-none rounded-2xl py-3.5 text-xs font-black text-slate-700 transition-all cursor-pointer"
+              onClick={() => {
+                setShowRestDayDialog(false);
+                setPendingActivity(null);
+                setPendingParentId(undefined);
+              }}
+            />
+            <Button
+              label="إضافة للهدف الحالي"
+              className="flex-1 bg-indigo-900 hover:bg-indigo-950 border-none rounded-2xl py-3.5 text-xs font-black text-white transition-all cursor-pointer shadow-md shadow-indigo-900/10"
+              onClick={() => {
+                if (pendingActivity) {
+                  executeAddActivity(pendingActivity, pendingParentId);
+                }
+                setShowRestDayDialog(false);
+                setPendingActivity(null);
+                setPendingParentId(undefined);
+              }}
+            />
+          </div>
+        </div>
+      </Dialog>
     </>
   );
 }

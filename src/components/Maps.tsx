@@ -465,8 +465,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     return stTasks.every(t => t.isCompleted);
   }, [selectedStation, tasks]);
 
-  const currentThemeRaw = user?.theme || 'cards';
-  const currentTheme = currentThemeRaw === 'calendar' ? 'cards' : currentThemeRaw;
+  const currentTheme = user?.theme || 'cards';
+  const displayTheme = currentTheme === 'calendar' ? 'cards' : currentTheme;
 
   const handleStationClick = (id: string, isUnlocked: boolean, i: number) => {
     if (isUnlocked) {
@@ -734,7 +734,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         dir="rtl"
         id="maps-viewport-scroll"
       >
-        <div className="w-full max-w-md mx-auto px-5 py-4 flex flex-col items-center justify-start z-10 relative">
+        <div className={`w-full ${viewMode === 'calendar' ? 'max-w-7xl px-4 md:px-8' : 'max-w-md px-5'} mx-auto py-4 flex flex-col items-center justify-start z-10 relative`}>
           
           {/* Vacation Banner */}
           {user?.isVacation && (
@@ -808,8 +808,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             </div>
           </div>
 
-          {/* Theme Views Selector */}
-          {viewMode === 'journey' && currentTheme === 'cards' && (
+          {viewMode === 'journey' && displayTheme === 'cards' && (
             <div className="w-full relative h-[440px] mb-6 flex items-center justify-center">
               <AnimatePresence mode="popLayout">
                 {stations.map((st, i) => {
@@ -1024,7 +1023,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             </div>
           )}
 
-          {viewMode === 'journey' && currentTheme === 'tree' && (
+          {viewMode === 'journey' && displayTheme === 'tree' && (
              <TreeTheme 
                 stations={stations}
                 unlockedStations={unlockedStations}
@@ -1054,7 +1053,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           )}
 
           {/* Card Stack Navigation Controls - Only in Cards theme */}
-          {viewMode === 'journey' && currentTheme === 'cards' && (
+          {viewMode === 'journey' && displayTheme === 'cards' && (
             <div className="w-full flex flex-col items-center justify-center gap-3 select-none relative z-20">
               {/* Visual Progress Line or Dot Indicator */}
               <div className="flex gap-1.5 items-center justify-center">
