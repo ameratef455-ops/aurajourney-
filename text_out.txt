@@ -1,0 +1,226 @@
+433-                onClick={(e) => {
+434-                  e.stopPropagation();
+435-                  setReviewingTask(t);
+436-                }}
+437-                className="p-1.5 px-2 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-105"
+438:                title="مراجعة الأنشطة"
+439-                type="button"
+440-              >
+441-                <i className="pi pi-compass text-[10px] font-black mr-1"></i>
+442:                <span className="text-[10px] font-bold">راجع</span>
+443-              </button>
+444-              <button
+445-                onClick={(e) => {
+446-                  e.stopPropagation();
+447-                  openTaskAnalytics(t);
+--
+1223-                 });
+1224-              }
+1225-
+1226-              toast.current?.show({
+1227-                 severity: "success",
+1228:                 summary: "تمت المراجعة!",
+1229-                 detail: "تم تحديث التقييم للمهمة بنجاح، استمر في التقدم!"
+1230-              });
+1231-           } catch(e) {
+1232-              console.error(e);
+1233-           }
+--
+1551-                                              onClick={(e) => {
+1552-                                                e.stopPropagation();
+1553-                                                setReviewingTask(parentTask);
+1554-                                              }}
+1555-                                              className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105"
+1556:                                              title="مراجعة الأنشطة"
+1557-                                            >
+1558:                                              <span className="text-[9px] font-bold mx-1">راجع</span>
+1559-                                            </button>
+1560-                                            <button
+1561-                                              type="button"
+1562-                                              onClick={(e) => {
+1563-                                                e.stopPropagation();
+--
+1663-                                                vibrate(HAPITCS.MAJOR_CLICK);
+1664-                                                setSelectedTaskForEvaluation(subTask);
+1665-                                                setEvaluationSidebarVisible(true);
+1666-                                              }}
+1667-                                            >
+1668:                                              <div className="flex items-center gap-2 flex-wrap justify-start"><span>{subTask.title}</span>{subTask.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(subTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(subTask); }} className="p-1 bg-indigo-50/75 border border-indigo-100/30 hover:bg-indigo-100/90 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button></div>)}</div>
+1669-                                            </span>
+1670-                                          </div>
+1671-                                        );
+1672-                                      })}
+1673-                                    </div>
+--
+1754-                          setEvaluationSidebarVisible(true);
+1755-                        }}
+1756-                        className={`font-black text-sm transition-all cursor-pointer flex-1 text-right
+1757-                             ${t.isCompleted ? "text-amber-800 line-through opacity-65" : "text-blue-950 hover:text-amber-700 underline decoration-amber-200/40"}`}
+1758-                      >
+1759:                        <div className="flex items-center gap-2 flex-wrap"><span>{t.title}</span>{t.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(t); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(t); }} className="p-1 px-1.5 bg-amber-50 border border-amber-100/50 hover:bg-amber-100 hover:border-amber-200 text-amber-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[10px] font-black"></i></button></div>)}</div>
+1760-                      </span>
+1761-                    </div>
+1762-                  ))}
+1763-                  {filteredSideTasks.length === 0 && (
+1764-                    <div className="py-12 bg-slate-50 border border-dashed border-slate-200 rounded-[32px] text-center">
+--
+1861-                                className={`font-black text-sm cursor-pointer flex-1 text-right ${stTask.isCompleted ? 'text-slate-400 line-through opacity-60' : 'text-blue-950 hover:text-indigo-800 underline decoration-indigo-200/50'}`}>
+1862-                                <div className="flex items-center gap-2 flex-wrap justify-end">
+1863-                                  <span>{stTask.title}</span>
+1864-                                  {stTask.isCompleted && (
+1865-                                    <div className="flex gap-1">
+1866:                                      <button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(stTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-150 hover:border-indigo-300 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="مراجعة الأنشطة">
+1867:                                        <span className="text-[9px] font-bold mx-1">راجع</span>
+1868-                                      </button>
+1869-                                      <button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(stTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-150 hover:border-indigo-300 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة">
+1870-                                        <i className="pi pi-chart-bar text-[10px] font-black"></i>
+1871-                                      </button>
+1872-                                    </div>
+--
+1899-                                        vibrate(HAPITCS.MAJOR_CLICK);
+1900-                                        setSelectedTaskForEvaluation({ ...inner, subStationId: selectedStation, sIdx, parentPracticalTaskId: stTask.id });
+1901-                                        setEvaluationSidebarVisible(true);
+1902-                                      }}
+1903-                                      className={`text-xs font-bold cursor-pointer flex-1 text-right ${inner.isCompleted ? 'text-slate-300 line-through' : 'text-slate-600 hover:text-indigo-900 underline decoration-indigo-200/30'}`}>
+1904:                                      <div className="flex items-center gap-2 flex-wrap justify-start"><span>{inner.title}</span>{inner.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(inner); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(inner); }} className="p-1 bg-indigo-50/70 border border-indigo-100/30 hover:bg-indigo-100/80 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button></div>)}</div>
+1905-                                    </span>
+1906-                                  </div>
+1907-                                ))}
+1908-                              </div>
+1909-                            )}
+--
+2493-                    setShowExitConfirm(false);
+2494-                    setSelectedStation(null);
+2495-                  }}
+2496-                />
+2497-                <Button
+2498:                  label="تراجع ومتابعة العمل"
+2499-                  icon="pi pi-times"
+2500-                  className="flex-1 bg-gray-100 text-gray-700 rounded-xl py-3 text-lg font-semibold border-none hover:bg-gray-200 active:scale-95 transition-all cursor-pointer"
+2501-                  onClick={() => setShowExitConfirm(false)}
+2502-                />
+2503-              </div>
+--
+2945-                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+2946-                      }`}
+2947-                      onClick={options.onClick}
+2948-                    >
+2949-                      <i className="pi pi-history ml-1.5"></i>
+2950:                      المراجعة
+2951-                    </div>
+2952-                  )}
+2953-                >
+2954-                  <div className="space-y-6">
+2955-                    {taskReflectionData && taskReflectionData.length > 0 ? (
+--
+2957-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+2958-                          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+2959-                            <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2">
+2960-                              <History className="w-5 h-5" />
+2961-                            </div>
+2962:                            <p className="text-[10px] text-slate-400 font-bold uppercase">عدد المراجعات</p>
+2963-                            <p className="text-xl font-black text-slate-800">{taskReflectionData.filter((r:any) => r.type === 'review').length}</p>
+2964-                          </div>
+2965-                          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center col-span-2">
+2966-                            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
+2967-                              <TrendingUp className="w-5 h-5" />
+2968-                            </div>
+2969:                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">الفجوات الزمنية بين المراجعات (بالأيام)</p>
+2970-                            <div className="flex flex-wrap gap-2 mt-1 justify-center">
+2971-                              {taskReflectionData.length > 1 ? taskReflectionData.slice(1).map((r: any, i: number) => {
+2972-                                const prev = taskReflectionData[i];
+2973-                                const diff = new Date(r.createdAt).getTime() - new Date(prev.createdAt).getTime();
+2974-                                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+2975-                                return (
+2976-                                  <span key={i} className="text-xs font-black bg-slate-100 px-3 py-1 rounded-lg text-slate-600 border border-slate-200">
+2977:                                    المراجعة {i + 1}: {days > 0 ? `${days} يوم` : 'نفس اليوم'}
+2978-                                  </span>
+2979-                                );
+2980:                              }) : <span className="text-xs font-bold text-slate-300">لا توجد مراجعات لاحتساب الفجوات</span>}
+2981-                            </div>
+2982-                          </div>
+2983-                        </div>
+2984-
+2985-                        {taskReflectionData.length > 1 ? (
+2986-                          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+2987-                            <h4 className="text-xs font-black text-slate-400 tracking-widest uppercase flex items-center gap-2">
+2988:                              <TrendingUp className="w-4 h-4 text-indigo-500" /> مخطط تطور الإتقان والتركيز عبر المراجعات
+2989-                            </h4>
+2990-                            <div className="h-64 w-full">
+2991-                              <ResponsiveContainer width="100%" height="100%">
+2992-                                <AreaChart data={taskReflectionData.map((r: any, i: number) => ({
+2993:                                  name: i === 0 ? 'الأصلي' : `مراجعة ${i}`,
+2994-                                  mastery: r.mastery,
+2995-                                  focus: r.focus,
+2996-                                  fullDate: new Date(r.createdAt).toLocaleDateString('ar-EG')
+2997-                                }))}>
+2998-                                  <defs>
+--
+3044-                              </ResponsiveContainer>
+3045-                            </div>
+3046-                          </div>
+3047-                        ) : (
+3048-                          <div className="text-center py-6 px-4 bg-blue-50/50 border border-blue-100 rounded-3xl">
+3049:                            <p className="text-sm font-bold text-blue-900 mb-1">لم تقم بأي مراجعة بعد</p>
+3050:                            <p className="text-xs text-blue-700/70">قم بمراجعة هذه المهمة لاحقاً لرؤية الرسم البياني لتطور مستواك وتركيزك.</p>
+3051-                          </div>
+3052-                        )}
+3053-
+3054-                        {taskReflectionData.length > 1 && (
+3055-                          <div className="space-y-4">
+3056:                            <h4 className="text-sm font-black text-slate-800 pr-2">تاريخ المراجعات والتقييمات</h4>
+3057-                            {taskReflectionData.slice(1).map((refData: any, idx: number) => {
+3058-                              const original = taskReflectionData[0];
+3059-                              const masteryDiff = refData.mastery - original.mastery;
+3060-                              const isMasteryUp = masteryDiff > 0;
+3061-                              const isMasterySame = masteryDiff === 0;
+3062-
+3063-                              return (
+3064-                                <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-3">
+3065-                                  <div className="flex items-center justify-between">
+3066-                                    <div className="flex flex-col gap-1">
+3067:                                      <span className="text-xs font-black text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded-md w-fit">المراجعة {idx + 1}</span>
+3068-                                      <span className="text-[10px] text-slate-400 font-bold">{new Date(refData.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+3069-                                    </div>
+3070-                                    <div className="flex items-center gap-2">
+3071-                                      <div className={`flex flex-col items-center justify-center p-2 rounded-xl text-center min-w-[70px] ${isMasteryUp ? 'bg-emerald-50 text-emerald-700' : isMasterySame ? 'bg-slate-50 text-slate-600' : 'bg-rose-50 text-rose-700'}`}>
+3072-                                        <span className="text-[9px] uppercase font-black opacity-70">الإتقان</span>
+3073-                                        <span className="text-sm font-black">{refData.mastery} <span className="text-[10px]">/ 10</span></span>
+3074-                                        <span className={`text-[10px] font-black ${isMasteryUp ? 'text-emerald-500' : isMasterySame ? 'text-slate-400' : 'text-rose-500'}`}>
+3075:                                          {isMasteryUp ? `+${masteryDiff} تحسن` : isMasterySame ? 'مستقر' : `${Math.abs(masteryDiff)}- تراجع`}
+3076-                                        </span>
+3077-                                      </div>
+3078-                                    </div>
+3079-                                  </div>
+3080-                                  {(refData.strengths || refData.learnings) && (
+3081-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs font-bold text-slate-700 leading-relaxed">
+3082:                                      <span className="text-indigo-600 mr-1 block mb-1">خلاصة المراجعة:</span>
+3083-                                      {refData.learnings || refData.strengths}
+3084-                                    </div>
+3085-                                  )}
+3086-                                </div>
+3087-                              );
+--
+3089-                          </div>
+3090-                        )}
+3091-                      </>
+3092-                    ) : (
+3093-                      <div className="text-center py-10 px-6 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col items-center gap-4">
+3094:                        <p className="text-sm font-black text-blue-950">لا توجد بيانات مراجعة</p>
+3095-                      </div>
+3096-                    )}
+3097-                  </div>
+3098-                </TabPanel>
+3099-              </TabView>
+--
+3562-          <p className="text-sm font-medium text-slate-700 leading-relaxed">
+3563-            هل أنت متأكد من إلغاء تجميد هذه الرحلة واستعادة طاقتها وسعيك الإيجابي مجدداً؟
+3564-          </p>
+3565-          <div className="flex gap-3 justify-end pt-2">
+3566-            <Button
+3567:              label="تراجع"
+3568-              className="p-button-text text-gray-500 font-bold text-xs cursor-pointer hover:bg-slate-50 rounded-xl px-4 py-2 border-none bg-transparent"
+3569-              onClick={() => setShowUnfreezeConfirm(false)}
+3570-            />
+3571-            <Button
+3572-              label="نعم، إلغاء التجميد 🔥"

@@ -43,6 +43,7 @@ interface CalendarThemeProps {
   user: any;
   onSaveArrangement: (stationId: string, assignments: Record<string, string>) => Promise<void>;
   toggleSubStationTask: (stationId: string, subStationIndex: number, taskId: string) => void;
+  onOpenEvaluation?: (task: any) => void;
 }
 
 export function CalendarTheme({ 
@@ -58,7 +59,8 @@ export function CalendarTheme({
   onArrangeCalendar,
   user,
   onSaveArrangement,
-  toggleSubStationTask
+  toggleSubStationTask,
+  onOpenEvaluation
 }: CalendarThemeProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedStationId, setSelectedStationId] = useState<string | null>(activeStationId || (stations.length > 0 ? stations[0].id : null));
@@ -78,7 +80,11 @@ export function CalendarTheme({
     const rawSubs = user?.subStations?.[selectedStationId!] || [];
     const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
 
-    calendarDays.forEach((day) => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 0 });
+    const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+
+    weekDays.forEach((day) => {
       const formattedDate = format(day, "yyyy-MM-dd");
       
       // 1. Database tasks (main, side, sub)
@@ -144,7 +150,7 @@ export function CalendarTheme({
       completedTasksCount: completedT,
       complianceRate: rate
     };
-  }, [calendarDays, tasks, selectedStationId, user?.subStations]);
+  }, [tasks, selectedStationId, user?.subStations]);
 
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
@@ -438,7 +444,7 @@ export function CalendarTheme({
                            <span className="text-5xl lg:text-6xl font-black text-indigo-950 tracking-tight">{totalHours}</span>
                            <span className="text-sm font-bold text-slate-500">ساعة</span>
                         </div>
-                        <span className="text-xs text-slate-400 font-bold block pt-1">مخصصة للتعلم هذا الشهر</span>
+                        <span className="text-xs text-slate-400 font-bold block pt-1">مخصصة للتعلم هذا الأسبوع</span>
                      </div>
                      <div className="w-16 h-16 rounded-[24px] bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-inner shrink-0">
                         <i className="pi pi-clock text-3xl"></i>
@@ -501,14 +507,14 @@ export function CalendarTheme({
                   رتب التقويم
                 </button>
                 <div className="flex gap-2">
-                   <button onClick={prevMonth} className="px-5 py-3 rounded-2xl bg-white border-2 border-slate-100 hover:border-blue-200 hover:bg-slate-50 text-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0 font-black text-xs gap-1.5 shadow-sm">
-                     <ChevronRight size={18} /> السابق
+                  <button onClick={prevMonth} className="p-3 rounded-2xl bg-white border-2 border-slate-100 hover:border-blue-200 hover:bg-slate-50 text-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-sm" title="الشهر السابق">
+                     <ChevronRight size={18} />
                    </button>
                    <button onClick={() => setCurrentMonth(new Date())} className="px-5 py-3 rounded-2xl bg-white border-2 border-slate-100 hover:border-blue-200 hover:bg-slate-50 text-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0 font-black text-xs shadow-sm">
                      اليوم
                    </button>
-                   <button onClick={nextMonth} className="px-5 py-3 rounded-2xl bg-white border-2 border-slate-100 hover:border-blue-200 hover:bg-slate-50 text-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0 font-black text-xs gap-1.5 shadow-sm">
-                     التالي <ChevronLeft size={18} />
+                  <button onClick={nextMonth} className="p-3 rounded-2xl bg-white border-2 border-slate-100 hover:border-blue-200 hover:bg-slate-50 text-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-sm" title="الشهر التالي">
+                     <ChevronLeft size={18} />
                    </button>
                 </div>
               </div>
@@ -530,7 +536,7 @@ export function CalendarTheme({
                      const formattedDate = format(day, 'yyyy-MM-dd');
                      const state = monthStateMapping[formattedDate] || 'rest';
                      const isSelectedDayObj = selectedDay && isSameDay(day, selectedDay);
-                     const isCurrentMonth = isSameMonth(day, currentMonth);
+                     const isCurrentMonth = isSameMonth(day, currentMonth); const hasPostponedTasks = (tasks || []).some(t => t.stationId === selectedStationId && t.dueDate === formattedDate && t.isRestDayTask);
                      
                      // State Styling definitions
                      let styleClasses = "bg-white border-transparent text-slate-600 hover:border-slate-200";
@@ -596,7 +602,13 @@ export function CalendarTheme({
                          }}
                          className={`aspect-square sm:aspect-auto sm:h-20 flex flex-col items-center justify-center rounded-2xl border-2 transition-all cursor-pointer relative p-1 ${styleClasses}`}
                        >
-                         <span className={labelClasses}>{format(day, 'd')}</span>
+                         {isCurrentMonth && hasPostponedTasks && (
+                            <span className="absolute top-1.5 right-1.5 flex h-2 w-2 z-20">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" title="يوجد مهام مؤجلة"></span>
+                            </span>
+                          )}
+                          <span className={labelClasses}>{format(day, 'd')}</span>
                          <div className={dotClasses}></div>
                        </motion.button>
                      );
@@ -685,7 +697,9 @@ export function CalendarTheme({
                            onClick={(e) => {
                              e.stopPropagation();
                              vibrate(HAPITCS.MAJOR_CLICK);
-                             if (task.type === 'practical') {
+                             if (task.isRestDayTask) {
+                               onOpenEvaluation?.(task);
+                             } else if (task.type === 'practical') {
                                toggleSubStationTask(selectedStationId!, task.subIdx, task.actualId);
                              } else {
                                toggleTask(task.id, task.isCompleted, task.type);

@@ -1,5 +1,5 @@
 {
-  "name": "Aura Journey",
+  "name": "VIA",
   "description": "Progressive Web App with RTL layout and gamified core loop.",
   "requestFramePermissions": ["vibrate"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

@@ -52,9 +52,12 @@ export function EvaluationSidebar({
   const settings = useLiveQuery(() => db.userSettings.toArray());
   const user = settings?.[0];
 
+  const [isPostponeMode, setIsPostponeMode] = useState(false);
+  const [selectedForPostpone, setSelectedForPostpone] = useState<string[]>([]);
   const [showRestDayDialog, setShowRestDayDialog] = useState(false);
   const [pendingActivity, setPendingActivity] = useState<TaskActivity | null>(null);
   const [pendingParentId, setPendingParentId] = useState<string | undefined>(undefined);
+  const [isPostponingSelected, setIsPostponingSelected] = useState(false);
 
   const getNextDateForDayOfWeek = (dayIndex: number) => {
     const resultDate = new Date();
@@ -643,26 +646,62 @@ export function EvaluationSidebar({
 
            {/* Activities Tree */}
            <div className="space-y-3">
-              <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                 <ListChecks className="w-3 h-3" />
-                 قائمة الأنشطة والمهام الفرعية
-              </h4>
-              
-              <div className="space-y-4 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
-                 {selectedTask?.activities?.length > 0 ? (
-                    selectedTask.activities.map((act: TaskActivity) => (
-                      <ActivityNode 
-                        key={act.id} 
-                        node={act} 
-                        onToggle={(id) => toggleActivityCompletion(id)}
-                        onDelete={(id) => deleteActivity(id)}
-                        onEdit={(id, title, dur) => editActivity(id, title, dur)}
-                        onAddSub={(parentId, title, dur) => {
-                          setNewActivityTitle(title);
-                          setNewActivityDuration(dur);
-                          addActivity(parentId);
-                        }}
-                      />
+              <div className="flex items-center justify-between">
+                 <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <ListChecks className="w-3 h-3" />
+                    قائمة الأنشطة والمهام الفرعية
+                 </h4>
+                 {selectedTask?.activities?.length > 0 && (
+                   <button 
+                     onClick={() => {
+                        if (isPostponeMode && selectedForPostpone.length > 0) {
+                           setIsPostponingSelected(true);
+                           setShowRestDayDialog(true);
+                        } else {
+                           setIsPostponeMode(!isPostponeMode);
+                           setSelectedForPostpone([]);
+                        }
+                     }}
+                     className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                       isPostponeMode && selectedForPostpone.length > 0
+                         ? 'bg-indigo-600 text-white shadow-md'
+                         : isPostponeMode 
+                           ? 'bg-slate-200 text-slate-600'
+                           : 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                     }`}
+                   >
+                     {isPostponeMode && selectedForPostpone.length > 0 ? "تأكيد التأجيل" : "تأجيل"}
+                   </button>
+                 )}
+               </div>
+               
+               <div className="space-y-4 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
+                  {selectedTask?.activities?.length > 0 ? (
+                     selectedTask.activities.map((act: TaskActivity) => (
+                       <ActivityNode 
+                         key={act.id} 
+                         node={act} 
+                         onToggle={(id) => toggleActivityCompletion(id)}
+                         onDelete={(id) => deleteActivity(id)}
+                         onEdit={(id, title, dur) => editActivity(id, title, dur)}
+                         onAddSub={(parentId, title, dur) => {
+                           setNewActivityTitle(title);
+                           setNewActivityDuration(dur);
+                           addActivity(parentId);
+                         }}
+                         isPostponeMode={isPostponeMode}
+                         onDirectPostpone={(id) => {
+                           setSelectedForPostpone([id]);
+                           setIsPostponingSelected(true);
+                           setShowRestDayDialog(true);
+                         }}
+                         isSelectedForPostpone={selectedForPostpone.includes(act.id)}
+                         onTogglePostpone={(id) => {
+                           setSelectedForPostpone(prev => 
+                             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+                           );
+                         }}
+                       />
                     ))
                  ) : (
                    <div className="text-center py-8 bg-white border border-dashed border-slate-200 rounded-2xl">
@@ -726,10 +765,13 @@ export function EvaluationSidebar({
           setShowRestDayDialog(false);
           setPendingActivity(null);
           setPendingParentId(undefined);
+          setIsPostponingSelected(false);
+          setIsPostponeMode(false);
+          setSelectedForPostpone([]);
         }}
         header={
           <div className="flex items-center gap-2 text-rose-700 font-sans font-black pr-4 text-sm" dir="rtl">
-            ⚠️ تنبيه: تجاوز الهدف اليومي
+            {isPostponingSelected ? "ترحيل أنشطة ليوم إجازة 🗓️" : "⚠️ تنبيه: تجاوز الهدف اليومي"}
           </div>
         }
         className="w-[90vw] max-w-md font-sans mx-4 shadow-2xl"
@@ -737,12 +779,25 @@ export function EvaluationSidebar({
         dismissableMask
       >
         <div className="p-4 flex flex-col gap-4 text-right font-sans" dir="rtl">
-          <p className="text-slate-700 text-sm font-bold leading-relaxed">
-            مرحباً! إضافة هذا النشاط تسبب تجاوزاً لـ <strong>الهدف اليومي</strong> المسموح به للدراسة/التعلم والمقدر بـ ({user?.dailyDuration} دقيقة يوماً).
-          </p>
-          <p className="text-slate-500 text-xs font-semibold leading-relaxed">
-            الهدف اليومي يساعدك على الحفاظ على مستويات طاقة متوازنة وتجنب الإرهاق. هل ترغب في ترحيل هذه المهمة مع كل أنشطتها إلى أحد <strong>أيام الإجازة</strong> المتاحة والعمل عليها براحة؟
-          </p>
+          {isPostponingSelected ? (
+            <>
+              <p className="text-slate-700 text-sm font-bold leading-relaxed">
+                لقد قمت بتحديد {selectedForPostpone.length} أنشطة لتأجيلها.
+              </p>
+              <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+                سيتم نقل الأنشطة المحددة إلى اليوم الذي تختاره.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-slate-700 text-sm font-bold leading-relaxed">
+                مرحباً! إضافة هذا النشاط تسبب تجاوزاً لـ <strong>الهدف اليومي</strong> المسموح به للدراسة/التعلم والمقدر بـ ({user?.dailyDuration} دقيقة يوماً).
+              </p>
+              <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+                الهدف اليومي يساعدك على الحفاظ على مستويات طاقة متوازنة وتجنب الإرهاق. هل ترغب في ترحيل هذه المهمة مع كل أنشطتها إلى أحد <strong>أيام الإجازة</strong> المتاحة والعمل عليها براحة؟
+              </p>
+            </>
+          )}
           
           <div className="mt-2">
             <h5 className="text-xs font-black text-indigo-900 mb-2">اختر يوم الإجازة المناسب لتأجيل المهمة إليه:</h5>
@@ -769,7 +824,39 @@ export function EvaluationSidebar({
                       key={dayNum}
                       type="button"
                       onClick={async () => {
-                        if (pendingActivity) {
+                        if (isPostponingSelected) {
+                          try {
+                            const activitiesToMove = selectedTask.activities.filter((act: any) => selectedForPostpone.includes(act.id));
+                            const remainingActivities = selectedTask.activities.filter((act: any) => !selectedForPostpone.includes(act.id));
+                            
+                            // Create a new rest day task for the selected activities
+                            if (activitiesToMove.length > 0) {
+                              if (selectedTask._source === 'dexie') {
+                                const newTask = {
+                                  ...selectedTask,
+                                  id: safeRandomUUID(),
+                                  dueDate: targetDateString,
+                                  isRestDayTask: true,
+                                  activities: activitiesToMove
+                                };
+                                delete newTask._source;
+                                await (db.tasks as any).add(newTask);
+                                await (db.tasks as any).update(selectedTask.id, { activities: remainingActivities });
+                              }
+                              setSelectedTask((prev: any) => ({ ...prev, activities: remainingActivities }));
+                            }
+
+                            toast.current?.show({
+                              severity: "success",
+                              summary: "تم الترحيل بنجاح 🗓️✨",
+                              detail: `تم ترحيل الأنشطة إلى يوم إجازتك (${dayLabel}) الموافق ${targetDateString}!`,
+                              life: 5000
+                            });
+                            confetti({ particleCount: 80, spread: 50, origin: { y: 0.7 } });
+                          } catch (err) {
+                            console.error('Failed to move tasks:', err);
+                          }
+                        } else if (pendingActivity) {
                           try {
                             await executeAddActivity(pendingActivity, pendingParentId, targetDateString);
                             
@@ -792,6 +879,9 @@ export function EvaluationSidebar({
                         setShowRestDayDialog(false);
                         setPendingActivity(null);
                         setPendingParentId(undefined);
+                        setIsPostponingSelected(false);
+                        setIsPostponeMode(false);
+                        setSelectedForPostpone([]);
                       }}
                       className="w-full p-4 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/50 hover:border-rose-300 text-rose-950 rounded-2xl text-xs font-black text-right transition-all flex justify-between items-center cursor-pointer shadow-3xs"
                     >
@@ -833,12 +923,16 @@ export function EvaluationSidebar({
   );
 }
 
-function ActivityNode({ node, onToggle, onDelete, onEdit, onAddSub }: { 
+function ActivityNode({ node, onToggle, onDelete, onEdit, onAddSub, isPostponeMode, isSelectedForPostpone, onTogglePostpone, onDirectPostpone }: { 
   node: TaskActivity, 
   onToggle: (id: string) => void, 
   onDelete: (id: string) => void,
   onEdit: (id: string, title: string, dur: number) => void,
-  onAddSub: (parentId: string, title: string, dur: number) => void
+  onAddSub: (parentId: string, title: string, dur: number) => void,
+  isPostponeMode?: boolean,
+  isSelectedForPostpone?: boolean,
+  onTogglePostpone?: (id: string) => void,
+  onDirectPostpone?: (id: string) => void
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -866,34 +960,59 @@ function ActivityNode({ node, onToggle, onDelete, onEdit, onAddSub }: {
     });
   };
 
-  const menuItems = [
-    { label: 'تعديل', icon: 'pi pi-pencil', command: () => setIsEditing(true) },
-    { label: 'حذف', icon: 'pi pi-trash', className: 'text-rose-500', command: () => onDelete(node.id) }
-  ];
-
   return (
-    <div className="bg-white border border-slate-100 rounded-2xl p-1 shadow-sm overflow-hidden mb-1">
-      <div className={`p-3 flex items-center justify-between group transition-colors ${node.isCompleted ? 'bg-emerald-50/30' : ''}`}>
+    <div className="bg-white border border-slate-100 rounded-2xl p-1 shadow-sm overflow-hidden mb-1 cursor-pointer">
+      <div className={`p-3 flex items-center justify-between group transition-colors ${node.isCompleted ? 'bg-emerald-50/30' : ''}`}
+           onClick={(e) => {
+             if (isPostponeMode && onTogglePostpone) {
+               onTogglePostpone(node.id);
+             }
+           }}
+      >
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <button 
-            onClick={() => onToggle(node.id)}
-            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all shadow-sm ${node.isCompleted ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-white border border-slate-200 text-slate-300 group-hover:bg-slate-50'}`}
+            onClick={(e) => {
+              if (isPostponeMode && onTogglePostpone) {
+                onTogglePostpone(node.id);
+              } else {
+                e.stopPropagation();
+                onToggle(node.id);
+              }
+            }}
+            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all shadow-sm ${
+              isPostponeMode 
+                ? (isSelectedForPostpone ? 'bg-indigo-500 text-white shadow-indigo-200' : 'bg-white border-2 border-slate-300 text-slate-300 group-hover:bg-slate-50')
+                : (node.isCompleted ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-white border border-slate-200 text-slate-300 group-hover:bg-slate-50')
+            }`}
           >
             <AnimatePresence mode="wait">
-              <motion.div
-                key={node.isCompleted ? 'completed' : 'pending'}
-                initial={{ scale: 0.5, rotate: -45, opacity: 0 }}
-                animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-              >
-                {node.isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-              </motion.div>
+              {isPostponeMode ? (
+                isSelectedForPostpone ? (
+                  <motion.div
+                    key="selected"
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                  </motion.div>
+                ) : null
+              ) : (
+                  <motion.div
+                    key={node.isCompleted ? 'completed' : 'pending'}
+                    initial={{ scale: 0.5, rotate: -45, opacity: 0 }}
+                    animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                  >
+                    {node.isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                  </motion.div>
+              )}
             </AnimatePresence>
           </button>
           
           {node.children && node.children.length > 0 && (
-            <button onClick={() => setIsExpanded(!isExpanded)} className="text-slate-400 hover:text-indigo-600 transition-colors">
+            <button onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} className="text-slate-400 hover:text-indigo-600 transition-colors">
               {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
             </button>
           )}
@@ -960,6 +1079,17 @@ function ActivityNode({ node, onToggle, onDelete, onEdit, onAddSub }: {
             </button>
             
             <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onDirectPostpone) onDirectPostpone(node.id);
+              }}
+              className="w-8 h-8 rounded-xl bg-orange-50 hover:bg-orange-100/80 border border-orange-200/40 text-orange-600 flex items-center justify-center transition-all"
+              title="تأجيل"
+            >
+              <i className="pi pi-calendar-plus text-xs"></i>
+            </button>
+
+            <button 
               onClick={confirmDelete}
               className="w-8 h-8 rounded-xl force-blue-gradient flex items-center justify-center transition-all"
               title="حذف"
@@ -980,6 +1110,7 @@ function ActivityNode({ node, onToggle, onDelete, onEdit, onAddSub }: {
                onDelete={onDelete}
                onEdit={onEdit}
                onAddSub={onAddSub}
+               onDirectPostpone={onDirectPostpone}
              />
            ))}
         </div>

@@ -237,7 +237,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       } else {
         const energyPerMain = 100 / mainTasks.length;
         mainTasks.forEach(mainTask => {
-          const subTasks = stTasks.filter(t => t.parentId === mainTask.id && t.type === "sub");
+          const subTasks = tasks.filter(t => t.parentId === mainTask.id && t.type === "sub");
           if (subTasks.length === 0) {
             if (mainTask.isCompleted) baseEnergy += energyPerMain;
           } else {

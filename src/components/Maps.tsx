@@ -24,6 +24,8 @@ import { GamificationSidebar } from "./GamificationSidebar";
 import { ReflectionSidebar } from "./ReflectionSidebar";
 import { EvaluationSidebar } from "./EvaluationSidebar";
 import { NotificationsPopover } from "./NotificationsPopover";
+import { FlashcardsModal }
+from "./FlashcardsModal";
 import { TaskReviewModal } from "./TaskReviewModal";
 import { TaskReflectionModal } from "./TaskReflectionModal";
 import { TreeTheme } from "./themes/TreeTheme";
@@ -294,6 +296,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [taskReflectionData, setTaskReflectionData] = useState<any>(null);
   
   const [reviewingTask, setReviewingTask] = useState<any>(null);
+  const [flashcardTask, setFlashcardTask] = useState<any>(null);
   const [reviewReflectionVisible, setReviewReflectionVisible] = useState(false);
   const [showStumbleForm, setShowStumbleForm] = useState(false);
   const [stumbleReason, setStumbleReason] = useState("");
@@ -440,6 +443,18 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               >
                 <i className="pi pi-compass text-[10px] font-black mr-1"></i>
                 <span className="text-[10px] font-bold">راجع</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFlashcardTask(t);
+                }}
+                className="p-1.5 px-2 bg-sky-50 border border-sky-100 hover:bg-sky-100 text-sky-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-105 gap-1"
+                title="كروت المراجعة"
+                type="button"
+              >
+                <i className="pi pi-clone text-[10px] font-black"></i>
+                <span className="text-[10px] font-bold">كروت</span>
               </button>
               <button
                 onClick={(e) => {
@@ -1048,7 +1063,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 }}
                 tasks={tasks}
                 toggleTask={toggleTask}
-                onArrangeCalendar={handleArrangeCalendar} user={user} onSaveArrangement={handleSaveArrangement} toggleSubStationTask={toggleSubStationTask}
+                onArrangeCalendar={handleArrangeCalendar} user={user} onSaveArrangement={handleSaveArrangement} toggleSubStationTask={toggleSubStationTask} onOpenEvaluation={(task) => { setSelectedTaskForEvaluation(task); setEvaluationSidebarVisible(true); }}
              />
           )}
 
@@ -1165,6 +1180,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         stationEnergy={stationEnergy}
         forceStationId={reflectionForceStationId}
       />
+
+      
+      {flashcardTask && (
+        <FlashcardsModal
+          visible={!!flashcardTask}
+          onHide={() => setFlashcardTask(null)}
+          task={flashcardTask}
+        />
+      )}
 
       <TaskReviewModal
         visible={reviewingTask !== null && !reviewReflectionVisible}
@@ -1665,7 +1689,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                                 setEvaluationSidebarVisible(true);
                                               }}
                                             >
-                                              <div className="flex items-center gap-2 flex-wrap justify-start"><span>{subTask.title}</span>{subTask.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(subTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(subTask); }} className="p-1 bg-indigo-50/75 border border-indigo-100/30 hover:bg-indigo-100/90 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button></div>)}</div>
+                                              <div className="flex items-center gap-2 flex-wrap justify-start"><span>{subTask.title}</span>{subTask.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(subTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); setFlashcardTask(subTask); }} className="p-1 px-1.5 bg-sky-50 border border-sky-100 hover:bg-sky-100 text-sky-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="كروت المراجعة"><span className="text-[9px] font-bold">كروت</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(subTask); }} className="p-1 bg-indigo-50/75 border border-indigo-100/30 hover:bg-indigo-100/90 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button></div>)}</div>
                                             </span>
                                           </div>
                                         );
@@ -1756,7 +1780,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         className={`font-black text-sm transition-all cursor-pointer flex-1 text-right
                              ${t.isCompleted ? "text-amber-800 line-through opacity-65" : "text-blue-950 hover:text-amber-700 underline decoration-amber-200/40"}`}
                       >
-                        <div className="flex items-center gap-2 flex-wrap"><span>{t.title}</span>{t.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(t); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(t); }} className="p-1 px-1.5 bg-amber-50 border border-amber-100/50 hover:bg-amber-100 hover:border-amber-200 text-amber-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[10px] font-black"></i></button></div>)}</div>
+                        <div className="flex items-center gap-2 flex-wrap"><span>{t.title}</span>{t.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(t); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); setFlashcardTask(t); }} className="p-1 px-1.5 bg-sky-50 border border-sky-100 hover:bg-sky-100 text-sky-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="كروت المراجعة"><span className="text-[9px] font-bold">كروت</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(t); }} className="p-1 px-1.5 bg-amber-50 border border-amber-100/50 hover:bg-amber-100 hover:border-amber-200 text-amber-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[10px] font-black"></i></button></div>)}</div>
                       </span>
                     </div>
                   ))}
@@ -1866,6 +1890,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                       <button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(stTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-150 hover:border-indigo-300 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="مراجعة الأنشطة">
                                         <span className="text-[9px] font-bold mx-1">راجع</span>
                                       </button>
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); setFlashcardTask(stTask); }} className="p-1 px-1.5 bg-sky-50 border border-sky-100 hover:bg-sky-100 text-sky-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="كروت المراجعة">
+                                        <span className="text-[9px] font-bold mx-1">كروت</span>
+                                      </button>
                                       <button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(stTask); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-150 hover:border-indigo-300 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs" title="عرض تحليلات المهمة">
                                         <i className="pi pi-chart-bar text-[10px] font-black"></i>
                                       </button>
@@ -1901,7 +1928,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                         setEvaluationSidebarVisible(true);
                                       }}
                                       className={`text-xs font-bold cursor-pointer flex-1 text-right ${inner.isCompleted ? 'text-slate-300 line-through' : 'text-slate-600 hover:text-indigo-900 underline decoration-indigo-200/30'}`}>
-                                      <div className="flex items-center gap-2 flex-wrap justify-start"><span>{inner.title}</span>{inner.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(inner); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(inner); }} className="p-1 bg-indigo-50/70 border border-indigo-100/30 hover:bg-indigo-100/80 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button></div>)}</div>
+                                      <div className="flex items-center gap-2 flex-wrap justify-start"><span>{inner.title}</span>{inner.isCompleted && (<div className="flex gap-1"><button type="button" onClick={(e) => { e.stopPropagation(); setReviewingTask(inner); }} className="p-1 px-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="مراجعة الأنشطة"><span className="text-[9px] font-bold">راجع</span></button><button type="button" onClick={(e) => { e.stopPropagation(); setFlashcardTask(inner); }} className="p-1 px-1.5 bg-sky-50 border border-sky-100 hover:bg-sky-100 text-sky-700 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="كروت المراجعة"><span className="text-[9px] font-bold">كروت</span></button><button type="button" onClick={(e) => { e.stopPropagation(); openTaskAnalytics(inner); }} className="p-1 bg-indigo-50/70 border border-indigo-100/30 hover:bg-indigo-100/80 text-indigo-600 transition-all rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-3xs hover:scale-105" title="عرض تحليلات المهمة"><i className="pi pi-chart-bar text-[9px] font-black"></i></button></div>)}</div>
                                     </span>
                                   </div>
                                 ))}

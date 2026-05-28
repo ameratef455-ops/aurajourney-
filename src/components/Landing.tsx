@@ -10,7 +10,8 @@ import { Menu } from "primereact/menu";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast as toastHot } from "react-hot-toast";
 import { NotificationsPopover } from "./NotificationsPopover";
-import { Plus } from "lucide-react";
+import { Plus, Edit3 } from "lucide-react";
+import { EditorModeModal } from "./EditorModeModal";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -88,12 +89,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 ref={fileInputRef}
                 onChange={handleFileChange}
               />
-              <Button
-                label="استيراد رحلة (.json)"
-                icon="pi pi-upload"
-                onClick={handleImportClick}
-                className="p-button-outlined w-full justify-center rounded-xl p-3 text-blue-900 border-blue-200 hover:bg-blue-50"
-              />
 
               <Button
                 label="مشاركة التطبيق 🔗"
@@ -103,8 +98,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   const appUrl = window.location.origin;
                   if (navigator.share) {
                     navigator.share({
-                      title: "Aura Journey",
-                      text: "انضم إلي في رحلتي التعليمية والتطبيقية على Aura Journey! 🚀",
+                      title: "VIA",
+                      text: "انضم إلي في رحلتي التعليمية والتطبيقية على VIA! 🚀",
                       url: appUrl,
                     }).catch(console.error);
                   } else {
@@ -603,6 +598,7 @@ interface LandingProps {
 
 export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editorModeOpen, setEditorModeOpen] = useState(false);
   const menu = useRef<Menu>(null);
 
   const handleStart = () => {
@@ -654,8 +650,8 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
             </svg>
           </div>
           <div className="flex flex-col items-start pr-2">
-            <h1 className="text-2xl md:text-3xl font-black text-blue-950 tracking-tight leading-none mb-1">
-              Aura Journey
+            <h1 className="text-2xl md:text-3xl font-medium tracking-wider text-blue-950 leading-none mb-1 antialiased">
+              VIA
             </h1>
             <span className="text-[11px] md:text-sm text-indigo-600 font-black tracking-[0.2em] uppercase">
               رحلة حياة
@@ -677,6 +673,17 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
           
           <div className="h-6 w-px bg-slate-200"></div>
 
+          <button
+            onClick={() => {
+               vibrate(HAPITCS.MAJOR_CLICK);
+               setEditorModeOpen(true);
+            }}
+            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-blue-900 hover:bg-blue-50 transition-colors border-none bg-transparent cursor-pointer"
+            title="وضع التحرير"
+          >
+            <Edit3 className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+
           <NotificationsPopover className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-blue-900 hover:bg-blue-50 transition-colors border-none bg-transparent cursor-pointer" />
 
           <button
@@ -697,6 +704,11 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+      />
+
+      <EditorModeModal 
+        visible={editorModeOpen}
+        onHide={() => setEditorModeOpen(false)}
       />
     </div>
   );

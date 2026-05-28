@@ -71,6 +71,7 @@ export interface UserSettings {
   unlockedStationIds?: string[]; // IDs of explicitly unlocked stations
   timeCapsules?: Record<string, { message: string; writtenAt: string; isRead: boolean; messages?: { message: string; writtenAt: string }[] }>; // Station ID -> Time capsule
   subStations?: Record<string, SubStation[]>; // Station ID -> Array of SubStation details
+  flashcards?: Record<string, any[]>; // Station ID/Task ID -> Array of flashcards
 }
 
 export interface TaskReflection {
