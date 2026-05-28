@@ -72,16 +72,14 @@ export function TreeTheme({ stations, unlockedStations, activeStationId, station
                 </div>
 
                 {isUnlocked && (
-                  <div className="space-y-2">
-                    <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-1000 ${isActive ? 'bg-blue-400' : 'bg-emerald-400'}`} 
-                        style={{ width: `${Math.min(100, (stationEnergy[st.id] / 130) * 100)}%` }} 
-                      />
-                    </div>
-                    <div className="flex justify-between items-center text-[9px] font-bold">
-                       <span>الطاقة</span>
-                       <span>{stationEnergy[st.id] || 0}%</span>
+                  <div className="mt-3 pt-3 border-t border-dashed border-slate-100 flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-400">بطارية الخطة:</span>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 shadow-inner border border-transparent ${
+                      isActive 
+                        ? 'bg-blue-600/25 border-blue-400/30 text-blue-300' 
+                        : (isCompleted ? 'bg-emerald-100/60 border-emerald-300/40 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600')
+                    }`}>
+                      {stationEnergy[st.id] || 0}%
                     </div>
                   </div>
                 )}

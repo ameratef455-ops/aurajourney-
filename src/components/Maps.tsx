@@ -223,6 +223,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
   const [showLinksPopup, setShowLinksPopup] = useState(false);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [viewMode, setViewMode] = useState<'journey' | 'calendar'>('journey');
   const [hasInitializedIndex, setHasInitializedIndex] = useState(false);
   const [showUnfreezeConfirm, setShowUnfreezeConfirm] = useState(false);
 
@@ -464,7 +465,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     return stTasks.every(t => t.isCompleted);
   }, [selectedStation, tasks]);
 
-  const currentTheme = user?.theme || 'cards';
+  const currentThemeRaw = user?.theme || 'cards';
+  const currentTheme = currentThemeRaw === 'calendar' ? 'cards' : currentThemeRaw;
 
   const handleStationClick = (id: string, isUnlocked: boolean, i: number) => {
     if (isUnlocked) {
@@ -510,6 +512,103 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       detail: `تمت إضافة المهمة إلى "${targetStation?.name || 'الخطة'}"`,
       life: 3000
     });
+  };
+
+  const handleArrangeCalendar = async (stationId: string, weekDays: Date[]) => {
+    try {
+      const stationTasks = await db.tasks.where('stationId').equals(stationId).toArray();
+      const uncompletedTasks = stationTasks.filter(t => !t.isCompleted);
+      
+      const learningDaysRefs = user?.learningDays || [];
+      const isLearningDay = (day: Date) => learningDaysRefs.length === 0 || learningDaysRefs.includes(day.getDay());
+
+      const availableDates = weekDays.filter(day => isLearningDay(day)).map(d => {
+        const dStr = new Date(d);
+        dStr.setHours(12, 0, 0, 0);
+        return dStr.toISOString().split('T')[0];
+      });
+
+      if (availableDates.length === 0 || uncompletedTasks.length === 0) {
+        toast.current?.show({
+          severity: "info",
+          summary: "لا يوجد مهام 📭",
+          detail: "لا توجد مهام غير مكتملة أو أيام تعليمية لترتيبها",
+          life: 3000,
+        });
+        return;
+      }
+
+      vibrate(HAPITCS.COMPLETE);
+      
+      let dayIndex = 0;
+      for (const t of uncompletedTasks) {
+        let currentDateStr = t.dueDate;
+        
+        // Check if the current due date is already a learning day in the current week
+        const oldDueIsPresentLearningDay = availableDates.includes(t.dueDate || "");
+        
+        // We only assign a new due date if:
+        // 1. the task has no due date OR
+        // 2. it's explicitly arranging tasks and ignoring old assignments
+        const assignedDate = availableDates[dayIndex % availableDates.length];
+        
+        await (db.tasks as any).update(t.id, { dueDate: assignedDate });
+        dayIndex++;
+      }
+
+      toast.current?.show({
+        severity: "success",
+        summary: "تم الترتيب! 📅",
+        detail: "تم توزيع المهام على أيام التعلم لهذا الأسبوع بنجاح.",
+        life: 3000,
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSaveArrangement = async (stationId: string, assignments: Record<string, string>) => {
+    try {
+      if (!user) return;
+      
+      // Update Database tasks
+      for (const [id, date] of Object.entries(assignments)) {
+        if (!id.startsWith("practical-")) {
+          await (db.tasks as any).update(id, { dueDate: date });
+        }
+      }
+
+      // Update practical subStation tasks
+      const rawSubs = user.subStations?.[stationId] || [];
+      const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
+      
+      const updatedSubs = stationSubs.map((sub: any, subIdx: number) => {
+        const updatedTasks = (sub.tasks || []).map((t: any, taskIdx: number) => {
+          const key = `practical-${subIdx}-${taskIdx}`;
+          if (assignments[key] !== undefined) {
+            return { ...t, dueDate: assignments[key] };
+          }
+          return t;
+        });
+        return { ...sub, tasks: updatedTasks };
+      });
+
+      await db.userSettings.update(user.id, {
+        subStations: {
+          ...(user.subStations || {}),
+          [stationId]: updatedSubs
+        }
+      });
+
+      toast.current?.show({
+        severity: "success",
+        summary: "تم حفظ الترتيب! 📅",
+        detail: "تم تنظيم كافة المهام والعمل التطبيقي بنجاح.",
+        life: 3000,
+      });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   if (!stations || !tasks || !user) return null;
@@ -683,8 +782,34 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             </div>
           )}
 
+          {/* View Mode Toggle */}
+          <div className="w-full flex justify-center mb-6 relative z-20">
+            <div className="bg-slate-100/80 backdrop-blur-sm p-1 rounded-2xl flex gap-1 shadow-inner border border-slate-200/60">
+              <button
+                onClick={() => setViewMode('journey')}
+                className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${
+                  viewMode === 'journey' 
+                    ? 'bg-white text-blue-600 shadow-sm border border-slate-200' 
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                المسارات
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${
+                  viewMode === 'calendar' 
+                    ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' 
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                التقويم
+              </button>
+            </div>
+          </div>
+
           {/* Theme Views Selector */}
-          {currentTheme === 'cards' && (
+          {viewMode === 'journey' && currentTheme === 'cards' && (
             <div className="w-full relative h-[440px] mb-6 flex items-center justify-center">
               <AnimatePresence mode="popLayout">
                 {stations.map((st, i) => {
@@ -899,7 +1024,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             </div>
           )}
 
-          {currentTheme === 'tree' && (
+          {viewMode === 'journey' && currentTheme === 'tree' && (
              <TreeTheme 
                 stations={stations}
                 unlockedStations={unlockedStations}
@@ -909,7 +1034,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
              />
           )}
 
-          {currentTheme === 'calendar' && (
+          {viewMode === 'calendar' && (
              <CalendarTheme 
                 stations={stations}
                 unlockedStations={unlockedStations}
@@ -924,11 +1049,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 }}
                 tasks={tasks}
                 toggleTask={toggleTask}
+                onArrangeCalendar={handleArrangeCalendar} user={user} onSaveArrangement={handleSaveArrangement} toggleSubStationTask={toggleSubStationTask}
              />
           )}
 
           {/* Card Stack Navigation Controls - Only in Cards theme */}
-          {currentTheme === 'cards' && (
+          {viewMode === 'journey' && currentTheme === 'cards' && (
             <div className="w-full flex flex-col items-center justify-center gap-3 select-none relative z-20">
               {/* Visual Progress Line or Dot Indicator */}
               <div className="flex gap-1.5 items-center justify-center">
@@ -1043,7 +1169,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
       <TaskReviewModal
         visible={reviewingTask !== null && !reviewReflectionVisible}
-        onHide={() => setReviewingTask(null)}
+        onHide={() => {
+           // Only clear task if we aren't opening the reflection modal
+           if (!reviewReflectionVisible) {
+              setReviewingTask(null);
+           }
+        }}
         task={reviewingTask}
         onFinishReview={() => {
            setReviewReflectionVisible(true);
@@ -1115,7 +1246,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             </span>
           </div>
         }
-        className="w-[96vw] max-w-[850px] font-sans !rounded-[40px] overflow-hidden station-details-dialog"
+        className={`w-[96vw] max-w-[850px] font-sans !rounded-[40px] overflow-hidden station-details-dialog theme-${currentTheme || "cards"}`}
         style={{ borderRadius: '40px', minHeight: '620px' }}
         maskClassName="backdrop-blur-md bg-blue-950/20"
         closable
@@ -1133,43 +1264,100 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               className="text-right font-sans" 
               dir="rtl"
             >
-          {(() => {
-            const currentStationObj = stations.find((s) => s.id === selectedStation);
-            return (
-              <div className="flex flex-col items-center justify-center text-center py-6 px-4 bg-gradient-to-b from-blue-50/50 to-transparent border-b border-dashed border-slate-100 rounded-b-[32px] mb-6">
-                <div className="w-16 h-16 rounded-full bg-white border-2 border-blue-100 flex items-center justify-center text-3xl shadow-lg shadow-indigo-500/10 mb-3 transition-transform duration-500 hover:scale-110">
-                  <i className={`${currentStationObj?.icon && currentStationObj.icon.startsWith("pi ") ? currentStationObj.icon : "pi pi-flag-fill"} text-3xl bg-gradient-to-br from-blue-500 to-indigo-600 bg-clip-text text-transparent`}></i>
+            {/* Theme Helpers */}
+            {(() => {
+              const themeHelpers = {
+                getCheckboxActiveTheme: () => {
+                  if (currentTheme === 'tree') return 'bg-emerald-500 border-emerald-500 shadow-emerald-500/20 text-white';
+                  if (currentTheme === 'calendar') return 'bg-slate-700 border-slate-700 shadow-slate-700/20 text-white';
+                  return 'bg-blue-600 border-blue-600 shadow-blue-600/20 text-white';
+                },
+                getCheckboxHoverTheme: () => {
+                  if (currentTheme === 'tree') return 'border-slate-300 bg-white hover:border-emerald-400';
+                  if (currentTheme === 'calendar') return 'border-slate-300 bg-white hover:border-slate-500';
+                  return 'border-slate-300 bg-white hover:border-blue-400';
+                },
+                getHoverCardTheme: () => {
+                  if (currentTheme === 'tree') return 'hover:border-emerald-200 hover:shadow-emerald-500/10';
+                  if (currentTheme === 'calendar') return 'hover:border-slate-300 hover:shadow-slate-500/10';
+                  return 'hover:border-blue-200 hover:shadow-blue-500/10';
+                },
+                getActiveBtnTheme: () => {
+                  if (currentTheme === 'tree') return 'bg-emerald-500 text-white shadow-md';
+                  if (currentTheme === 'calendar') return 'bg-slate-700 text-white shadow-md';
+                  return 'bg-emerald-500 text-white shadow-md'; // Main completed usually emerald
+                },
+                getPendingBtnTheme: () => {
+                  if (currentTheme === 'tree') return 'bg-emerald-600 text-white shadow-md';
+                  if (currentTheme === 'calendar') return 'bg-slate-800 text-white shadow-md';
+                  return 'bg-blue-600 text-white shadow-md';
+                }
+              };
+              
+              const currentStationObj = stations.find((s) => s.id === selectedStation);
+              
+              // Theme specific classes
+              const getBannerTheme = () => {
+                if (currentTheme === 'tree') return 'from-emerald-50/40 via-white to-green-50/40 border-emerald-100/50';
+                if (currentTheme === 'calendar') return 'from-slate-50 via-white to-slate-100/50 border-slate-200';
+                return 'from-indigo-50/30 via-white to-blue-50/40 border-slate-100';
+              };
+              const getTopLineTheme = () => {
+                if (currentTheme === 'tree') return 'from-emerald-400 to-green-500';
+                if (currentTheme === 'calendar') return 'from-slate-400 to-slate-600';
+                return 'from-blue-400 to-indigo-500';
+              };
+              const getBlobTheme = () => {
+                if (currentTheme === 'tree') return 'bg-emerald-100/40';
+                if (currentTheme === 'calendar') return 'bg-slate-200/40';
+                return 'bg-blue-100/40';
+              };
+              const getIconTextTheme = () => {
+                if (currentTheme === 'tree') return 'from-emerald-600 to-green-700';
+                if (currentTheme === 'calendar') return 'from-slate-700 to-slate-900';
+                return 'from-blue-600 to-indigo-700';
+              };
+
+              return (
+                <div className="flex flex-col h-full w-full">
+                  <div className={`flex flex-col items-center justify-center text-center py-8 px-6 bg-gradient-to-br ${getBannerTheme()} border-b shadow-sm relative overflow-hidden mb-6`}>
+                {/* Decorative element matching the theme */}
+                <div className={`absolute top-0 right-0 w-full h-1 bg-gradient-to-r ${getTopLineTheme()} opacity-80`}></div>
+                <div className={`absolute -left-12 -bottom-12 w-32 h-32 ${getBlobTheme()} rounded-full blur-3xl pointer-events-none`}></div>
+                
+                <div className="w-20 h-20 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-4xl shadow-xl shadow-slate-200/20 mb-4 transition-transform duration-500 hover:scale-105 z-10 relative">
+                  <i className={`${currentStationObj?.icon && currentStationObj.icon.startsWith("pi ") ? currentStationObj.icon : "pi pi-flag-fill"} text-4xl bg-gradient-to-br ${getIconTextTheme()} bg-clip-text text-transparent`}></i>
                 </div>
-                <h2 className="text-2xl font-black text-blue-950 mb-2 leading-snug">
+                <h2 className="text-3xl font-black text-slate-800 mb-3 tracking-tight relative z-10">
                   {currentStationObj?.name}
                 </h2>
                 {currentStationObj?.description ? (
-                  <p className="text-xs text-slate-500 max-w-xl mb-3 leading-relaxed font-bold">
+                  <p className="text-sm text-slate-500 max-w-xl mb-4 leading-relaxed font-semibold relative z-10">
                     {currentStationObj.description}
                   </p>
                 ) : (
-                  <p className="text-xs text-slate-300 max-w-xl mb-3 leading-relaxed italic font-bold">
+                  <p className="text-sm text-slate-300 max-w-xl mb-4 leading-relaxed italic font-bold relative z-10">
                     لا يوجد وصف متوفر لهذه الخطة حالياً.
                   </p>
                 )}
-                <div className="flex flex-wrap justify-center items-center gap-2 mt-1">
+                <div className="flex flex-wrap justify-center items-center gap-3 mt-1 relative z-10">
                   {currentStationObj?.id && (
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-[10px] font-black shadow-xs">
-                      <i className="pi pi-bolt text-[9px]"></i>
+                    <div className="flex items-center gap-2 px-4 py-1.5 bg-white border border-emerald-100 text-emerald-600 rounded-full text-[11px] font-black shadow-sm transition-all hover:border-emerald-200 hover:shadow-emerald-500/10 hover:-translate-y-0.5">
+                      <i className="pi pi-bolt text-[10px]"></i>
                       <span>بطارية الخطة: {stationEnergy[currentStationObj.id] || 0}%</span>
                     </div>
                   )}
                   {currentStationObj?.targetDate && (
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50/60 border border-blue-100 text-blue-700 rounded-full text-[10px] font-black shadow-xs">
-                      <i className="pi pi-calendar text-[9px]"></i>
+                    <div className="flex items-center gap-2 px-4 py-1.5 bg-white border border-blue-100 text-blue-600 rounded-full text-[11px] font-black shadow-sm transition-all hover:border-blue-200 hover:shadow-blue-500/10 hover:-translate-y-0.5">
+                      <i className="pi pi-calendar text-[10px]"></i>
                       <span>التاريخ المقدر: {currentStationObj.targetDate}</span>
                     </div>
                   )}
                 </div>
                 {(user?.dailyDuration || (Array.isArray(user?.learningDays) && user.learningDays.length > 0)) && (
-                  <div className="mt-3.5 flex flex-wrap gap-2 justify-center items-center relative z-40">
+                  <div className="mt-4 flex flex-wrap gap-2 justify-center items-center relative z-40">
                     {user?.dailyDuration ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50/80 border border-indigo-100 text-indigo-800 rounded-xl text-[10px] font-black">
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-[10px] font-bold">
                         <i className="pi pi-clock text-[10px]"></i>
                         <span>الهدف: {user.dailyDuration} دقيقة يوماً</span>
                       </div>
@@ -1177,7 +1365,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     {user?.learningDays && Array.isArray(user.learningDays) && user.learningDays.length > 0 ? (
                       <button 
                         onClick={() => setShowRoutinePopup(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-100 hover:border-indigo-200 text-indigo-800 transition-colors rounded-xl text-[10px] font-black cursor-pointer shadow-xs"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100 hover:border-indigo-200 text-indigo-700 transition-all rounded-xl text-[10px] font-black cursor-pointer shadow-sm hover:shadow-md"
                       >
                         <i className="pi pi-calendar text-[10px]"></i>
                         <span>أيام التعلم المحددة</span>
@@ -1187,16 +1375,17 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 )}
 
                 {/* Inline Station Internal Actions - Always Visible when station selected */}
-                <div className="flex gap-1 justify-center items-center mt-3 mb-1 overflow-x-auto no-scrollbar pb-2">
+                <div className="flex gap-2 justify-center items-center mt-5 mb-1 overflow-x-auto no-scrollbar pb-2 relative z-10 w-full max-w-md mx-auto">
                   <button
                     title="مصادر التعلم"
                     onClick={() => {
                       vibrate(HAPITCS.MAJOR_CLICK);
                       setShowLinksPopup(true);
                     }}
-                    className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-sm flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none shrink-0"
+                    className="flex-1 max-w-[80px] flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-2xl bg-white border border-slate-100 shadow-sm text-slate-500 hover:border-blue-200 hover:text-blue-600 hover:shadow-md transition-all active:scale-95"
                   >
-                    <i className="pi pi-book text-[9px]"></i>
+                    <i className="pi pi-book text-sm"></i>
+                    <span className="text-[9px] font-bold">المصادر</span>
                   </button>
                   <button
                     title="الخواطر"
@@ -1205,9 +1394,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       setActiveNoteStationId(activeStationId || selectedStation!);
                       setShowNotesPopup(true);
                     }}
-                    className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-400 to-fuchsia-500 text-white shadow-sm flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none shrink-0"
+                    className="flex-1 max-w-[80px] flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-2xl bg-white border border-slate-100 shadow-sm text-slate-500 hover:border-purple-200 hover:text-purple-600 hover:shadow-md transition-all active:scale-95"
                   >
-                    <i className="pi pi-pencil text-[9px]"></i>
+                    <i className="pi pi-pencil text-sm"></i>
+                    <span className="text-[9px] font-bold">الخواطر</span>
                   </button>
                   <button
                     title="تحليلات الخطة"
@@ -1217,9 +1407,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       setReflectionActiveTab(0); 
                       setReflectionSidebar(true);
                     }}
-                    className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none shrink-0"
+                    className="flex-1 max-w-[80px] flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-2xl bg-white border border-slate-100 shadow-sm text-slate-500 hover:border-emerald-200 hover:text-emerald-600 hover:shadow-md transition-all active:scale-95"
                   >
-                    <i className="pi pi-chart-bar text-[9px]"></i>
+                    <i className="pi pi-chart-bar text-sm"></i>
+                    <span className="text-[9px] font-bold">التحليلات</span>
                   </button>
                   <button
                     title="وقعت اليوم؟"
@@ -1228,14 +1419,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       setStumbleReason("");
                       setShowStumbleForm(true);
                     }}
-                    className="w-6 h-6 rounded-lg bg-gradient-to-br from-rose-400 to-red-500 text-white shadow-sm flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none shrink-0"
+                    className="flex-1 max-w-[80px] flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-2xl bg-white border border-slate-100 shadow-sm text-slate-500 hover:border-rose-200 hover:text-rose-600 hover:shadow-md transition-all active:scale-95"
                   >
-                    <i className="pi pi-exclamation-triangle text-[9px]"></i>
+                    <i className="pi pi-exclamation-triangle text-sm"></i>
+                    <span className="text-[9px] font-bold">أخطاء</span>
                   </button>
                 </div>
               </div>
-            );
-          })()}
 
           <TabView 
             activeIndex={stationTabsIndex} 
@@ -1254,15 +1444,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   <div className="flex gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-100">
                     <button 
                       onClick={() => setMainTaskFilter('all')}
-                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${mainTaskFilter === 'all' ? 'bg-white shadow-sm text-blue-900 border border-slate-200' : 'text-slate-400 border border-transparent'}`}
+                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${mainTaskFilter === 'all' ? 'bg-white shadow-sm text-slate-800 border border-slate-200' : 'text-slate-400 border border-transparent'}`}
                     >الكل</button>
                     <button 
                       onClick={() => setMainTaskFilter('completed')}
-                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${mainTaskFilter === 'completed' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-400 border border-transparent'}`}
+                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${mainTaskFilter === 'completed' ? themeHelpers.getActiveBtnTheme() : 'text-slate-400 border border-transparent'}`}
                     >المكتملة</button>
                     <button 
                       onClick={() => setMainTaskFilter('pending')}
-                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${mainTaskFilter === 'pending' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 border border-transparent'}`}
+                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${mainTaskFilter === 'pending' ? themeHelpers.getPendingBtnTheme() : 'text-slate-400 border border-transparent'}`}
                     >قيد التنفيذ</button>
                   </div>
                 </div>
@@ -1280,7 +1470,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         return (
                           <div 
                             key={node.key} 
-                            className="group/parent rounded-[24px] border border-slate-100/90 bg-white shadow-xs hover:border-blue-200 hover:shadow-md transition-all duration-300 overflow-hidden"
+                            className={`group/parent rounded-[24px] border border-slate-100/90 bg-white shadow-xs ${themeHelpers.getHoverCardTheme()} transition-all duration-300 overflow-hidden`}
                           >
                             {/* Parent Task Header Row */}
                             <div 
@@ -1319,8 +1509,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                   className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300 cursor-pointer shrink-0 mt-0.5
                                     ${
                                       parentTask.isCompleted
-                                        ? "bg-blue-600 border-blue-600 shadow-md shadow-blue-600/20 text-white"
-                                        : "border-slate-300 bg-white hover:border-blue-400"
+                                        ? themeHelpers.getCheckboxActiveTheme()
+                                        : themeHelpers.getCheckboxHoverTheme()
                                     }
                                   `}
                                 >
@@ -1453,8 +1643,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                               className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center transition-all duration-300 cursor-pointer shrink-0 mt-0.5 z-10
                                                 ${
                                                   subTask.isCompleted
-                                                    ? "bg-indigo-600 border-indigo-600 shadow-sm shadow-indigo-600/15 text-white scale-105"
-                                                    : "border-slate-300 bg-white hover:border-indigo-400 active:scale-95"
+                                                    ? themeHelpers.getCheckboxActiveTheme()
+                                                    : themeHelpers.getCheckboxHoverTheme()
                                                 }
                                               `}
                                             >
@@ -1513,15 +1703,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 <div className="flex gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-100 w-fit">
                   <button 
                     onClick={() => setSideTaskFilter('all')}
-                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${sideTaskFilter === 'all' ? 'bg-white shadow-sm text-blue-900 border border-slate-200' : 'text-slate-400 border border-transparent'}`}
+                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${sideTaskFilter === 'all' ? 'bg-white shadow-sm text-slate-800 border border-slate-200' : 'text-slate-400 border border-transparent'}`}
                   >الكل</button>
                   <button 
                     onClick={() => setSideTaskFilter('completed')}
-                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${sideTaskFilter === 'completed' ? 'bg-amber-500 text-white shadow-md' : 'text-slate-400 border border-transparent'}`}
+                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${sideTaskFilter === 'completed' ? themeHelpers.getActiveBtnTheme() : 'text-slate-400 border border-transparent'}`}
                   >المكتملة</button>
                   <button 
                     onClick={() => setSideTaskFilter('pending')}
-                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${sideTaskFilter === 'pending' ? 'bg-gray-400 text-white shadow-md' : 'text-slate-400 border border-transparent'}`}
+                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${sideTaskFilter === 'pending' ? themeHelpers.getPendingBtnTheme() : 'text-slate-400 border border-transparent'}`}
                   >قيد التنفيذ</button>
                 </div>
 
@@ -1532,8 +1722,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       className={`flex items-center gap-4 p-5 rounded-[24px] border transition-all active:scale-[0.98]
                            ${
                              t.isCompleted
-                               ? "bg-amber-50/40 border-amber-100 shadow-xs"
-                               : "bg-white border-slate-100 hover:border-amber-200 hover:shadow-md"
+                               ? "bg-slate-50/50 border-slate-200 shadow-xs"
+                               : `bg-white border-slate-100 ${themeHelpers.getHoverCardTheme()}`
                            }
                          `}
                     >
@@ -1549,8 +1739,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-300 cursor-pointer
                             ${
                               t.isCompleted
-                                ? "bg-amber-500 border-amber-500 text-white"
-                                : "border-amber-100 bg-white hover:border-amber-300"
+                                ? themeHelpers.getCheckboxActiveTheme()
+                                : themeHelpers.getCheckboxHoverTheme()
                             }
                           `}
                       >
@@ -1593,15 +1783,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   <div className="flex gap-2">
                     <button 
                       onClick={() => setPracticalFilter('all')}
-                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${practicalFilter === 'all' ? 'bg-white shadow-sm text-blue-900 border border-slate-200' : 'text-slate-400 border border-transparent'}`}
+                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${practicalFilter === 'all' ? 'bg-white shadow-sm text-slate-800 border border-slate-200' : 'text-slate-400 border border-transparent'}`}
                     >الكل</button>
                     <button 
                       onClick={() => setPracticalFilter('completed')}
-                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${practicalFilter === 'completed' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-400 border border-transparent'}`}
+                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${practicalFilter === 'completed' ? themeHelpers.getActiveBtnTheme() : 'text-slate-400 border border-transparent'}`}
                     >المكتملة</button>
                     <button 
                       onClick={() => setPracticalFilter('pending')}
-                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${practicalFilter === 'pending' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 border border-transparent'}`}
+                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${practicalFilter === 'pending' ? themeHelpers.getPendingBtnTheme() : 'text-slate-400 border border-transparent'}`}
                     >قيد التنفيذ</button>
                   </div>
                   
@@ -1660,8 +1850,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                     setEvaluationSidebarVisible(true);
                                   }
                                 }}
-                                className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all cursor-pointer ${stTask.isCompleted ? 'bg-indigo-600 border-indigo-600 shadow-md shadow-indigo-600/20' : 'border-indigo-100 bg-slate-50 hover:border-indigo-300'}`}>
-                                {stTask.isCompleted && <i className="pi pi-check text-[10px] text-white font-black"></i>}
+                                className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all cursor-pointer ${stTask.isCompleted ? themeHelpers.getCheckboxActiveTheme() : themeHelpers.getCheckboxHoverTheme()}`}>
+                                {stTask.isCompleted && <i className="pi pi-check text-[10px] font-black"></i>}
                               </div>
                               <span 
                                 onClick={() => {
@@ -1702,8 +1892,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                           setEvaluationSidebarVisible(true);
                                         }
                                       }}
-                                      className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer ${inner.isCompleted ? 'bg-indigo-400 border-indigo-400' : 'border-indigo-100 bg-white hover:border-indigo-300 group-hover:border-indigo-200'}`}>
-                                      {inner.isCompleted && <i className="pi pi-check text-[8px] text-white font-black"></i>}
+                                      className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer ${inner.isCompleted ? themeHelpers.getCheckboxActiveTheme() : themeHelpers.getCheckboxHoverTheme()}`}>
+                                      {inner.isCompleted && <i className="pi pi-check text-[8px] font-black"></i>}
                                     </div>
                                     <span 
                                       onClick={() => {
@@ -1743,7 +1933,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             </TabPanel>
 
           </TabView>
-
+                </div>
+              );
+            })()}
             </motion.div>
           )}
         </AnimatePresence>
@@ -2613,215 +2805,299 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 <h3 className="font-black text-blue-950 text-base leading-snug">{selectedTaskForAnalytics.title}</h3>
               </div>
 
-              {taskReflectionData && taskReflectionData.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                   <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
-                      <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2">
-                        <History className="w-5 h-5" />
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">عدد المراجعات</p>
-                      <p className="text-xl font-black text-slate-800">{taskReflectionData.filter((r:any) => r.type === 'review').length}</p>
-                   </div>
-                   <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center col-span-2">
-                      <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
-                        <TrendingUp className="w-5 h-5" />
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">الفجوات الزمنية بين التقييمات (بالأيام)</p>
-                      <div className="flex gap-2 mt-1">
-                        {taskReflectionData.length > 1 ? taskReflectionData.slice(1).map((r: any, i: number) => {
-                          const prev = taskReflectionData[i];
-                          const diff = new Date(r.createdAt).getTime() - new Date(prev.createdAt).getTime();
-                          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                          return (
-                            <span key={i} className="text-xs font-black bg-slate-100 px-3 py-1 rounded-lg text-slate-600">
-                               {days > 0 ? `${days} يوم` : 'نفس اليوم'}
-                            </span>
-                          );
-                        }) : <span className="text-xs font-bold text-slate-300">لا توجد مراجعات لاحتساب الفجوات</span>}
-                      </div>
-                   </div>
-                </div>
-              )}
-
-              {taskReflectionData && taskReflectionData.length > 1 && (
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-                   <h4 className="text-xs font-black text-slate-400 tracking-widest uppercase flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-indigo-500" /> مخطط تطور الإتقان والتركيز
-                   </h4>
-                   <div className="h-64 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={taskReflectionData.map((r: any, i: number) => ({
-                          name: i === 0 ? 'الأصلي' : `مراجعة ${i}`,
-                          mastery: r.mastery,
-                          focus: r.focus,
-                          fullDate: new Date(r.createdAt).toLocaleDateString('ar-EG')
-                        }))}>
-                          <defs>
-                            <linearGradient id="colorMastery" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.2}/>
-                              <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0}/>
-                            </linearGradient>
-                            <linearGradient id="colorFocus" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#d97706" stopOpacity={0.2}/>
-                              <stop offset="95%" stopColor="#d97706" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis 
-                            dataKey="name" 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} 
-                            dy={10}
-                          />
-                          <YAxis 
-                            hide={true}
-                            domain={[0, 10]}
-                          />
-                          <RechartsTooltip 
-                             contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', direction: 'rtl'}}
-                             itemStyle={{fontSize: '11px', fontWeight: 'bold'}}
-                             labelStyle={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}
-                          />
-                          <Area 
-                            type="monotone" 
-                            dataKey="mastery" 
-                            name="الإتقان"
-                            stroke="#1e3a8a" 
-                            strokeWidth={3}
-                            fillOpacity={1} 
-                            fill="url(#colorMastery)" 
-                          />
-                          <Area 
-                            type="monotone" 
-                            dataKey="focus" 
-                            name="التركيز"
-                            stroke="#d97706" 
-                            strokeWidth={3}
-                            fillOpacity={1} 
-                            fill="url(#colorFocus)" 
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                   </div>
-                </div>
-              )}
-
-              {taskReflectionData && taskReflectionData.length > 0 ? (
-                <div className="space-y-8">
-                  {taskReflectionData.map((refData: any, idx: number) => (
-                    <div key={idx} className="space-y-5 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative">
-                      
-                      {/* Type Badge */}
-                      <div className="absolute -top-3 right-6 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-sm border-2 border-white">
-                         {refData.type === 'review' ? 'تقييم بعد المراجعة 🔄' : 'التقييم الأصلي 📝'}
-                      </div>
-
-                      {/* Focus & Mastery metrics row */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                        {/* Focus metric */}
-                        <div className="bg-gradient-to-br from-indigo-50/70 to-blue-50/50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center justify-center text-center">
-                          <p className="text-[10px] text-indigo-950/70 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                            <Brain className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> تركيزك أثناء المهمة:
-                          </p>
-                          <div className="text-3xl font-black text-indigo-700 font-mono">
-                            {refData.focus} <span className="text-xs font-bold text-indigo-400">/ 5</span>
-                          </div>
-                          <div className="flex gap-1 mt-2.5">
-                            {[1, 2, 3, 4, 5].map((s) => (
-                              <div
-                                key={s}
-                                className={`w-2.5 h-2.5 rounded-full ${
-                                  s <= refData.focus ? "bg-indigo-600" : "bg-indigo-100"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Mastery metric */}
-                        <div className="bg-gradient-to-br from-amber-50/70 to-yellow-50/50 p-4 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center">
-                          <p className="text-[10px] text-amber-950/75 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                            <Trophy className="w-3.5 h-3.5 text-amber-600" /> مستوى الإتقان والفهم:
-                          </p>
-                          <div className="text-3xl font-black text-amber-700 font-mono">
-                            {refData.mastery} <span className="text-xs font-bold text-amber-400">/ 10</span>
-                          </div>
-                          <div className="w-32 h-2 bg-amber-200/50 rounded-full overflow-hidden mt-3 p-0.5">
-                            <div
-                              className="h-full bg-amber-600 rounded-full"
-                              style={{ width: `${(refData.mastery / 10) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Date Badge */}
-                      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 text-slate-500 rounded-xl w-fit text-[11px] font-bold border border-slate-100">
-                        <i className="pi pi-calendar text-[11px] text-slate-400"></i>
-                        <span>تاريخ تسجيل الإنجاز: {new Date(refData.createdAt).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                      </div>
-
-                      {/* Strengths & Weaknesses */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* Strengths */}
-                        <div className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 flex flex-col gap-1.5">
-                          <p className="text-[10px] text-emerald-800 font-black tracking-widest uppercase flex items-center gap-1.5">
-                            <span className="text-emerald-500">💪</span> نقاط القوة المسجلة:
-                          </p>
-                          <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-emerald-50/30 font-medium leading-relaxed">
-                            {refData.strengths || "لم يتم تدوين نقاط قوة معينة."}
-                          </p>
-                        </div>
-
-                        {/* Weaknesses */}
-                        <div className="bg-rose-50/30 p-4 rounded-2xl border border-rose-100 flex flex-col gap-1.5">
-                          <p className="text-[10px] text-rose-800 font-black tracking-widest uppercase flex items-center gap-1.5">
-                            <span className="text-rose-500">🧨</span> مجالات التحسين (الضعف):
-                          </p>
-                          <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-rose-50/30 font-medium leading-relaxed">
-                            {refData.weaknesses || "لم يتم تدوين مجالات تحسين معينة."}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Key Learnings */}
-                      <div className="bg-blue-50/30 p-5 rounded-2xl border border-blue-100/60 flex flex-col gap-2">
-                        <p className="text-[11px] text-blue-900 font-black tracking-widest uppercase flex items-center gap-2">
-                          <Lightbulb className="w-4 h-4 text-amber-500" /> أهم الخلاصات والأفكار المسجلة:
-                        </p>
-                        <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-blue-50/60 leading-relaxed font-bold">
-                          {refData.learnings || "لم تنشأ خلاصات مدونة."}
-                        </p>
-                      </div>
-
-                      {/* Practical aspect */}
-                      {refData.didPractical && (
-                        <div className="bg-teal-50/30 p-5 rounded-2xl border border-teal-100 flex flex-col gap-2">
-                          <p className="text-[11px] text-teal-900/80 font-black tracking-widest uppercase flex items-center gap-2">
-                            <i className="pi pi-verified text-teal-600 text-xs"></i> التطبيق العملي والعوائق:
-                          </p>
-                          <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-teal-50 font-medium leading-relaxed">
-                            {refData.practicalIssues || "تم تفعيل وتطبيق المعرفة بسلاسة ودون مشاكل تقنية."}
-                          </p>
-                        </div>
-                      )}
+              <TabView className="mt-4" dir="rtl" pt={{ nav: { className: "flex gap-2 p-1 bg-slate-100 rounded-2xl border-none mb-4" } }}>
+                <TabPanel
+                  headerTemplate={(options) => (
+                    <div
+                      className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                        options.selected
+                          ? "bg-white text-indigo-600 shadow-sm border border-slate-200"
+                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                      }`}
+                      onClick={options.onClick}
+                    >
+                      <i className="pi pi-file-edit ml-1.5"></i>
+                      التقييم الأصلي
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-10 px-6 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shadow-3xs">
-                    <i className="pi pi-check text-2xl font-black"></i>
+                  )}
+                >
+                  <div className="space-y-6">
+                    {taskReflectionData && taskReflectionData.length > 0 ? (
+                      [taskReflectionData[0]].map((refData: any, idx: number) => (
+                        <div key={idx} className="space-y-5 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative">
+                          {/* Type Badge */}
+                          <div className="absolute -top-3 right-6 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-sm border-2 border-white">
+                             التقييم الأصلي 📝
+                          </div>
+
+                          {/* Focus & Mastery metrics row */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                            {/* Focus metric */}
+                            <div className="bg-gradient-to-br from-indigo-50/70 to-blue-50/50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center justify-center text-center">
+                              <p className="text-[10px] text-indigo-950/70 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                <Brain className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> تركيزك أثناء المهمة:
+                              </p>
+                              <div className="text-3xl font-black text-indigo-700 font-mono">
+                                {refData.focus} <span className="text-xs font-bold text-indigo-400">/ 5</span>
+                              </div>
+                              <div className="flex gap-1 mt-2.5">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <div
+                                    key={s}
+                                    className={`w-2.5 h-2.5 rounded-full ${
+                                      s <= refData.focus ? "bg-indigo-600" : "bg-indigo-100"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Mastery metric */}
+                            <div className="bg-gradient-to-br from-amber-50/70 to-yellow-50/50 p-4 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center">
+                              <p className="text-[10px] text-amber-950/75 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                <Trophy className="w-3.5 h-3.5 text-amber-600" /> مستوى الإتقان والفهم:
+                              </p>
+                              <div className="text-3xl font-black text-amber-700 font-mono">
+                                {refData.mastery} <span className="text-xs font-bold text-amber-400">/ 10</span>
+                              </div>
+                              <div className="w-32 h-2 bg-amber-200/50 rounded-full overflow-hidden mt-3 p-0.5">
+                                <div
+                                  className="h-full bg-amber-600 rounded-full"
+                                  style={{ width: `${(refData.mastery / 10) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Date Badge */}
+                          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 text-slate-500 rounded-xl w-fit text-[11px] font-bold border border-slate-100">
+                            <i className="pi pi-calendar text-[11px] text-slate-400"></i>
+                            <span>تاريخ تسجيل الإنجاز: {new Date(refData.createdAt).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                          </div>
+
+                          {/* Strengths & Weaknesses */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Strengths */}
+                            <div className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 flex flex-col gap-1.5">
+                              <p className="text-[10px] text-emerald-800 font-black tracking-widest uppercase flex items-center gap-1.5">
+                                <span className="text-emerald-500">💪</span> نقاط القوة المسجلة:
+                              </p>
+                              <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-emerald-50/30 font-medium leading-relaxed">
+                                {refData.strengths || "لم يتم تدوين نقاط قوة معينة."}
+                              </p>
+                            </div>
+
+                            {/* Weaknesses */}
+                            <div className="bg-rose-50/30 p-4 rounded-2xl border border-rose-100 flex flex-col gap-1.5">
+                              <p className="text-[10px] text-rose-800 font-black tracking-widest uppercase flex items-center gap-1.5">
+                                <span className="text-rose-500">🧨</span> مجالات التحسين (الضعف):
+                              </p>
+                              <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-rose-50/30 font-medium leading-relaxed">
+                                {refData.weaknesses || "لم يتم تدوين مجالات تحسين معينة."}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Key Learnings */}
+                          <div className="bg-blue-50/30 p-5 rounded-2xl border border-blue-100/60 flex flex-col gap-2">
+                            <p className="text-[11px] text-blue-900 font-black tracking-widest uppercase flex items-center gap-2">
+                              <Lightbulb className="w-4 h-4 text-amber-500" /> أهم الخلاصات والأفكار المسجلة:
+                            </p>
+                            <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-blue-50/60 leading-relaxed font-bold">
+                              {refData.learnings || "لم تنشأ خلاصات مدونة."}
+                            </p>
+                          </div>
+
+                          {/* Practical aspect */}
+                          {refData.didPractical && (
+                            <div className="bg-teal-50/30 p-5 rounded-2xl border border-teal-100 flex flex-col gap-2">
+                              <p className="text-[11px] text-teal-900/80 font-black tracking-widest uppercase flex items-center gap-2">
+                                <i className="pi pi-verified text-teal-600 text-xs"></i> التطبيق العملي والعوائق:
+                              </p>
+                              <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-teal-50 font-medium leading-relaxed">
+                                {refData.practicalIssues || "تم تفعيل وتطبيق المعرفة بسلاسة ودون مشاكل تقنية."}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10 px-6 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col items-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shadow-3xs">
+                          <i className="pi pi-check text-2xl font-black"></i>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-blue-950 mb-1">المهمة مكتملة بنجاح! 🚀</h4>
+                          <p className="text-xs text-slate-400 font-bold max-w-md mx-auto leading-relaxed">
+                            هذا النشاط مسجل كمكتمل في سجلاتك. لم تدوّن حالتها ضمن البوصلة أو التقييمات التفصيلية للمهارات حتى الآن، لكن تقدمك المتتالي سليم وتأثيرها محتسب في نقاط خبرتك العام.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <h4 className="text-sm font-black text-blue-950 mb-1">المهمة مكتملة بنجاح! 🚀</h4>
-                    <p className="text-xs text-slate-400 font-bold max-w-md mx-auto leading-relaxed">
-                      هذا النشاط مسجل كمكتمل في سجلاتك. لم تدوّن حالتها ضمن البوصلة أو التقييمات التفصيلية للمهارات حتى الآن، لكن تقدمك المتتالي سليم وتأثيرها محتسب في نقاط خبرتك العام.
-                    </p>
+                </TabPanel>
+
+                <TabPanel
+                  headerTemplate={(options) => (
+                    <div
+                      className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                        options.selected
+                          ? "bg-white text-indigo-600 shadow-sm border border-slate-200"
+                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                      }`}
+                      onClick={options.onClick}
+                    >
+                      <i className="pi pi-history ml-1.5"></i>
+                      المراجعة
+                    </div>
+                  )}
+                >
+                  <div className="space-y-6">
+                    {taskReflectionData && taskReflectionData.length > 0 ? (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+                            <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2">
+                              <History className="w-5 h-5" />
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">عدد المراجعات</p>
+                            <p className="text-xl font-black text-slate-800">{taskReflectionData.filter((r:any) => r.type === 'review').length}</p>
+                          </div>
+                          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center col-span-2">
+                            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
+                              <TrendingUp className="w-5 h-5" />
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">الفجوات الزمنية بين المراجعات (بالأيام)</p>
+                            <div className="flex flex-wrap gap-2 mt-1 justify-center">
+                              {taskReflectionData.length > 1 ? taskReflectionData.slice(1).map((r: any, i: number) => {
+                                const prev = taskReflectionData[i];
+                                const diff = new Date(r.createdAt).getTime() - new Date(prev.createdAt).getTime();
+                                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                                return (
+                                  <span key={i} className="text-xs font-black bg-slate-100 px-3 py-1 rounded-lg text-slate-600 border border-slate-200">
+                                    المراجعة {i + 1}: {days > 0 ? `${days} يوم` : 'نفس اليوم'}
+                                  </span>
+                                );
+                              }) : <span className="text-xs font-bold text-slate-300">لا توجد مراجعات لاحتساب الفجوات</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {taskReflectionData.length > 1 ? (
+                          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                            <h4 className="text-xs font-black text-slate-400 tracking-widest uppercase flex items-center gap-2">
+                              <TrendingUp className="w-4 h-4 text-indigo-500" /> مخطط تطور الإتقان والتركيز عبر المراجعات
+                            </h4>
+                            <div className="h-64 w-full">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={taskReflectionData.map((r: any, i: number) => ({
+                                  name: i === 0 ? 'الأصلي' : `مراجعة ${i}`,
+                                  mastery: r.mastery,
+                                  focus: r.focus,
+                                  fullDate: new Date(r.createdAt).toLocaleDateString('ar-EG')
+                                }))}>
+                                  <defs>
+                                    <linearGradient id="colorMastery2" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorFocus2" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
+                                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                                    </linearGradient>
+                                  </defs>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                  <XAxis 
+                                    dataKey="name" 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} 
+                                    dy={10}
+                                  />
+                                  <YAxis 
+                                    hide={true}
+                                    domain={[0, 10]}
+                                  />
+                                  <RechartsTooltip 
+                                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', direction: 'rtl'}}
+                                    itemStyle={{fontSize: '11px', fontWeight: 'bold'}}
+                                    labelStyle={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}
+                                  />
+                                  <Area 
+                                    type="monotone" 
+                                    dataKey="mastery" 
+                                    name="الإتقان"
+                                    stroke="#10b981" 
+                                    strokeWidth={3}
+                                    fillOpacity={1} 
+                                    fill="url(#colorMastery2)" 
+                                  />
+                                  <Area 
+                                    type="monotone" 
+                                    dataKey="focus" 
+                                    name="التركيز"
+                                    stroke="#8b5cf6" 
+                                    strokeWidth={3}
+                                    fillOpacity={1} 
+                                    fill="url(#colorFocus2)" 
+                                  />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 px-4 bg-blue-50/50 border border-blue-100 rounded-3xl">
+                            <p className="text-sm font-bold text-blue-900 mb-1">لم تقم بأي مراجعة بعد</p>
+                            <p className="text-xs text-blue-700/70">قم بمراجعة هذه المهمة لاحقاً لرؤية الرسم البياني لتطور مستواك وتركيزك.</p>
+                          </div>
+                        )}
+
+                        {taskReflectionData.length > 1 && (
+                          <div className="space-y-4">
+                            <h4 className="text-sm font-black text-slate-800 pr-2">تاريخ المراجعات والتقييمات</h4>
+                            {taskReflectionData.slice(1).map((refData: any, idx: number) => {
+                              const original = taskReflectionData[0];
+                              const masteryDiff = refData.mastery - original.mastery;
+                              const isMasteryUp = masteryDiff > 0;
+                              const isMasterySame = masteryDiff === 0;
+
+                              return (
+                                <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex flex-col gap-1">
+                                      <span className="text-xs font-black text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded-md w-fit">المراجعة {idx + 1}</span>
+                                      <span className="text-[10px] text-slate-400 font-bold">{new Date(refData.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div className={`flex flex-col items-center justify-center p-2 rounded-xl text-center min-w-[70px] ${isMasteryUp ? 'bg-emerald-50 text-emerald-700' : isMasterySame ? 'bg-slate-50 text-slate-600' : 'bg-rose-50 text-rose-700'}`}>
+                                        <span className="text-[9px] uppercase font-black opacity-70">الإتقان</span>
+                                        <span className="text-sm font-black">{refData.mastery} <span className="text-[10px]">/ 10</span></span>
+                                        <span className={`text-[10px] font-black ${isMasteryUp ? 'text-emerald-500' : isMasterySame ? 'text-slate-400' : 'text-rose-500'}`}>
+                                          {isMasteryUp ? `+${masteryDiff} تحسن` : isMasterySame ? 'مستقر' : `${Math.abs(masteryDiff)}- تراجع`}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {(refData.strengths || refData.learnings) && (
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs font-bold text-slate-700 leading-relaxed">
+                                      <span className="text-indigo-600 mr-1 block mb-1">خلاصة المراجعة:</span>
+                                      {refData.learnings || refData.strengths}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center py-10 px-6 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col items-center gap-4">
+                        <p className="text-sm font-black text-blue-950">لا توجد بيانات مراجعة</p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                </TabPanel>
+              </TabView>
             </motion.div>
           )}
         </AnimatePresence>

@@ -40,8 +40,17 @@ export function TaskReviewModal({ visible, onHide, task, onFinishReview }: TaskR
     <Dialog
       visible={visible}
       onHide={onHide}
-      header={<div className="flex flex-col gap-1 pr-4" dir="rtl">
-        <span className="text-xl font-black text-indigo-950">مراجعة المهام والأنشطة 🔎</span>
+      header={<div className="flex flex-col gap-2 pr-4" dir="rtl">
+        <div className="flex items-center gap-3">
+           <span className="text-xl font-black text-indigo-950">مراجعة المهام والأنشطة 🔎</span>
+           <span className={`text-[10px] px-2 py-0.5 rounded border border-transparent font-black ${
+             task.type === 'main' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
+             task.type === 'side' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+             'bg-purple-100 text-purple-800 border-purple-200'
+           }`}>
+             {task.type === 'main' ? 'مهمة رئيسية' : task.type === 'side' ? 'مهمة جانبية' : 'مهمة فرعية'}
+           </span>
+        </div>
         <span className="text-xs text-indigo-500 font-medium">{task.title}</span>
       </div>}
       className="w-full max-w-xl font-sans"
@@ -66,7 +75,6 @@ export function TaskReviewModal({ visible, onHide, task, onFinishReview }: TaskR
          <div className="flex justify-end mt-4">
            <button 
              onClick={() => {
-                onHide();
                 onFinishReview();
              }}
              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 flex items-center justify-center gap-2"

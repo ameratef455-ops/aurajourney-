@@ -249,7 +249,6 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       }
       
       // Calculate Activity Bonus: Each completed activity (practical task) adds 15%
-      // Up to 30% total bonus
       let practicalBonus = 0;
       
       // 1. Task interior activities
@@ -275,7 +274,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
         practicalBonus += sTasks.filter(t => t.isCompleted).length * 15;
       });
 
-      map[st.id] = Math.min(130, Math.min(100, Math.round(baseEnergy)) + Math.min(30, practicalBonus));
+      map[st.id] = Math.min(130, Math.min(100, Math.round(baseEnergy)) + practicalBonus);
     }
     return map;
   }, [stations, tasks, user]);
