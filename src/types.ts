@@ -9,7 +9,7 @@ export interface WizardState {
   stations: WizardStation[];
   dailyDuration?: number;
   learningDays?: number[];
-  theme?: 'cards' | 'tree' | 'calendar';
+  theme?: 'cards' | 'calendar';
 }
 
 export interface WizardStation {

@@ -650,7 +650,7 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
             </svg>
           </div>
           <div className="flex flex-col items-start pr-2">
-            <h1 className="text-2xl md:text-3xl font-medium tracking-wider text-blue-950 leading-none mb-1 antialiased">
+            <h1 className="text-2xl md:text-3xl font-fredoka font-light tracking-wide text-blue-950 leading-none mb-1 antialiased">
               VIA
             </h1>
             <span className="text-[11px] md:text-sm text-indigo-600 font-black tracking-[0.2em] uppercase">

@@ -9,9 +9,10 @@ interface TaskReviewModalProps {
   onHide: () => void;
   task: any;
   onFinishReview: () => void;
+  onUndo?: (task: any) => void;
 }
 
-export function TaskReviewModal({ visible, onHide, task, onFinishReview }: TaskReviewModalProps) {
+export function TaskReviewModal({ visible, onHide, task, onFinishReview, onUndo }: TaskReviewModalProps) {
   if (!task) return null;
 
   const renderActivity = (act: TaskActivity) => (
@@ -40,18 +41,29 @@ export function TaskReviewModal({ visible, onHide, task, onFinishReview }: TaskR
     <Dialog
       visible={visible}
       onHide={onHide}
-      header={<div className="flex flex-col gap-2 pr-4" dir="rtl">
-        <div className="flex items-center gap-3">
-           <span className="text-xl font-black text-indigo-950">مراجعة المهام والأنشطة 🔎</span>
-           <span className={`text-[10px] px-2 py-0.5 rounded border border-transparent font-black ${
-             task.type === 'main' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
-             task.type === 'side' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-             'bg-purple-100 text-purple-800 border-purple-200'
-           }`}>
-             {task.type === 'main' ? 'مهمة رئيسية' : task.type === 'side' ? 'مهمة جانبية' : 'مهمة فرعية'}
-           </span>
+      header={<div className="flex justify-between items-center w-full pr-4" dir="rtl">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+             <span className="text-xl font-black text-indigo-950">مراجعة المهام والأنشطة 🔎</span>
+             <span className={`text-[10px] px-2 py-0.5 rounded border border-transparent font-black ${
+               task.type === 'main' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
+               task.type === 'side' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+               'bg-purple-100 text-purple-800 border-purple-200'
+             }`}>
+               {task.type === 'main' ? 'مهمة رئيسية' : task.type === 'side' ? 'مهمة جانبية' : 'مهمة فرعية'}
+             </span>
+          </div>
+          <span className="text-xs text-indigo-500 font-medium">{task.title}</span>
         </div>
-        <span className="text-xs text-indigo-500 font-medium">{task.title}</span>
+        {onUndo && (
+          <button 
+            onClick={() => onUndo(task)}
+            className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-black transition-all border border-rose-100 flex items-center gap-2 cursor-pointer shadow-sm ml-4"
+          >
+            <i className="pi pi-refresh text-[10px]" />
+            تراجع عن الإنجاز
+          </button>
+        )}
       </div>}
       className="w-full max-w-xl font-sans"
       modal

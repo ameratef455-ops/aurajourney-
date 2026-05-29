@@ -412,10 +412,15 @@ export function ReflectionSidebar({
         <div ref={fullPdfRef} className="bg-slate-50 w-[800px] p-8 text-right font-sans" dir="rtl">
            <div className="text-center mb-12 border-b-4 border-indigo-600 pb-10 pt-4">
               <div className="flex flex-col items-center justify-center mb-6">
-                <div className="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-xl">
-                  <i className="pi pi-sparkles text-4xl text-white"></i>
+                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-4 shadow-xl border border-slate-200">
+                  <svg viewBox="0 0 100 100" className="w-16 h-16 text-indigo-900">
+                    <path d="M50 25 L25 75 M50 25 L75 75 M25 75 L75 75" stroke="#1e3a8a" strokeWidth="6" strokeLinecap="round" />
+                    <circle cx="50" cy="25" r="9" fill="#1e3a8a" />
+                    <circle cx="25" cy="75" r="9" fill="#1e3a8a" />
+                    <circle cx="75" cy="75" r="9" fill="#1e3a8a" />
+                  </svg>
                 </div>
-                <h1 className="text-6xl font-black text-blue-950 tracking-tighter">AURA JOURNEY</h1>
+                <h1 className="text-4xl font-black text-blue-950 tracking-tight">VIA...رحلة حياة</h1>
                 <div className="w-32 h-1.5 bg-indigo-500 mt-2 rounded-full"></div>
               </div>
               <h2 className="text-2xl font-bold text-slate-800 mb-2">تقرير التقدم واليوميات الشامل</h2>

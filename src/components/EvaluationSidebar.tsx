@@ -58,6 +58,7 @@ export function EvaluationSidebar({
   const [pendingActivity, setPendingActivity] = useState<TaskActivity | null>(null);
   const [pendingParentId, setPendingParentId] = useState<string | undefined>(undefined);
   const [isPostponingSelected, setIsPostponingSelected] = useState(false);
+  const [isPostponingEntireTask, setIsPostponingEntireTask] = useState(false);
 
   const getNextDateForDayOfWeek = (dayIndex: number) => {
     const resultDate = new Date();
@@ -363,6 +364,13 @@ export function EvaluationSidebar({
       });
       setTaskToReflect(selectedTask);
       setReflectionVisible(true);
+      // Automatically open the evaluation log as requested
+      toast.current?.show({
+        severity: "success",
+        summary: "عاش يا بطل! 🚀",
+        detail: "خلصت كل المهام، يلا بينا نقيم الأداء!",
+        life: 3000
+      });
     }
 
     // Call reward callback removed from here to prevent duplicate rewards
@@ -622,7 +630,7 @@ export function EvaluationSidebar({
                 <InputText 
                   value={newActivityTitle}
                   onChange={(e) => setNewActivityTitle(e.target.value)}
-                  placeholder="عنوان النشاط الجديد..."
+                  placeholder="اسم النشاط الجديد..."
                   className="flex-1 p-3 text-xs font-bold border-slate-200 rounded-xl focus:border-indigo-500"
                 />
                 <div className="w-24">
@@ -637,7 +645,7 @@ export function EvaluationSidebar({
                 </div>
               </div>
               <Button 
-                label="إضافة نشاط رئيسي"
+                label="ضيف نشاط جديد"
                 icon={<Plus className="w-4 h-4 ml-2" />}
                 className="w-full rounded-xl py-3.5 font-black force-blue-gradient"
                 onClick={() => addActivity()}
@@ -649,30 +657,31 @@ export function EvaluationSidebar({
               <div className="flex items-center justify-between">
                  <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                     <ListChecks className="w-3 h-3" />
-                    قائمة الأنشطة والمهام الفرعية
+                    الأنشطة والمهام اللى جاية
                  </h4>
-                 {selectedTask?.activities?.length > 0 && (
-                   <button 
-                     onClick={() => {
-                        if (isPostponeMode && selectedForPostpone.length > 0) {
-                           setIsPostponingSelected(true);
-                           setShowRestDayDialog(true);
-                        } else {
-                           setIsPostponeMode(!isPostponeMode);
-                           setSelectedForPostpone([]);
-                        }
-                     }}
-                     className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                       isPostponeMode && selectedForPostpone.length > 0
-                         ? 'bg-indigo-600 text-white shadow-md'
-                         : isPostponeMode 
-                           ? 'bg-slate-200 text-slate-600'
-                           : 'bg-rose-50 text-rose-600 hover:bg-rose-100'
-                     }`}
-                   >
-                     {isPostponeMode && selectedForPostpone.length > 0 ? "تأكيد التأجيل" : "تأجيل"}
-                   </button>
-                 )}
+                 <button 
+                   onClick={() => {
+                      if (!selectedTask?.activities || selectedTask.activities.length === 0) {
+                         setIsPostponingEntireTask(true);
+                         setShowRestDayDialog(true);
+                      } else if (isPostponeMode && selectedForPostpone.length > 0) {
+                         setIsPostponingSelected(true);
+                         setShowRestDayDialog(true);
+                      } else {
+                         setIsPostponeMode(!isPostponeMode);
+                         setSelectedForPostpone([]);
+                      }
+                   }}
+                   className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                     (isPostponeMode && selectedForPostpone.length > 0) || (!selectedTask?.activities?.length)
+                       ? 'bg-indigo-600 text-white shadow-md'
+                       : isPostponeMode 
+                         ? 'bg-slate-200 text-slate-600'
+                         : 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                   }`}
+                 >
+                   {(!selectedTask?.activities?.length) ? "أجل المهمة" : (isPostponeMode && selectedForPostpone.length > 0 ? "أكد التأجيل" : "أجل")}
+                 </button>
                </div>
                
                <div className="space-y-4 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
@@ -768,10 +777,11 @@ export function EvaluationSidebar({
           setIsPostponingSelected(false);
           setIsPostponeMode(false);
           setSelectedForPostpone([]);
+          setIsPostponingEntireTask(false);
         }}
         header={
           <div className="flex items-center gap-2 text-rose-700 font-sans font-black pr-4 text-sm" dir="rtl">
-            {isPostponingSelected ? "ترحيل أنشطة ليوم إجازة 🗓️" : "⚠️ تنبيه: تجاوز الهدف اليومي"}
+            {isPostponingSelected ? "ترحل أنشطة ليوم إجازة 🗓️" : isPostponingEntireTask ? "أجل المهمة ليوم إجازة 🗓️" : "⚠️ خد بالك: عديت هدفك اليومي"}
           </div>
         }
         className="w-[90vw] max-w-md font-sans mx-4 shadow-2xl"
@@ -782,25 +792,31 @@ export function EvaluationSidebar({
           {isPostponingSelected ? (
             <>
               <p className="text-slate-700 text-sm font-bold leading-relaxed">
-                لقد قمت بتحديد {selectedForPostpone.length} أنشطة لتأجيلها.
+                إنت كده حددت {selectedForPostpone.length} أنشطة لتأجيلها.
               </p>
               <p className="text-slate-500 text-xs font-semibold leading-relaxed">
-                سيتم نقل الأنشطة المحددة إلى اليوم الذي تختاره.
+                هننقل الأنشطة دي لليوم اللي تختاره إلى اليوم الذي تختاره.
+              </p>
+            </>
+          ) : isPostponingEntireTask ? (
+            <>
+              <p className="text-slate-700 text-sm font-bold leading-relaxed">
+                هنأجل المهمة دي كلها ليوم الإجازة اللي هتختاره.
               </p>
             </>
           ) : (
             <>
               <p className="text-slate-700 text-sm font-bold leading-relaxed">
-                مرحباً! إضافة هذا النشاط تسبب تجاوزاً لـ <strong>الهدف اليومي</strong> المسموح به للدراسة/التعلم والمقدر بـ ({user?.dailyDuration} دقيقة يوماً).
+                أهلاً! لو ضفت النشاط ده هتعدي الهدف اليومي بتاعك <strong>الهدف اليومي</strong> المسموح به للدراسة/التعلم والمقدر بـ ({user?.dailyDuration} دقيقة يوماً).
               </p>
               <p className="text-slate-500 text-xs font-semibold leading-relaxed">
-                الهدف اليومي يساعدك على الحفاظ على مستويات طاقة متوازنة وتجنب الإرهاق. هل ترغب في ترحيل هذه المهمة مع كل أنشطتها إلى أحد <strong>أيام الإجازة</strong> المتاحة والعمل عليها براحة؟
+                الهدف اليومي ده عشان متفرهدش نفسك. تحب نرحّل المهمة دي ليوم من أيام إجازتك وتشتغل عليها براحتك؟ طاقة متوازنة وتجنب الإرهاق. هل ترغب في ترحيل هذه المهمة مع كل أنشطتها إلى أحد <strong>أيام الإجازة</strong> المتاحة والعمل عليها براحة؟
               </p>
             </>
           )}
           
           <div className="mt-2">
-            <h5 className="text-xs font-black text-indigo-900 mb-2">اختر يوم الإجازة المناسب لتأجيل المهمة إليه:</h5>
+            <h5 className="text-xs font-black text-indigo-900 mb-2">اختار يوم الإجازة اللي يريحك نأجل ليه المهمة:</h5>
             <div className="grid grid-cols-1 gap-2">
               {(() => {
                 const learningDaysRefs = user?.learningDays || [];
@@ -824,7 +840,25 @@ export function EvaluationSidebar({
                       key={dayNum}
                       type="button"
                       onClick={async () => {
-                        if (isPostponingSelected) {
+                        if (isPostponingEntireTask) {
+                          try {
+                            if (selectedTask._source === 'dexie') {
+                              await (db.tasks as any).update(selectedTask.id, {
+                                dueDate: targetDateString,
+                                isRestDayTask: true
+                              });
+                            }
+                            toast.current?.show({
+                              severity: "success",
+                              summary: "تأجيل المهمة 🗓️✨",
+                              detail: `أجلنالك المهمة كلها ليوم (${dayLabel}) الموافق ${targetDateString}!`,
+                              life: 5000
+                            });
+                            confetti({ particleCount: 80, spread: 50, origin: { y: 0.7 } });
+                          } catch (err) {
+                            console.error('Failed to move task:', err);
+                          }
+                        } else if (isPostponingSelected) {
                           try {
                             const activitiesToMove = selectedTask.activities.filter((act: any) => selectedForPostpone.includes(act.id));
                             const remainingActivities = selectedTask.activities.filter((act: any) => !selectedForPostpone.includes(act.id));
@@ -849,7 +883,7 @@ export function EvaluationSidebar({
                             toast.current?.show({
                               severity: "success",
                               summary: "تم الترحيل بنجاح 🗓️✨",
-                              detail: `تم ترحيل الأنشطة إلى يوم إجازتك (${dayLabel}) الموافق ${targetDateString}!`,
+                              detail: `نقلنا الأنشطة ليوم إجازتك (${dayLabel}) الموافق ${targetDateString}!`,
                               life: 5000
                             });
                             confetti({ particleCount: 80, spread: 50, origin: { y: 0.7 } });
@@ -880,6 +914,7 @@ export function EvaluationSidebar({
                         setPendingActivity(null);
                         setPendingParentId(undefined);
                         setIsPostponingSelected(false);
+                        setIsPostponingEntireTask(false);
                         setIsPostponeMode(false);
                         setSelectedForPostpone([]);
                       }}
@@ -976,7 +1011,19 @@ function ActivityNode({ node, onToggle, onDelete, onEdit, onAddSub, isPostponeMo
                 onTogglePostpone(node.id);
               } else {
                 e.stopPropagation();
-                onToggle(node.id);
+                if (node.isCompleted) {
+                  confirmPopup({
+                    target: e.currentTarget,
+                    message: 'هل تنوي حقاً التراجع عن هذا الإنجاز؟ سيتم احتساب المهمة كغير مكتملة وتحتاج لمراجعة الموعد.',
+                    icon: 'pi pi-exclamation-triangle',
+                    acceptLabel: 'نعم، تراجع',
+                    rejectLabel: 'إلغاء',
+                    className: 'font-sans text-xs',
+                    accept: () => onToggle(node.id)
+                  });
+                } else {
+                  onToggle(node.id);
+                }
               }
             }}
             className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all shadow-sm ${

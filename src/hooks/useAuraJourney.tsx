@@ -38,6 +38,9 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   // Note state
   const [activeNoteStationId, setActiveNoteStationId] = useState<string>("");
   const [noteText, setNoteText] = useState("");
+  const [notePriority, setNotePriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [noteTags, setNoteTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   // Time Capsule state
   const [capsuleText, setCapsuleText] = useState("");
@@ -108,11 +111,20 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     </div>
   );
 
-  // Note editing state
-  const [editingNote, setEditingNote] = useState<{ index: number; text: string } | null>(null);
+  const [editingNote, setEditingNote] = useState<{ 
+    index: number; 
+    text: string;
+    priority?: 'low' | 'medium' | 'high';
+    tags?: string[];
+  } | null>(null);
 
-  const startEditingNote = (index: number, text: string) => {
-    setEditingNote({ index, text });
+  const startEditingNote = (index: number, note: any) => {
+    setEditingNote({ 
+      index, 
+      text: note.text,
+      priority: note.priority || 'medium',
+      tags: note.tags || []
+    });
   };
 
   const cancelEditingNote = () => {
@@ -129,6 +141,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       updatedStationNotes[editingNote.index] = {
         ...updatedStationNotes[editingNote.index],
         text: editingNote.text,
+        priority: editingNote.priority,
+        tags: editingNote.tags,
         updatedAt: new Date().toISOString()
       };
       prevNotes[stationId] = updatedStationNotes;
@@ -235,15 +249,20 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       if (mainTasks.length === 0) {
         baseEnergy = 100;
       } else {
-        const energyPerMain = 100 / mainTasks.length;
+        // Equation: X = 100 / (number of main tasks)
+        const X = 100 / mainTasks.length;
+        
         mainTasks.forEach(mainTask => {
           const subTasks = tasks.filter(t => t.parentId === mainTask.id && t.type === "sub");
           if (subTasks.length === 0) {
-            if (mainTask.isCompleted) baseEnergy += energyPerMain;
+            if (mainTask.isCompleted) {
+              baseEnergy += X;
+            }
           } else {
-            const energyPerSub = energyPerMain / subTasks.length;
-            const completedSubs = subTasks.filter(t => t.isCompleted).length;
-            baseEnergy += (completedSubs * energyPerSub);
+            // Equation: Y = X / (number of sub-tasks of this main task)
+            const Y = X / subTasks.length;
+            const completedSubsCount = subTasks.filter(t => t.isCompleted).length;
+            baseEnergy += (completedSubsCount * Y);
           }
         });
       }
@@ -438,7 +457,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     }
 
     // Un-completing
-    await (db.tasks as any).update(taskId, { isCompleted: false });
+    await (db.tasks as any).update(taskId, { isCompleted: false, dueDate: null });
     vibrate(HAPITCS.MAJOR_CLICK);
     
     let newXp = gData.xp;
@@ -573,6 +592,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       const allMainCompleted = mainTasks.every(t => t.id === task.id ? true : t.isCompleted);
       
       if (allMainCompleted) {
+        setStationTabsIndex(2);
         const currentSubData = user.subStations?.[task.stationId];
         const hasSub = Array.isArray(currentSubData) ? currentSubData.length > 0 : !!currentSubData;
         
@@ -708,26 +728,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     const prevNotes = { ...(user.notes || {}) };
     
     if (editingNoteIndex !== null && editingStationId) {
-      // Update existing note
-      const stationNotes = Array.isArray(prevNotes[editingStationId]) ? [...prevNotes[editingStationId]] : [];
-      if (stationNotes[editingNoteIndex]) {
-        stationNotes[editingNoteIndex] = {
-          ...stationNotes[editingNoteIndex],
-          text: noteText,
-          date: new Date().toISOString()
-        };
-        prevNotes[editingStationId] = stationNotes;
-      }
-      
-      await db.userSettings.update(user.id, { notes: prevNotes });
-      setEditingNoteIndex(null);
-      setEditingStationId(null);
-      toast.current?.show({
-        severity: "success",
-        summary: "تم تحديث الخاطرة ✨",
-        detail: "تم تعديل ملاحظتك بنجاح.",
-        life: 3000,
-      });
+       // Old logic for editingNoteIndex (if still used) - better to use editingNote state
     } else {
       // Add new note
       const stationNotes = Array.isArray(prevNotes[activeNoteStationId]) 
@@ -748,7 +749,9 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
             ...stationNotes, 
             { 
               text: noteText, 
-              date: new Date().toISOString() 
+              date: new Date().toISOString(),
+              priority: notePriority,
+              tags: noteTags
             }
           ] 
         },
@@ -762,6 +765,9 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     }
     
     setNoteText("");
+    setNotePriority('medium');
+    setNoteTags([]);
+    setTagInput("");
   };
 
   const deleteJournalNote = async (stationId: string, noteIndex: number) => {
@@ -911,6 +917,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     setSubStationTargetId(null);
     setSubStationTasks([]);
     setSubStationDuration(30);
+    setStationTabsIndex(2);
 
     toast.current?.show({
       severity: "success",
@@ -1246,6 +1253,12 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     setActiveNoteStationId,
     noteText,
     setNoteText,
+    notePriority,
+    setNotePriority,
+    noteTags,
+    setNoteTags,
+    tagInput,
+    setTagInput,
     capsuleText,
     setCapsuleText,
     celebratedCapsule,

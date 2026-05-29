@@ -231,12 +231,12 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
          {/* Footer Action */}
          <div className="px-6 md:px-12 py-8 bg-gray-50/50 flex justify-between items-center border-t border-gray-100">
              {step > 1 ? (
-               <button onClick={prevStep} className="text-gray-400 font-medium hover:text-gray-700 transition">السابق</button>
+               <button onClick={prevStep} className="text-gray-400 font-medium hover:text-gray-700 transition">ارجع</button>
              ) : <div className="w-10"></div>}
              
              {step === 6 ? (
                 <button onClick={handleSave} className="px-10 py-4 bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 hover:brightness-110 text-white rounded-xl font-bold shadow-lg shadow-blue-950/20 active:scale-95 transition-all outline-none border-none cursor-pointer">
-                  حفظ وبدء الرحلة
+                  حفظ وابدأ الرحلة
                 </button>
              ) : (
                 <div className="flex gap-3 items-center">
@@ -338,10 +338,10 @@ const StepTheme = ({ state, setState }: any) => {
       icon: 'pi pi-clone'
     },
     { 
-      id: 'tree', 
-      name: 'ثيم مسار الرحلة', 
-      desc: 'يعرض الخطط كأفرع شجرة متفرعة، مناسب لتخيل التسلسل والترابط بين المهام.',
-      icon: 'pi pi-sitemap' 
+      id: 'calendar', 
+      name: 'ثيم التقويم', 
+      desc: 'يعرض الخطط والمهام بتنسيق تقويمي منظم.',
+      icon: 'pi pi-calendar' 
     }
   ];
 
@@ -543,7 +543,7 @@ const Step5 = ({ state, setState }: any) => {
         <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-400">
            <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         </div>
-        <p className="text-gray-500 font-medium font-sans">من فضلك عُد للخطوة السابقة وأضف خطة واحدة على الأقل.</p>
+        <p className="text-gray-500 font-medium font-sans">من فضلك عُد للخطوة ارجعة وأضف خطة واحدة على الأقل.</p>
       </div>
     );
   }

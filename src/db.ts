@@ -58,7 +58,7 @@ export interface UserSettings {
   resources?: { name: string; url: string }[];
   dailyDuration?: number;
   learningDays?: number[];
-  theme?: 'cards' | 'tree' | 'calendar'; // Theme selection
+  theme?: 'cards' | 'calendar'; // Theme selection
   gameData?: {
     fuel: number;
     xp: number;
@@ -67,7 +67,13 @@ export interface UserSettings {
     streak?: number;
     tasksCompletedSinceReview?: number;
   };
-  notes?: Record<string, { text: string; date: string; updatedAt?: string }[]>; // Station notes map
+  notes?: Record<string, { 
+    text: string; 
+    date: string; 
+    updatedAt?: string;
+    priority?: 'low' | 'medium' | 'high';
+    tags?: string[];
+  }[]>; // Station notes map
   unlockedStationIds?: string[]; // IDs of explicitly unlocked stations
   timeCapsules?: Record<string, { message: string; writtenAt: string; isRead: boolean; messages?: { message: string; writtenAt: string }[] }>; // Station ID -> Time capsule
   subStations?: Record<string, SubStation[]>; // Station ID -> Array of SubStation details
