@@ -474,7 +474,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       updateData.activities = resetActivities(task.activities);
     }
 
-    await db.tasks.update(taskId, updateData);
+    await (db.tasks as any).update(taskId, updateData);
     vibrate(HAPITCS.MAJOR_CLICK);
     
     let newXp = gData.xp;

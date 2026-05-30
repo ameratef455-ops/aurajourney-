@@ -397,13 +397,13 @@ export function EvaluationSidebar({
   };
 
   const completedWithoutReflection = [...mainTasks, ...sideTasks, ...subTasks].filter(t => t.isCompleted && !reflections.some(r => r.taskId === t.id));
+  const [initialReflectionVisible, setInitialReflectionVisible] = useState(false);
 
   const handleManualHide = () => {
     if (completedWithoutReflection.length > 0) {
       confirmPopup({
         target: document.querySelector('.evaluation-close-btn') as HTMLElement,
         message: `لديك ${completedWithoutReflection.length} مهام مكتملة لم يتم تقييمها بعد. هل تريد الخروج فعلاً؟`,
-        header: 'تنبيه: مهام غير مقيمة ⚠️',
         icon: 'pi pi-exclamation-triangle',
         acceptLabel: 'نعم، أخرج',
         rejectLabel: 'سأقوم بالتقييم',
