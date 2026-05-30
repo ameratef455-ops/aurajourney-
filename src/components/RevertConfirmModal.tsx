@@ -18,7 +18,12 @@ export function RevertConfirmModal({ visible, onHide, onConfirm, taskTitle }: Re
       breakpoints={{ '960px': '75vw', '641px': '90vw' }}
       style={{ width: '450px' }}
       maskClassName="backdrop-blur-md bg-slate-950/60"
-      className="p-0 border-none bg-transparent shadow-none"
+      className="p-0 border-none bg-transparent shadow-none overflow-hidden"
+      contentClassName="p-0 bg-transparent border-none overflow-hidden"
+      pt={{
+        root: { className: 'border-none shadow-none bg-transparent p-0 overflow-hidden' },
+        content: { className: 'border-none shadow-none bg-transparent p-0 overflow-hidden' }
+      }}
     >
       <AnimatePresence>
         {visible && (
@@ -26,7 +31,7 @@ export function RevertConfirmModal({ visible, onHide, onConfirm, taskTitle }: Re
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="bg-gradient-to-b from-slate-900 to-slate-950 text-white rounded-[32px] p-8 border border-white/10 shadow-[0_24px_50px_rgba(0,0,0,0.5)] text-center relative overflow-hidden font-sans"
+            className="bg-slate-950 text-white rounded-[32px] p-8 border-none shadow-[0_24px_50px_rgba(0,0,0,0.7)] text-center relative overflow-hidden font-sans"
             dir="rtl"
           >
             {/* Background luxury gradient glowing circles */}

@@ -16,7 +16,8 @@ import { DataView } from "primereact/dataview";
 import { Tree } from "primereact/tree";
 import { toast as toastHot } from "react-hot-toast";
 import { 
-  Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy, History, TrendingUp, Calendar
+  Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy, History, TrendingUp, Calendar, Info,
+  Sparkles, Volume2, MessageSquare, Mic
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import confetti from "canvas-confetti";
@@ -29,6 +30,7 @@ import { FlashcardsModal }
 from "./FlashcardsModal";
 import { TaskReviewModal } from "./TaskReviewModal";
 import { TaskReflectionModal } from "./TaskReflectionModal";
+import { TaskDetailsModal } from "./TaskDetailsModal";
 import { RevertConfirmModal } from "./RevertConfirmModal";
 import { CalendarTheme } from "./themes/CalendarTheme";
 import { addDays, getDay, format } from "date-fns";
@@ -235,6 +237,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     completedTasksCount,
     isAllTasksCompleted
   } = useAuraJourney({ tripId, toast });
+
+  useEffect(() => {
+    // Force load voices for TTS
+    window.speechSynthesis.getVoices();
+    const handleVoicesChanged = () => window.speechSynthesis.getVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+  }, []);
 
   // CRUD Stations States
   const [isAddStationVisible, setIsAddStationVisible] = useState(false);
@@ -487,7 +497,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [reviewingTask, setReviewingTask] = useState<any>(null);
   const [revertingTask, setRevertingTask] = useState<any>(null);
   const [flashcardTask, setFlashcardTask] = useState<any>(null);
+  const [taskDetailsVisible, setTaskDetailsVisible] = useState(false);
+  const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<any>(null);
   const [reviewReflectionVisible, setReviewReflectionVisible] = useState(false);
+  const [initialReflectionVisible, setInitialReflectionVisible] = useState(false);
   const [showStumbleForm, setShowStumbleForm] = useState(false);
   const [stumbleReason, setStumbleReason] = useState("");
   const [reflectionForceStationId, setReflectionForceStationId] = useState<string | null>(null);
@@ -621,31 +634,39 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     }
   };
 
+  const handleCompleteTask = (task: any) => {
+    if (task.activities) {
+      const checkActivities = (acts: any[]): boolean => {
+          return acts.every(a => a.isCompleted && (!a.children || checkActivities(a.children)));
+      };
+      if (!checkActivities(task.activities)) {
+          vibrate(HAPITCS.MAJOR_CLICK);
+          toastHot.error("يُرجى إكمال جميع الأنشطة التنفيذية لهذه المهمة قبل محاولة ختمها وتقييمها. ⚠️");
+          return;
+      }
+    }
+    setReviewingTask(task);
+    setInitialReflectionVisible(true);
+  };
+
+  const reflections = useLiveQuery(() => db.reflections.toArray()) || [];
+
   const treeNodeTemplate = (node: any) => {
     const t = node.data;
     const isSub = t.type === 'sub';
     const totalSubs = node.children ? node.children.length : 0;
     const completedSubs = node.children ? node.children.filter((c: any) => c.data.isCompleted).length : 0;
     
+    const hasReflection = reflections.some(r => r.taskId === t.id);
+
     return (
       <div 
           className="flex items-center gap-3 py-1.5 w-full font-sans group"
           onClick={(e) => {
               e.stopPropagation();
-              if (t.isCompleted) {
-                return setReviewingTask(t);
-              }
-              if (t.type === 'main' && !t.isCompleted && completedSubs < totalSubs) {
-                vibrate(HAPITCS.MAJOR_CLICK);
-                toast.current?.show({
-                  severity: "warn",
-                  summary: "أنجز الفرعيات أولاً ⚠️",
-                  detail: "يرجى إكمال المهام الفرعية للرئيسية أولاً.",
-                  life: 4000
-                });
-                return;
-              }
-              toggleTask(t.id, t.isCompleted, t.type);
+              vibrate(HAPITCS.MAJOR_CLICK);
+              setSelectedTaskForDetails(t);
+              setTaskDetailsVisible(true);
           }}
       >
           <div
@@ -664,7 +685,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     });
                     return;
                 }
-                toggleTask(t.id, t.isCompleted, t.type);
+                handleCompleteTask(t);
               }
             }}
             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0 cursor-pointer
@@ -695,9 +716,39 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               </span>
             )}
           </div>
-          {t.isCompleted && (
-            <div className="mr-auto flex items-center gap-1">
+          <div className="mr-auto flex items-center gap-1">
+            {!hasReflection && t.isCompleted && (
               <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  vibrate(HAPITCS.MAJOR_CLICK);
+                  setReviewingTask(t);
+                  setInitialReflectionVisible(true);
+                }}
+                className="p-1 px-2.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-105 gap-1.5"
+                title="قيم أداءك على هذه المهمة"
+                type="button"
+              >
+                <Sparkles className="w-3 h-3" />
+                <span className="text-[10px] font-black">قيم أداءك</span>
+              </button>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                vibrate(HAPITCS.MAJOR_CLICK);
+                setSelectedTaskForDetails(t);
+                setTaskDetailsVisible(true);
+              }}
+              className="p-1 px-1.5 bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-500 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-110"
+              title="تفاصيل المهمة والأنشطة"
+              type="button"
+            >
+              <Info className="w-3 h-3 font-black" />
+            </button>
+            {t.isCompleted && (
+              <>
+                <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setReviewingTask(t);
@@ -732,8 +783,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               >
                 <i className="pi pi-chart-bar text-[10px] font-black"></i>
               </button>
-            </div>
+            </>
           )}
+        </div>
       </div>
     );
   };
@@ -1080,10 +1132,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 return (
                   <motion.div
                     key={st.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-50px" }}
-                    transition={{ duration: 0.6, delay: i * 0.1 }}
+                    initial={{ opacity: 0, y: 40, scale: 0.95 }}
+                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ 
+                      duration: 0.8, 
+                      delay: i * 0.05,
+                      ease: [0.16, 1, 0.3, 1] 
+                    }}
                     className="relative flex flex-col items-center w-full max-w-md"
                   >
                     {/* Connection Line */}
@@ -1181,12 +1237,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         </>
                       )}
 
-                      {/* Station Node / Card */}
                       <motion.div
-                        whileHover={isUnlocked ? { scale: 1.02, y: -5 } : {}}
-                        whileTap={isUnlocked ? { scale: 0.98 } : {}}
+                        initial={{ scale: 1 }}
+                        whileHover={isUnlocked ? { scale: 1.03, y: -8 } : {}}
+                        whileTap={isUnlocked ? { scale: 0.97 } : {}}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
                         onClick={() => handleStationClick(st.id, isUnlocked, i)}
-                        className={`relative z-10 w-full p-5 rounded-[28px] flex items-center gap-5 cursor-pointer transition-all duration-500 border-2
+                        className={`relative z-10 w-full p-6 rounded-[32px] flex items-center gap-5 cursor-pointer transition-all duration-500 border-2
                           ${isActive 
                             ? "bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-900 border-blue-400 shadow-[0_20px_40px_rgba(30,58,138,0.3)]" 
                             : isCompleted 
@@ -1346,7 +1403,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         subTasks={tasks.filter(t => t.type === 'sub')}
         practicalSubStations={user?.subStations || {}}
         onRewardActivity={rewardActivity}
-        onCompleteTask={completeTask}
+        onCompleteTask={handleCompleteTask}
         onCompletePracticalTask={completePracticalTask}
       />
 
@@ -1392,12 +1449,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       )}
 
       <TaskReviewModal
-        visible={reviewingTask !== null && !reviewReflectionVisible}
+        visible={reviewingTask !== null && !reviewReflectionVisible && !initialReflectionVisible}
         onHide={() => {
-           // Only clear task if we aren't opening the reflection modal
-           if (!reviewReflectionVisible) {
-              setReviewingTask(null);
-           }
+           setReviewingTask(null);
         }}
         task={reviewingTask}
         onFinishReview={() => {
@@ -1405,6 +1459,26 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         }}
         onUndo={(task) => {
           setRevertingTask(task);
+        }}
+      />
+
+      <TaskDetailsModal
+        visible={taskDetailsVisible}
+        onHide={() => {
+          setTaskDetailsVisible(false);
+          setSelectedTaskForDetails(null);
+        }}
+        taskId={selectedTaskForDetails?.id || null}
+        onCompleteTask={(taskId) => {
+           const t = tasks.find(x => x.id === taskId);
+           if (t) {
+              setReviewingTask(t);
+              setInitialReflectionVisible(true);
+           }
+        }}
+        onOpenReflection={(t) => {
+          setReviewingTask(t);
+          setInitialReflectionVisible(true);
         }}
       />
 
@@ -1419,6 +1493,56 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               setReviewingTask(null);
             }
           }
+        }}
+      />
+
+      <TaskReflectionModal
+        visible={initialReflectionVisible}
+        onHide={() => {
+           setInitialReflectionVisible(false);
+           setReviewingTask(null);
+        }}
+        taskTitle={reviewingTask?.title || ""}
+        isReview={false}
+        onSubmit={async (data) => {
+           const currentTask = reviewingTask;
+           if (!currentTask) return;
+           try {
+              let stationName = 'غير محدد';
+              if (currentTask.stationId) {
+                const station = await db.stations.get(currentTask.stationId);
+                if (station) stationName = station.name;
+              }
+  
+              await db.reflections.add({
+                id: safeRandomUUID(),
+                taskId: currentTask.id || '',
+                taskTitle: currentTask.title || '',
+                stationId: currentTask.stationId || '',
+                stationName: stationName,
+                focus: data.focus,
+                mastery: data.mastery,
+                strengths: data.strengths || '',
+                weaknesses: data.weaknesses || '',
+                learnings: data.learnings || '',
+                didPractical: !!data.didPractical,
+                practicalIssues: data.practicalIssues || '',
+                languageLearning: data.languageLearning,
+                type: 'initial',
+                createdAt: new Date().toISOString()
+              });
+              
+              // Only mark as completed AFTER reflection is saved
+              await completeTask(currentTask);
+
+              toastHot.success("تم حفظ تقييم الإنجاز وختم المهمة بنجاح! ✨");
+              setInitialReflectionVisible(false);
+              setReviewingTask(null);
+              vibrate(HAPITCS.SUCCESS);
+           } catch (err) {
+              console.error(err);
+              toastHot.error("فشل حفظ التقييم وختم المهمة");
+           }
         }}
       />
 
@@ -1440,7 +1564,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 if (station) stationName = station.name;
               }
   
-              // Fix XP override
               await db.reflections.add({
                 id: safeRandomUUID(),
                 taskId: currentTask.id || '',
@@ -1454,8 +1577,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 learnings: data.learnings || '',
                 didPractical: !!data.didPractical,
                 practicalIssues: data.practicalIssues || '',
-                createdAt: new Date().toISOString(),
-                type: 'review'
+                languageLearning: data.languageLearning,
+                type: 'review',
+                createdAt: new Date().toISOString()
               });
 
               if (user && user.gameData) {
@@ -1471,14 +1595,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     life: 3000,
                  });
               }
-
-              toast.current?.show({
-                 severity: "success",
-                 summary: "تمت المراجعة!",
-                 detail: "تم تحديث التقييم للمهمة بنجاح، استمر في التقدم!"
-              });
-           } catch(e) {
-              console.error(e);
+              
+              toastHot.success("تم تسجيل تقييم المراجعة! 🔄");
+              setReviewReflectionVisible(false);
+              setReviewingTask(null);
+           } catch (err) {
+              console.error(err);
+              toastHot.error("فشل حفظ التقييم");
            }
         }}
       />
@@ -2849,10 +2972,39 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                       </div>
                                     </div>
                                   </div>
-                                  {(refData.strengths || refData.learnings) && (
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs font-bold text-slate-700 leading-relaxed">
-                                      <span className="text-indigo-600 mr-1 block mb-1">خلاصة المراجعة:</span>
-                                      {refData.learnings || refData.strengths}
+                                  {(refData.strengths || refData.weaknesses || refData.learnings) && (
+                                    <div className="bg-slate-50/75 p-4 rounded-xl border border-slate-150 flex flex-col gap-3 text-right">
+                                      <span className="text-indigo-600 mr-1 block text-[11px] font-black">📋 خلاصة هذه المراجعة:</span>
+                                      
+                                      {refData.strengths && (
+                                        <div className="flex gap-2 items-start text-xs font-semibold text-slate-700 leading-relaxed pr-1">
+                                          <span className="text-sm shrink-0">💪</span>
+                                          <div>
+                                            <span className="font-black text-emerald-700 block text-[10px] uppercase mb-0.5">نقاط القوة والأداء المميز:</span>
+                                            <span>{refData.strengths}</span>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {refData.weaknesses && (
+                                        <div className="flex gap-2 items-start text-xs font-semibold text-slate-700 leading-relaxed pr-1 border-t border-slate-200/50 pt-2.5">
+                                          <span className="text-sm shrink-0">🧨</span>
+                                          <div>
+                                            <span className="font-black text-rose-700 block text-[10px] uppercase mb-0.5">نقاط الضعف (مجالات التطوير):</span>
+                                            <span>{refData.weaknesses}</span>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {refData.learnings && (
+                                        <div className="flex gap-2 items-start text-xs font-semibold text-slate-700 leading-relaxed pr-1 border-t border-slate-200/50 pt-2.5">
+                                          <span className="text-sm shrink-0">💡</span>
+                                          <div>
+                                            <span className="font-black text-blue-700 block text-[10px] uppercase mb-0.5">المهارات والأفكار المكتسبة:</span>
+                                            <span>{refData.learnings}</span>
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -2868,6 +3020,131 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     )}
                   </div>
                 </TabPanel>
+
+                {taskReflectionData && taskReflectionData.some((r: any) => r.languageLearning) && (
+                  <TabPanel
+                    headerTemplate={(options) => (
+                      <div
+                        className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                          options.selected
+                            ? "bg-white text-indigo-600 shadow-sm border border-slate-200"
+                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                        }`}
+                        onClick={options.onClick}
+                      >
+                        <Languages className="w-3.5 h-3.5 ml-1.5 inline-block" />
+                        تحليل اللغات
+                      </div>
+                    )}
+                  >
+                    <div className="space-y-6">
+                      {taskReflectionData
+                        .filter((r: any) => r.languageLearning)
+                        .map((ref: any, idx: number) => (
+                          <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-6 relative">
+                            <div className="absolute -top-3 right-6 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-sm border-2 border-white">
+                                {idx === 0 ? "التقييم اللغوي الأصلي 📝" : `مراجعة لغوية ${idx} 🔄`}
+                            </div>
+
+                            {/* Accent Rating */}
+                            <div className="bg-gradient-to-br from-amber-50/70 to-yellow-50/50 p-4 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center">
+                              <p className="text-[10px] text-amber-950/75 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                <Sparkles className="w-3.5 h-3.5 text-amber-600" /> تقييم اللكنة (Accent):
+                              </p>
+                              <div className="text-3xl font-black text-amber-700 font-mono">
+                                {ref.languageLearning.accentRating} <span className="text-xs font-bold text-amber-400">/ 5</span>
+                              </div>
+                              <div className="flex gap-1 mt-2.5">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <div
+                                    key={s}
+                                    className={`w-2.5 h-2.5 rounded-full ${
+                                      s <= ref.languageLearning.accentRating ? "bg-amber-500" : "bg-amber-100"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Sentences */}
+                            {ref.languageLearning.sentences && ref.languageLearning.sentences.length > 0 && (
+                              <div className="space-y-3">
+                                <h4 className="text-xs font-black text-indigo-900 pr-2 flex items-center gap-2">
+                                  <Languages className="w-4 h-4" /> الجمل المكتسبة:
+                                </h4>
+                                <div className="grid grid-cols-1 gap-2">
+                                  {ref.languageLearning.sentences.map((s: any, sIdx: number) => (
+                                    <div key={sIdx} className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col gap-1">
+                                      <div className="flex items-center justify-between">
+                                        <p className="text-xs font-bold text-slate-800">{s.text || "تسجيل صوتي 🎙️"}</p>
+                                        <div className="flex gap-1">
+                                          {s.audioData && (
+                                            <Button 
+                                              icon={<Mic className="w-3.5 h-3.5" />} 
+                                              className="p-button-text p-button-rounded text-rose-500 w-8 h-8" 
+                                              onClick={() => {
+                                                const audio = new Audio(s.audioData);
+                                                audio.play();
+                                              }}
+                                            />
+                                          )}
+                                          <Button 
+                                            icon={<Volume2 className="w-3.5 h-3.5" />} 
+                                            className="p-button-text p-button-rounded text-indigo-500 w-8 h-8" 
+                                            disabled={!s.text}
+                                            onClick={() => {
+                                              if (!s.text) return;
+                                              window.speechSynthesis.cancel();
+                                              const u = new SpeechSynthesisUtterance(s.text);
+                                              const isAr = /[\u0600-\u06FF]/.test(s.text);
+                                              u.lang = isAr ? 'ar-SA' : 'en-US';
+                                              const vcs = window.speechSynthesis.getVoices();
+                                              if (vcs.length > 0) {
+                                                const preferred = vcs.find(v => 
+                                                  (isAr ? v.lang.includes('ar') : v.lang.includes('en')) && v.localService
+                                                ) || vcs.find(v => isAr ? v.lang.includes('ar') : v.lang.includes('en'));
+                                                if (preferred) u.voice = preferred;
+                                              }
+                                              window.speechSynthesis.speak(u);
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                      {s.notes && (
+                                        <p className="text-[10px] text-slate-500 font-medium bg-white/60 p-2 rounded-lg border border-slate-50 italic">
+                                          {s.notes}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Issues & Notes */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="bg-sky-50/30 p-4 rounded-2xl border border-sky-100 flex flex-col gap-1.5">
+                                <p className="text-[10px] text-sky-800 font-black tracking-widest uppercase flex items-center gap-1.5">
+                                  <MessageSquare className="w-3.5 h-3.5 text-sky-500" /> مشاكل النطق:
+                                </p>
+                                <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-sky-50/30 font-medium leading-relaxed">
+                                  {ref.languageLearning.pronunciationIssues || "لا يوجد ملاحظات نطق."}
+                                </p>
+                              </div>
+                              <div className="bg-indigo-50/30 p-4 rounded-2xl border border-indigo-100 flex flex-col gap-1.5">
+                                <p className="text-[10px] text-indigo-800 font-black tracking-widest uppercase flex items-center gap-1.5">
+                                  <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> ملاحظات اللهجة:
+                                </p>
+                                <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-indigo-50/30 font-medium leading-relaxed">
+                                  {ref.languageLearning.dialectNotes || "لا يوجد ملاحظات لهجة."}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </TabPanel>
+                )}
               </TabView>
             </motion.div>
           )}
