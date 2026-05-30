@@ -404,6 +404,139 @@ export function ReflectionSidebar({
             )}
           </AnimatePresence>
         </TabPanel>
+
+        <TabPanel headerTemplate={createTabHeader("pi-history", "سجل المراجعات والوعي")}>
+          <AnimatePresence mode="wait">
+            {reflectionSidebar && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="pt-6 px-2 space-y-6 text-right font-sans"
+                dir="rtl"
+              >
+                <div className="bg-indigo-50/50 border border-indigo-100 rounded-[32px] p-6 space-y-3">
+                  <h4 className="font-black text-indigo-900 text-sm flex items-center gap-2">
+                    <i className="pi pi-history"></i> تاريخ المراجعات والتأمل:
+                  </h4>
+                  <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                    هنا يُحفظ كل تقييم وانعكاس حول المهام التي أنجزتها.
+                  </p>
+                </div>
+
+                <div className="space-y-6 pr-1 no-scrollbar pb-10">
+                   {filteredReflections && filteredReflections.length > 0 ? (
+                     filteredReflections.slice().reverse().map((ref, idx, arr) => {
+                       const prevRef = idx < arr.length - 1 ? arr[idx + 1] : null;
+                       const focusDiff = prevRef ? ref.focus - prevRef.focus : 0;
+                       const masteryDiff = prevRef ? ref.mastery - prevRef.mastery : 0;
+
+                       return (
+                         <div key={ref.id} className="bg-white p-5 border border-slate-150 rounded-[28px] shadow-3xs hover:shadow-md transition-all text-right relative overflow-hidden">
+                            <div className="absolute top-0 right-0 h-1 w-full bg-indigo-500/30"></div>
+                            {/* Header: Date and Task Title */}
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-indigo-50 pb-3 mb-4">
+                               <div className="text-right">
+                                  <span className="text-[10px] text-slate-400 font-bold font-mono block mb-1">
+                                     {new Date(ref.createdAt).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                     المهمة: <span className="text-indigo-600">"{ref.taskTitle}"</span>
+                                  </h4>
+                               </div>
+                               
+                               <div className="flex items-center justify-end gap-2 font-mono" dir="ltr">
+                                  {/* Focus Badge */}
+                                  <div className="bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-xl flex items-center gap-1 text-rose-700" title="مستوى التركيز العميق (من 5)">
+                                     <span className="text-[9px] font-black">التركيز:</span>
+                                     <span className="text-xs font-black">{ref.focus}/5</span>
+                                     {focusDiff !== 0 && (
+                                        <span className={`text-[9px] font-black ${focusDiff > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                           {focusDiff > 0 ? `▲ +${focusDiff}` : `▼ ${focusDiff}`}
+                                        </span>
+                                     )}
+                                  </div>
+                                  {/* Mastery Badge */}
+                                  <div className="bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-xl flex items-center gap-1 text-amber-700" title="مستوى الإتقان المحرز (من 10)">
+                                     <span className="text-[9px] font-black">الإتقان:</span>
+                                     <span className="text-xs font-black">{ref.mastery}/10</span>
+                                     {masteryDiff !== 0 && (
+                                        <span className={`text-[9px] font-black ${masteryDiff > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                           {masteryDiff > 0 ? `▲ +${masteryDiff}` : `▼ ${masteryDiff}`}
+                                        </span>
+                                     )}
+                                  </div>
+                               </div>
+                            </div>
+
+                            {/* Side-by-Side Comparison Grid: Strengths vs Weaknesses */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                               {/* Strengths */}
+                               <div className="bg-emerald-50/40 border border-emerald-100/50 p-4 rounded-2xl text-right">
+                                  <h5 className="text-[10px] text-emerald-800 font-extrabold mb-2.5 flex items-center gap-1.5">
+                                     <span className="text-sm">💪</span> نقاط القوة (Strengths)
+                                  </h5>
+                                  <p className="text-xs text-slate-700 font-bold leading-relaxed bg-white/70 p-3 rounded-xl border border-white">
+                                     {ref.strengths || "لم يتم تسجيل نقاط قوة..."}
+                                  </p>
+                               </div>
+
+                               {/* Weaknesses */}
+                               <div className="bg-rose-50/40 border border-rose-100/55 p-4 rounded-2xl text-right">
+                                  <h5 className="text-[10px] text-rose-800 font-extrabold mb-2.5 flex items-center gap-1.5">
+                                     <span className="text-sm">🧨</span> نقاط الضعف (Weaknesses)
+                                  </h5>
+                                  <p className="text-xs text-slate-700 font-bold leading-relaxed bg-white/70 p-3 rounded-xl border border-white">
+                                     {ref.weaknesses || "لم يتم تسجيل نقاط ضعف..."}
+                                  </p>
+                               </div>
+                            </div>
+
+                            {/* Acquired Skills and Practical Application */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               {/* Acquired Skills & Learnings */}
+                               <div className="bg-blue-50/40 border border-blue-100/50 p-4 rounded-2xl text-right">
+                                  <h5 className="text-[10px] text-blue-800 font-extrabold mb-2.5 flex items-center gap-1.5">
+                                     <span className="text-sm">🧠</span> التعلم والمكتسبات
+                                  </h5>
+                                  <p className="text-xs text-slate-700 font-bold leading-relaxed bg-white/70 p-3 rounded-xl border border-white">
+                                     {ref.learnings || "التحصيل متمكن تماماً."}
+                                  </p>
+                               </div>
+
+                               {/* Practical Application */}
+                               <div className="bg-teal-50/40 border border-teal-100/50 p-4 rounded-2xl text-right flex flex-col justify-between">
+                                  <div>
+                                     <h5 className="text-[10px] text-teal-800 font-extrabold mb-2.5 flex items-center justify-between">
+                                        <span className="flex items-center gap-1.5">
+                                           <span className="text-sm">🛠️</span> التطبيق العملي
+                                        </span>
+                                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black ${ref.didPractical ? 'bg-teal-100 text-teal-800 border border-teal-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                                           {ref.didPractical ? 'تم العملي' : 'لم يطبق'}
+                                        </span>
+                                     </h5>
+                                     <p className="text-xs text-slate-700 font-bold leading-relaxed bg-white/70 p-3 rounded-xl border border-white">
+                                        {ref.didPractical 
+                                           ? (ref.practicalIssues || "تم تأكيد التجريب والتدريب للمهمة بنجاح!") 
+                                           : "اكتمل الجانب النظري في هذه المراجعة؛ ينصح بتمارين تطبيقية وتجريب ميداني."}
+                                     </p>
+                                  </div>
+                               </div>
+                            </div>
+                         </div>
+                       );
+                     })
+                   ) : (
+                      <div className="bg-indigo-50/20 p-6 rounded-[28px] border border-indigo-100/50 text-center text-slate-400 font-bold text-xs leading-relaxed">
+                         لا توجد مراجعات مسجلة ومحفوظة حالياً. أنجز المهام وسجل مراجعات التقييم لتنشيط هذا المعالج تلقائياً! 💡
+                      </div>
+                   )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </TabPanel>
       </TabView>
       </div>
 
@@ -458,17 +591,118 @@ export function ReflectionSidebar({
              </div>
            </div>
 
-           <h2 className="text-xl font-black text-indigo-700 mb-4 border-b border-indigo-100 pb-2 mt-8">جلسات الانعكاس واليوميات</h2>
-           <div className="space-y-4 mb-8">
-              {reflections && reflections.length > 0 ? reflections.slice().reverse().map(ref => (
-                 <div key={ref.id} className="bg-indigo-50/30 p-4 border border-indigo-100 rounded-xl mb-3 page-break-inside-avoid">
-                    <p className="text-xs text-slate-500 font-bold mb-2">{new Date(ref.createdAt).toLocaleString('ar-EG')}</p>
-                    <p className="text-sm font-medium leading-relaxed">أهم الدروس: {ref.learnings}</p>
-                 </div>
-              )) : (
-                 <p className="text-slate-400">لا توجد انعكاسات مسجلة.</p>
-              )}
-           </div>
+           <h2 className="text-xl font-black text-indigo-700 mb-5 border-b border-indigo-150 pb-3 mt-8 flex items-center gap-2 animate-fade-in">
+               <i className="pi pi-history text-indigo-600 text-lg"></i>
+               <span>تحليلات المراجعة والوعي المقارن المستمر 🧠</span>
+            </h2>
+            <div className="space-y-6 mb-8 animate-fade-in">
+               {reflections && reflections.length > 0 ? (
+                 reflections.slice().reverse().map((ref, idx, arr) => {
+                   const prevRef = idx > 0 ? arr[idx - 1] : null;
+                   const focusDiff = prevRef ? ref.focus - prevRef.focus : 0;
+                   const masteryDiff = prevRef ? ref.mastery - prevRef.mastery : 0;
+
+                   return (
+                     <div key={ref.id} className="bg-white p-5 border border-slate-150 rounded-2xl shadow-xs hover:shadow-md transition-all page-break-inside-avoid text-right">
+                        {/* Header: Date and Task Title */}
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-indigo-50 pb-3 mb-4">
+                           <div className="text-right">
+                              <span className="text-[10px] text-slate-400 font-bold font-mono block mb-1">
+                                 {new Date(ref.createdAt).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                 المهمة: <span className="text-indigo-600">"{ref.taskTitle}"</span>
+                              </h4>
+                           </div>
+                           
+                           <div className="flex items-center justify-end gap-2 font-mono" dir="ltr">
+                              {/* Focus Badge */}
+                              <div className="bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-xl flex items-center gap-1 text-rose-700" title="مستوى التركيز العميق (من 5)">
+                                 <span className="text-[9px] font-black">التركيز:</span>
+                                 <span className="text-xs font-black">{ref.focus}/5</span>
+                                 {focusDiff !== 0 && (
+                                    <span className={`text-[9px] font-black ${focusDiff > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                       {focusDiff > 0 ? `▲ +${focusDiff}` : `▼ ${focusDiff}`}
+                                    </span>
+                                 )}
+                              </div>
+                              {/* Mastery Badge */}
+                              <div className="bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-xl flex items-center gap-1 text-amber-700" title="مستوى الإتقان المحرز (من 10)">
+                                 <span className="text-[9px] font-black">الإتقان:</span>
+                                 <span className="text-xs font-black">{ref.mastery}/10</span>
+                                 {masteryDiff !== 0 && (
+                                    <span className={`text-[9px] font-black ${masteryDiff > 0 ? 'text-emerald-650' : 'text-rose-500'}`}>
+                                       {masteryDiff > 0 ? `▲ +${masteryDiff}` : `▼ ${masteryDiff}`}
+                                    </span>
+                                 )}
+                              </div>
+                           </div>
+                        </div>
+
+                        {/* Side-by-Side Comparison Grid: Strengths vs Weaknesses */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                           {/* Strengths */}
+                           <div className="bg-emerald-50/40 border border-emerald-100/50 p-4 rounded-xl text-right">
+                              <h5 className="text-[10px] text-emerald-800 font-extrabold mb-2.5 flex items-center gap-1.5">
+                                 <span className="text-sm">💪</span> نقاط القوة المكتشفة
+                              </h5>
+                              <p className="text-xs text-slate-705 font-bold leading-relaxed bg-white/70 p-3 rounded-lg border border-white">
+                                 {ref.strengths || "لم يتم تسجيل نقاط قوة معينة في هذه الجلسة مسبقاً."}
+                              </p>
+                           </div>
+
+                           {/* Weaknesses */}
+                           <div className="bg-rose-50/40 border border-rose-100/55 p-4 rounded-xl text-right">
+                              <h5 className="text-[10px] text-rose-800 font-extrabold mb-2.5 flex items-center gap-1.5">
+                                 <span className="text-sm">🧨</span> نقاط الضعف ومجالات التحسين
+                              </h5>
+                              <p className="text-xs text-slate-705 font-bold leading-relaxed bg-white/70 p-3 rounded-lg border border-white">
+                                 {ref.weaknesses || "لم يتم تسليط الضوء على مجالات تحسين معينة."}
+                              </p>
+                           </div>
+                        </div>
+
+                        {/* Acquired Skills and Practical Application */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           {/* Acquired Skills & Learnings */}
+                           <div className="bg-blue-50/40 border border-blue-100/50 p-4 rounded-xl text-right">
+                              <h5 className="text-[10px] text-blue-800 font-extrabold mb-2.5 flex items-center gap-1.5">
+                                 <span className="text-sm">🧠</span> المهارات المكتسبة والتعلم
+                              </h5>
+                              <p className="text-xs text-slate-705 font-bold leading-relaxed bg-white/70 p-3 rounded-lg border border-white">
+                                 {ref.learnings || "التحصيل العام للمهارة تم بنجاح وسلاسة."}
+                              </p>
+                           </div>
+
+                           {/* Practical Application */}
+                           <div className="bg-teal-50/40 border border-teal-100/50 p-4 rounded-xl text-right flex flex-col justify-between">
+                              <div>
+                                 <h5 className="text-[10px] text-teal-800 font-extrabold mb-2.5 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                       <span className="text-sm">🛠️</span> التنزيل والتدريب العملي
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black ${ref.didPractical ? 'bg-teal-100 text-teal-800 border border-teal-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                                       {ref.didPractical ? 'تم التطبيق عملاً' : 'لم يطبق بعد'}
+                                    </span>
+                                 </h5>
+                                 <p className="text-xs text-slate-750 font-bold leading-relaxed bg-white/70 p-3 rounded-lg border border-white">
+                                    {ref.didPractical 
+                                       ? (ref.practicalIssues || "تم تأكيد التجريب والتطبيق العملي للمهمة وحصد النجاح بنجاح!") 
+                                       : "اكتمل الجانب النظري في هذه المراجعة؛ ينصح بتمارين تطبيقية وتجريب ميداني."}
+                                 </p>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                   );
+                 })
+               ) : (
+                  <div className="bg-indigo-50/20 p-6 rounded-2xl border border-indigo-100/50 text-center text-slate-400 font-bold text-xs leading-relaxed">
+                     لا توجد مراجعات مسجلة ومحفوظة حالياً لمقارنة تحليلات الوعي. أنجز المهام وسجل مراجعات التقييم لتنشيط هذا المعالج تلقائياً! 💡
+                  </div>
+               )}
+            </div>
 
            <h2 className="text-xl font-black text-rose-700 mb-4 border-b border-rose-100 pb-2 mt-8">سجل التعثرات</h2>
            <div className="space-y-4">

@@ -26,6 +26,7 @@ export interface Task {
   isCompleted: boolean;
   activities?: TaskActivity[];
   dueDate?: string;
+  description?: string;
 }
 
 export interface SubStationTask {

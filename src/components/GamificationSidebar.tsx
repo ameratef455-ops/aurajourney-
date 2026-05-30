@@ -4,7 +4,6 @@ import { Button } from "primereact/button";
 import { motion, AnimatePresence } from "motion/react";
 import { LAYERS } from "../constants/layers";
 import { vibrate, HAPITCS } from "../lib/haptics";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 export interface GamificationSidebarProps {
   gamificationSidebar: boolean;
@@ -46,17 +45,17 @@ export function GamificationSidebar({
       baseZIndex={LAYERS.GAMIFICATION_SIDEBAR}
       visible={gamificationSidebar}
       onHide={() => setGamificationSidebar(false)}
-      className="w-[98vw] max-w-4xl font-sans text-xl"
+      className="w-[98vw] max-w-4xl font-sans"
       style={{ borderRadius: '28px' }}
       maskClassName="backdrop-blur-md bg-blue-950/20"
       closable
       dismissableMask
       header={
-        <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans animate-fade-in" dir="rtl">
-          <div className="p-2 bg-amber-50/80 rounded-xl border border-amber-200/50">
-            <i className="pi pi-trophy text-amber-500 text-lg"></i>
+        <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
+          <div className="p-2 bg-gradient-to-br from-blue-900 to-indigo-950 rounded-xl border border-blue-900 shadow-sm">
+            <i className="pi pi-trophy text-white text-lg"></i>
           </div>
-          <span className="font-black text-blue-950 tracking-tight">المحرك وجوائز الأداء 🏆</span>
+          <span className="font-black text-black tracking-tight">المحرك وجوائز الأداء 🏆</span>
         </div>
       }
     >
@@ -67,7 +66,7 @@ export function GamificationSidebar({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 30 }}
             transition={{ type: "spring", damping: 22, stiffness: 300 }}
-            className="space-y-4 pt-1 text-right font-sans" 
+            className="space-y-4 pt-1 text-right font-sans text-black" 
             dir="rtl"
           >
             <TabView
@@ -82,206 +81,139 @@ export function GamificationSidebar({
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     
                     {/* XP Card - Deep Ocean Blue */}
-                    <div className="bg-gradient-to-br from-blue-50/60 to-indigo-50/15 p-5 rounded-2xl border border-blue-200/50 shadow-xs flex flex-col justify-between hover:shadow-md hover:scale-[1.01] transition-all duration-300">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl select-none">🪙</span>
+                    <div className="bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-6 rounded-3xl border border-blue-200/60 shadow-[0_12px_28px_-4px_rgba(59,130,246,0.06)] flex flex-col justify-between hover:shadow-lg hover:scale-[1.01] transition-all duration-300">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-900 to-indigo-950 flex items-center justify-center shadow-md border border-blue-800">
+                            <span className="text-2xl select-none">🪙</span>
+                          </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">نقاط الخبرة</p>
-                            <h4 className="text-lg font-black bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-650 bg-clip-text text-transparent">{gData.xp} XP</h4>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">نقاط الخبرة الكلية</p>
+                            <div className="text-4xl font-extrabold bg-gradient-to-br from-blue-700 via-indigo-700 to-indigo-900 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
+                              {gData.xp} <span className="text-xs font-black text-indigo-500 font-sans">XP</span>
+                            </div>
                           </div>
                         </div>
-                        <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full select-none">المستوى {Math.floor(gData.xp / 300) + 1}</span>
+                        <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full select-none shadow-xs">المستوى {Math.floor(gData.xp / 300) + 1}</span>
                       </div>
                       
-                      <div className="space-y-1.5">
+                      <div className="space-y-2 mt-2">
                         <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
-                          <span>طريق الترقية</span>
+                          <span>طريق الترقية للمستوى التالي</span>
                           <span className="bg-gradient-to-r from-blue-700 to-indigo-600 bg-clip-text text-transparent font-extrabold">{xpInCurrentLevel}/300 XP ({Math.round(xpPercent)}%)</span>
                         </div>
-                        <div className="w-full h-2 bg-slate-100/80 rounded-full overflow-hidden p-0.5 border border-slate-200/30">
+                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
                           <motion.div 
                             initial={{ width: 0 }}
                             animate={{ width: `${xpPercent}%` }}
                             transition={{ duration: 1, ease: "easeOut" }}
-                            className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                            className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-indigo-700 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.3)]"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Keys Card - Electric Blue */}
-                    <div className="bg-gradient-to-br from-sky-50/60 to-blue-50/15 p-5 rounded-2xl border border-sky-200/50 shadow-xs flex flex-col justify-between hover:shadow-md hover:scale-[1.01] transition-all duration-300">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl select-none">🔑</span>
+                    <div className="bg-gradient-to-br from-cyan-50 via-white to-blue-50 p-6 rounded-3xl border border-sky-200/60 shadow-[0_12px_28px_-4px_rgba(14,165,233,0.06)] flex flex-col justify-between hover:shadow-lg hover:scale-[1.01] transition-all duration-300">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-800 to-sky-900 flex items-center justify-center shadow-md border border-blue-700">
+                            <span className="text-2xl select-none">🔑</span>
+                          </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">مفاتيح التركيز</p>
-                            <h4 className="text-lg font-black bg-gradient-to-r from-sky-600 via-blue-700 to-indigo-800 bg-clip-text text-transparent">{gData.keys} مفاتيح</h4>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">مفاتيح التركيز الحالية</p>
+                            <div className="text-4xl font-extrabold bg-gradient-to-br from-sky-500 via-cyan-600 to-blue-700 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
+                              {gData.keys} <span className="text-xs font-black text-sky-500 font-sans">مفاتيح</span>
+                            </div>
                           </div>
                         </div>
-                        <span className="text-[10px] font-black text-sky-700 bg-sky-50 border border-sky-100 px-2.5 py-0.5 rounded-full select-none">رصيد الفك</span>
+                        <span className="text-[10px] font-black text-sky-700 bg-sky-50 border border-sky-100 px-3 py-1 rounded-full select-none shadow-xs">رصيد الفك</span>
                       </div>
                       
-                      <div className="space-y-1.5">
+                      <div className="space-y-2 mt-2">
                         <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
-                          <span>الهدف لفتح المحطات</span>
-                          <span className="bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent font-extrabold">{gData.keys}/{keysTarget} مفتاح ({Math.round(keysPercent)}%)</span>
+                          <span>الهدف لفتح المحطات القادمة</span>
+                          <span className="bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent font-extrabold">{gData.keys}/{keysTarget} مفاتيح ({Math.round(keysPercent)}%)</span>
                         </div>
-                        <div className="w-full h-2 bg-slate-100/80 rounded-full overflow-hidden p-0.5 border border-slate-200/30">
+                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
                           <motion.div 
                             initial={{ width: 0 }}
                             animate={{ width: `${keysPercent}%` }}
                             transition={{ duration: 1, ease: "easeOut" }}
-                            className="h-full bg-gradient-to-r from-sky-500 to-blue-600 rounded-full shadow-[0_0_8px_rgba(14,165,233,0.5)]"
+                            className="h-full bg-gradient-to-r from-sky-500 to-blue-600 rounded-full shadow-[0_0_8px_rgba(14,165,233,0.3)]"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Streak Card - Royal Cobalt Blue */}
-                    <div className="bg-gradient-to-br from-blue-50/60 to-indigo-50/15 p-5 rounded-2xl border border-blue-200/40 shadow-xs flex flex-col justify-between hover:shadow-md hover:scale-[1.01] transition-all duration-300">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl select-none">🔥</span>
+                    <div className="bg-gradient-to-br from-indigo-50 via-white to-rose-50 p-6 rounded-3xl border border-indigo-200/60 shadow-[0_12px_28px_-4px_rgba(139,92,246,0.06)] flex flex-col justify-between hover:shadow-lg hover:scale-[1.01] transition-all duration-300">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-950 via-amber-955 to-orange-955 flex items-center justify-center shadow-md border border-orange-850">
+                            <span className="text-2xl select-none">🔥</span>
+                          </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">الالتزام المالي</p>
-                            <h4 className="text-lg font-black bg-gradient-to-r from-blue-600 via-blue-700 to-sky-600 bg-clip-text text-transparent">{gData.streak || 0} يوم متواصل</h4>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">عدد الأيام المتواصلة</p>
+                            <div className="text-4xl font-extrabold bg-gradient-to-br from-orange-500 via-rose-500 to-red-650 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
+                              {gData.streak || 0} <span className="text-xs font-black text-rose-500 font-sans">يوم</span>
+                            </div>
                           </div>
                         </div>
-                        <span className="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full select-none">الستريك</span>
+                        <span className="text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-100 px-3 py-1 rounded-full select-none shadow-xs">الستريك الحالي</span>
                       </div>
                       
-                      <div className="space-y-1.5">
+                      <div className="space-y-2 mt-2">
                         <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
-                          <span>هدف الشهر</span>
-                          <span className="bg-gradient-to-r from-blue-600 to-sky-600 bg-clip-text text-transparent font-extrabold">{gData.streak || 0}/{streakTarget} يوم ({Math.round(streakPercent)}%)</span>
+                          <span>الهدف الشهري للالتزام</span>
+                          <span className="bg-gradient-to-r from-rose-600 to-orange-500 bg-clip-text text-transparent font-extrabold">{gData.streak || 0}/{streakTarget} يوم ({Math.round(streakPercent)}%)</span>
                         </div>
-                        <div className="w-full h-2 bg-slate-100/80 rounded-full overflow-hidden p-0.5 border border-slate-200/30">
+                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
                           <motion.div 
                             initial={{ width: 0 }}
                             animate={{ width: `${streakPercent}%` }}
                             transition={{ duration: 1, ease: "easeOut" }}
-                            className="h-full bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-600 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                            className="h-full bg-gradient-to-r from-orange-500 via-rose-550 to-red-600 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.3)]"
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Fuel Card - Aquamarine Cyan-Blue */}
-                    <div className="bg-gradient-to-br from-blue-50/40 to-slate-50/20 p-5 rounded-2xl border border-blue-155/40 shadow-xs flex flex-col justify-between hover:shadow-md hover:scale-[1.01] transition-all duration-300">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl select-none">⛽</span>
+                    {/* Fuel Card - Aquamarine Focus-Blue */}
+                    <div className="bg-gradient-to-br from-teal-50 via-white to-blue-50 p-6 rounded-3xl border border-teal-200/60 shadow-[0_12px_28px_-4px_rgba(20,184,166,0.06)] flex flex-col justify-between hover:shadow-lg hover:scale-[1.01] transition-all duration-350">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-750 to-sky-850 flex items-center justify-center shadow-md border border-blue-600">
+                            <span className="text-2xl select-none">⛽</span>
+                          </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">البنزين اليومي</p>
-                            <h4 className="text-lg font-black bg-gradient-to-r from-blue-650 via-sky-600 to-blue-750 bg-clip-text text-transparent">{gData.fuel || 0}% كامل</h4>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">مخزون التركيز والوقود</p>
+                            <div className="text-4xl font-extrabold bg-gradient-to-br from-cyan-600 via-teal-500 to-blue-750 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
+                              {gData.fuel || 0}% <span className="text-xs font-black text-cyan-500 font-sans">مخزن</span>
+                            </div>
                           </div>
                         </div>
-                        <span className="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full select-none justify-self-end">طاقة السير</span>
+                        <span className="text-[10px] font-black text-teal-700 bg-teal-50 border border-teal-100 px-3 py-1 rounded-full select-none shadow-xs">طاقة السير</span>
                       </div>
                       
-                      <div className="space-y-1.5">
+                      <div className="space-y-2 mt-2">
                         <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
-                          <span>مؤشر الخزان الحقيقي</span>
-                          <span className="bg-gradient-to-r from-blue-650 to-sky-600 bg-clip-text text-transparent font-extrabold">{gData.fuel || 0}%</span>
+                          <span>معدل طاقة السعي الحقيقية</span>
+                          <span className="bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent font-extrabold">{gData.fuel || 0}%</span>
                         </div>
-                        <div className="w-full h-2 bg-slate-100/80 rounded-full overflow-hidden p-0.5 border border-slate-200/30">
+                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
                           <motion.div 
                             initial={{ width: 0 }}
                             animate={{ width: `${fuelPercent}%` }}
                             transition={{ duration: 1, ease: "easeOut" }}
-                            className="h-full bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-600 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                            className="h-full bg-gradient-to-r from-teal-500 via-cyan-400 to-blue-600 rounded-full shadow-[0_0_8px_rgba(20,184,166,0.3)]"
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Battery Card - Violet Ice-Blue */}
-                    <div className="bg-gradient-to-br from-blue-50/50 to-slate-50/10 p-5 rounded-2xl border border-blue-150/40 shadow-xs flex flex-col justify-between hover:shadow-md hover:scale-[1.01] transition-all duration-300 md:col-span-2 lg:col-span-2">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl select-none">🔋</span>
-                          <div>
-                            <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">بطارية الخطة النشطة</p>
-                            <h4 className="text-lg font-black bg-gradient-to-r from-blue-600 via-indigo-650 to-blue-800 bg-clip-text text-transparent">{activeStationEnergy}% شحن</h4>
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full select-none">مستوى الإنجاز</span>
-                      </div>
-                      
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
-                          <span>اكتمال مهام المحطة</span>
-                          <span className="bg-gradient-to-r from-blue-650 to-indigo-700 bg-clip-text text-transparent font-extrabold">{activeStationEnergy}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-slate-100/80 rounded-full overflow-hidden p-0.5 border border-slate-200/30">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${batteryPercent}%` }}
-                            transition={{ duration: 1, ease: "easeOut" }}
-                            className="h-full bg-gradient-to-r from-blue-600 via-blue-750 to-indigo-800 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.5)]"
-                          />
-                        </div>
-                      </div>
-                    </div>
 
-                  </div>
 
-                  {/* High Quality Performance & Growth Curve Chart */}
-                  <div className="mt-8 bg-gradient-to-br from-slate-50/80 to-blue-50/30 border border-slate-200/50 p-6 rounded-3xl relative">
-                    <div className="flex justify-between items-center mb-6" dir="rtl">
-                      <div>
-                        <h4 className="text-sm font-black text-blue-950 flex items-center gap-1.5">
-                          <i className="pi pi-chart-line text-blue-600"></i> منحنى الأداء والنمو المتزن 📈
-                        </h4>
-                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">مؤشرات تصاعد التزامك ومستوى الطاقة في رحلة الأورا</p>
-                      </div>
-                      <div className="flex gap-4 text-[9px] font-bold text-slate-500 select-none">
-                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-xs bg-blue-600" /> نقاط الأداء XP</span>
-                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-xs bg-sky-500" /> البنزين والتركيز %</span>
-                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-xs bg-indigo-500" /> شحن البطارية %</span>
-                      </div>
-                    </div>
-
-                    <div className="h-[220px] w-full text-xs">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart
-                          data={[
-                            { name: "البداية", "نقاط الأداء XP": Math.max(10, Math.round(gData.xp * 0.15)), "التركيز والوقود %": 30, "البطارية %": 10 },
-                            { name: "مرحلة 1", "نقاط الأداء XP": Math.max(50, Math.round(gData.xp * 0.45)), "التركيز والوقود %": Math.max(40, (gData.fuel || 60) - 15), "البطارية %": Math.max(25, Math.round(activeStationEnergy * 0.35)) },
-                            { name: "مرحلة 2", "نقاط الأداء XP": Math.max(110, Math.round(gData.xp * 0.75)), "التركيز والوقود %": Math.max(50, (gData.fuel || 60) - 5), "البطارية %": Math.max(50, Math.round(activeStationEnergy * 0.75)) },
-                            { name: "الآن", "نقاط الأداء XP": gData.xp, "التركيز والوقود %": gData.fuel || 60, "البطارية %": activeStationEnergy }
-                          ]}
-                          margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
-                        >
-                          <defs>
-                            <linearGradient id="colorXp" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25}/>
-                              <stop offset="95%" stopColor="#2563eb" stopOpacity={0.01}/>
-                            </linearGradient>
-                            <linearGradient id="colorFuel" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.25}/>
-                              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.01}/>
-                            </linearGradient>
-                            <linearGradient id="colorBattery" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25}/>
-                              <stop offset="95%" stopColor="#6366f1" stopOpacity={0.01}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                          <XAxis dataKey="name" stroke="#94a3b8" tickLine={false} style={{ fontSize: '10px', fontWeight: 'bold' }} />
-                          <YAxis stroke="#94a3b8" tickLine={false} style={{ fontSize: '10px' }} />
-                          <Tooltip 
-                            contentStyle={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', textAlign: 'right', direction: 'rtl' }}
-                            itemStyle={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 0' }}
-                          />
-                          <Area type="monotone" dataKey="نقاط الأداء XP" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorXp)" />
-                          <Area type="monotone" dataKey="التركيز والوقود %" stroke="#0ea5e9" strokeWidth={2.5} fillOpacity={1} fill="url(#colorFuel)" />
-                          <Area type="monotone" dataKey="البطارية %" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorBattery)" />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
                   </div>
                 </div>
               </TabPanel>
@@ -359,7 +291,7 @@ export function GamificationSidebar({
                     {/* Option 2: 10 Keys */}
                     <div className="bg-white p-5 rounded-3xl border-2 border-indigo-100 bg-indigo-50/5 shadow-sm hover:shadow-lg hover:border-indigo-300 hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
                       <div className="absolute top-0 right-1 w-24 h-24 bg-indigo-500/[0.04] rounded-full blur-2xl" />
-                      <div className="absolute top-3 left-3 bg-gradient-to-r from-indigo-600 to-blue-700 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full shadow-sm animate-pulse-slow">المميزة والأقوى ⭐</div>
+                      <div className="absolute top-3 left-3 bg-gradient-to-r from-indigo-600 to-blue-700 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full shadow-sm">المميزة والأقوى ⭐</div>
                       <div className="space-y-4">
                         <div className="flex justify-between items-center border-b border-indigo-50/50 pb-3">
                           <div className="flex items-center gap-2">

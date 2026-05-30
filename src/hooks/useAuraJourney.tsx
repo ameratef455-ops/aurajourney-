@@ -39,8 +39,6 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   const [activeNoteStationId, setActiveNoteStationId] = useState<string>("");
   const [noteText, setNoteText] = useState("");
   const [notePriority, setNotePriority] = useState<'low' | 'medium' | 'high'>('medium');
-  const [noteTags, setNoteTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState("");
 
   // Time Capsule state
   const [capsuleText, setCapsuleText] = useState("");
@@ -244,27 +242,17 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     for (const st of stations) {
       const stTasks = tasks.filter((t) => t.stationId === st.id);
       const mainTasks = stTasks.filter((t) => t.type === "main");
+      const subTasksListForSt = tasks.filter((t) => t.type === "sub" && mainTasks.some(m => m.id === t.parentId));
       
+      const totalCount = mainTasks.length + subTasksListForSt.length;
       let baseEnergy = 0;
-      if (mainTasks.length === 0) {
+      if (totalCount === 0) {
         baseEnergy = 100;
       } else {
-        // Equation: X = 100 / (number of main tasks)
-        const X = 100 / mainTasks.length;
-        
-        mainTasks.forEach(mainTask => {
-          const subTasks = tasks.filter(t => t.parentId === mainTask.id && t.type === "sub");
-          if (subTasks.length === 0) {
-            if (mainTask.isCompleted) {
-              baseEnergy += X;
-            }
-          } else {
-            // Equation: Y = X / (number of sub-tasks of this main task)
-            const Y = X / subTasks.length;
-            const completedSubsCount = subTasks.filter(t => t.isCompleted).length;
-            baseEnergy += (completedSubsCount * Y);
-          }
-        });
+        const portion = 100 / totalCount;
+        const completedMainCount = mainTasks.filter(t => t.isCompleted).length;
+        const completedSubCount = subTasksListForSt.filter(t => t.isCompleted).length;
+        baseEnergy = (completedMainCount + completedSubCount) * portion;
       }
       
       // Calculate Activity Bonus: Each completed activity (practical task) adds 15%
@@ -293,7 +281,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
         practicalBonus += sTasks.filter(t => t.isCompleted).length * 15;
       });
 
-      map[st.id] = Math.min(130, Math.min(100, Math.round(baseEnergy)) + practicalBonus);
+      map[st.id] = Math.min(100, Math.round(baseEnergy)) + practicalBonus;
     }
     return map;
   }, [stations, tasks, user]);
@@ -312,20 +300,31 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   }, [stations, user?.unlockedStationIds]);
 
   const unlockStation = async (stationId: string) => {
-    if (!user) return;
+    if (!user || !tasks) return;
     const requiredKeys = 10;
     
     const targetIdx = stations.findIndex(s => s.id === stationId);
     if (targetIdx > 0) {
       const prevSt = stations[targetIdx - 1];
-      const prevEnergy = stationEnergy[prevSt.id] || 0;
+      const prevStTasks = tasks.filter(t => t.stationId === prevSt.id);
       
-      if (prevEnergy < 130) {
+      // All main tasks completed
+      const prevMainTasks = prevStTasks.filter(t => t.type === 'main');
+      const allMainCompleted = prevMainTasks.length > 0 ? prevMainTasks.every(t => t.isCompleted) : true;
+      
+      // At least 2 practical/sub tasks completed
+      const prevSubTasks = prevStTasks.filter(t => t.type === 'sub');
+      const completedSubCount = prevSubTasks.filter(t => t.isCompleted).length;
+      const subCompletedEnough = completedSubCount >= 2;
+
+      const missingMain = prevMainTasks.filter(t => !t.isCompleted).length;
+      
+      if (!allMainCompleted || !subCompletedEnough) {
         toast.current?.show({
           severity: "error",
-          summary: "الخطة السابقة غير مكتملة! ⚠️",
-          detail: "يطلب العبور للخطة التالية الوصول لنسبة 130% من الطاقة عبر المهام التطبيقية.",
-          life: 4500,
+          summary: "الخطة السابقة غير مكتملة الشروط! ⚠️",
+          detail: `لفتح الخطة التالية، يجب إنهاء جميع المهام الأساسية (المتبقي: ${missingMain}) ومهمتين تطبيقيتين على الأقل (المكتمل من التطبيقية: ${completedSubCount}/2).`,
+          life: 5500,
         });
         return;
       }
@@ -574,15 +573,13 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     vibrate(HAPITCS.COMPLETE);
     await (db.tasks as any).update(task.id, { isCompleted: true });
 
-    let newXp = gData.xp;
-    let newKeys = gData.keys;
+    let isMainCompleted = false;
 
     if (task.type === "main") {
-      newXp += task.xp || 30;
       toast.current?.show({
         severity: "success",
         summary: "إنجاز رائع! ⚡",
-        detail: `أكملت مهمة أساسية مكثفة بنجاح! نلت +${task.xp || 30} XP لمسيرتك.`,
+        detail: `أكملت مهمة أساسية مكثفة بنجاح! نلت +30 XP لمسيرتك.`,
         life: 2500,
       });
       
@@ -612,61 +609,75 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
         });
       }
     } else if (task.type === "sub") {
-      newXp += task.xp || 15;
       toast.current?.show({
         severity: "success",
         summary: "خطوة بخطوة! 🧩",
-        detail: `أكملت مهمة فرعية! نلت +${task.xp || 15} XP لمسيرتك.`,
+        detail: `أكملت مهمة فرعية!`,
         life: 2000,
       });
     } else if (task.type === "side") {
-      newXp += task.xp || 25;
-      newKeys += 1;
       toast.current?.show({
         severity: "success",
         summary: "مهارة استثنائية! ⭐",
-        detail: `أنجزت مهارة بونص جانبية ومكثفة! ربحت +${task.xp || 25} XP ومفتاح تركيز إضافي.`,
+        detail: `أنجزت مهارة بونص جانبية ومكثفة! ربحت +20 XP ومفتاح تركيز إضافي.`,
         life: 3000,
       });
     }
 
-    const baseGameData = { ...gData, xp: newXp, keys: newKeys };
-    const updatedGameData = processWorkdayAndStreak(baseGameData);
-    
-    if (task.type === 'sub' || task.type === 'side') {
-       updatedGameData.tasksCompletedSinceReview = (updatedGameData.tasksCompletedSinceReview || 0) + 1;
-       if (updatedGameData.tasksCompletedSinceReview === 2) {
-          await db.notifications.add({
-             id: safeRandomUUID(),
-             title: 'مراجعة المهام 🌟',
-             message: 'لقد أنهيت مهمتين مؤخراً، قم بمراجعة إحداهما للحصول على أقصى الدفعة المعنوية وتحديث سجل التقييم.',
-             isRead: false,
-             type: 'info',
-             createdAt: new Date().toISOString()
-          });
-       }
-    }
+    let shouldShowReviewNotification = false;
 
-    await db.userSettings.update(user.id, {
-      gameData: updatedGameData,
+    await db.userSettings.where('id').equals(user.id).modify((u) => {
+      let currentXp = u.gameData.xp || 0;
+      let currentKeys = u.gameData.keys || 0;
+
+      if (task.type === "main") {
+         currentXp += 30;
+      } else if (task.type === "side") {
+         currentXp += 20;
+         currentKeys += 1;
+      }
+
+      const baseGameData = { ...u.gameData, xp: currentXp, keys: currentKeys };
+      const updatedGameData = processWorkdayAndStreak(baseGameData);
+      
+      if (task.type === 'sub' || task.type === 'side') {
+         updatedGameData.tasksCompletedSinceReview = (updatedGameData.tasksCompletedSinceReview || 0) + 1;
+         if (updatedGameData.tasksCompletedSinceReview === 2) {
+            shouldShowReviewNotification = true;
+         }
+      }
+
+      u.gameData = updatedGameData;
     });
+
+    if (shouldShowReviewNotification) {
+       await db.notifications.add({
+          id: safeRandomUUID(),
+          title: 'مراجعة المهام 🌟',
+          message: 'لقد أنهيت مهمتين مؤخراً، قم بمراجعة إحداهما للحصول على أقصى الدفعة المعنوية وتحديث سجل التقييم.',
+          isRead: false,
+          type: 'info',
+          createdAt: new Date().toISOString()
+       });
+    }
   };
 
   const rewardActivity = async (isCompleted: boolean) => {
     if (!user) return;
     vibrate(isCompleted ? HAPITCS.COMPLETE : HAPITCS.MAJOR_CLICK);
     
-    // Each activity (practical task) gives 15 XP and 15% bonus
+    // Each activity (practical task) gives 25 XP and 15% bonus
     if (isCompleted && user) {
-      const newXp = gData.xp + 15;
-      await db.userSettings.update(user.id, {
-        gameData: { ...gData, xp: newXp }
+      await db.userSettings.where('id').equals(user.id).modify(u => {
+         if (u.gameData) {
+            u.gameData.xp = (u.gameData.xp || 0) + 25;
+         }
       });
       
       toast.current?.show({
         severity: "success",
         summary: "تطبيق ناجح! 🛠️",
-        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +15 XP وزادت طاقة الخطة بـ 15%.",
+        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +25 XP وزادت طاقة الخطة بـ 15%.",
         life: 3000,
       });
     }
@@ -750,8 +761,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
             { 
               text: noteText, 
               date: new Date().toISOString(),
-              priority: notePriority,
-              tags: noteTags
+              priority: notePriority
             }
           ] 
         },
@@ -766,8 +776,6 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     
     setNoteText("");
     setNotePriority('medium');
-    setNoteTags([]);
-    setTagInput("");
   };
 
   const deleteJournalNote = async (stationId: string, noteIndex: number) => {
@@ -1168,43 +1176,54 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   const completePracticalTask = async (stationId: string, subStationIndex: number, taskId: string) => {
     if (!user) return;
     vibrate(HAPITCS.COMPLETE);
-    const rawSubs = user.subStations?.[stationId];
-    const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
-    
-    if (!stationSubs || !stationSubs[subStationIndex]) return;
+    await db.userSettings.where('id').equals(user.id).modify(u => {
+      const rawSubs = u.subStations?.[stationId];
+      const stationSubs = Array.isArray(rawSubs) ? rawSubs : (rawSubs ? [rawSubs] : []);
+      if (!stationSubs || !stationSubs[subStationIndex]) return;
 
-    const subStation = stationSubs[subStationIndex];
-    const sTasks = subStation.tasks || [];
-    const updatedTasks = sTasks.map(t => {
-      if (t.id === taskId) {
-        return { ...t, isCompleted: true };
-      }
-      return t;
+      const subStation = stationSubs[subStationIndex];
+      const sTasks = subStation.tasks || [];
+      
+      let wasAlreadyCompleted = true;
+      
+      const updatedTasks = sTasks.map(t => {
+        if (t.id === taskId) {
+          if (!t.isCompleted) wasAlreadyCompleted = false;
+          return { ...t, isCompleted: true };
+        }
+        return t;
+      });
+
+      if (wasAlreadyCompleted) return;
+
+      const isNowCompleted = updatedTasks.every(t => t.isCompleted);
+      const updatedStationSubs = [...stationSubs];
+      updatedStationSubs[subStationIndex] = {
+        ...subStation,
+        tasks: updatedTasks,
+        isCompleted: isNowCompleted
+      };
+      
+      const baseGameData = { ...u.gameData };
+      const updatedGameData = processWorkdayAndStreak(baseGameData);
+
+      u.subStations = {
+         ...(u.subStations || {}),
+         [stationId]: updatedStationSubs
+      };
+      
+      u.gameData = updatedGameData;
     });
-
-    const isNowCompleted = updatedTasks.every(t => t.isCompleted);
-    const updatedStationSubs = [...stationSubs];
-    updatedStationSubs[subStationIndex] = {
-      ...subStation,
-      tasks: updatedTasks,
-      isCompleted: isNowCompleted
-    };
     
-    const baseGameData = {
-      ...gData,
-      xp: gData.xp + 15 // Rewarding 15 xp for practical task completion
-    };
-    const updatedGameData = processWorkdayAndStreak(baseGameData);
+    const refreshedUser = await db.userSettings.get(user.id);
+    const rawSubs2 = refreshedUser?.subStations?.[stationId];
+    const stationSubs2 = Array.isArray(rawSubs2) ? rawSubs2 : (rawSubs2 ? [rawSubs2] : []);
+    const subStation = stationSubs2[subStationIndex];
+    if (!subStation) return;
+    
+    const isNowCompleted = subStation.isCompleted;
 
-    await db.userSettings.update(user.id, {
-      subStations: {
-        ...user.subStations,
-        [stationId]: updatedStationSubs
-      },
-      gameData: updatedGameData
-    });
-
-    if (isNowCompleted && !subStation.isCompleted) {
+    if (isNowCompleted) {
        confetti({
           particleCount: 150,
           spread: 70,
@@ -1255,10 +1274,6 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     setNoteText,
     notePriority,
     setNotePriority,
-    noteTags,
-    setNoteTags,
-    tagInput,
-    setTagInput,
     capsuleText,
     setCapsuleText,
     celebratedCapsule,

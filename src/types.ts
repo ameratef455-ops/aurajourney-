@@ -26,4 +26,5 @@ export interface WizardTask {
   title: string;
   type: 'main' | 'sub' | 'side';
   parentId?: string;
+  description?: string;
 }

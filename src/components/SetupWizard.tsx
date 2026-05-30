@@ -45,7 +45,7 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
               targetDate: st.targetDate,
               tasks: dbTasks
                 .filter(t => t.stationId === st.id)
-                .map(t => ({ id: t.id, title: t.title, type: t.type, isCompleted: t.isCompleted, parentId: t.parentId }))
+                .map(t => ({ id: t.id, title: t.title, type: t.type, isCompleted: t.isCompleted, parentId: t.parentId, description: t.description || "" }))
             }));
 
             setState({
@@ -128,6 +128,7 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
           stationId,
           parentId: t.parentId || undefined,
           isCompleted: (t as any).isCompleted || false,
+          description: t.description || "",
         });
       }
     }
@@ -554,7 +555,8 @@ const Step5 = ({ state, setState }: any) => {
       id: safeRandomUUID(), 
       title: '', 
       type,
-      parentId: parentId || undefined
+      parentId: parentId || undefined,
+      description: ''
     });
     setState({...state, stations: arr});
   };
@@ -562,6 +564,12 @@ const Step5 = ({ state, setState }: any) => {
   const updateTask = (stationIdx: number, taskIdx: number, title: string) => {
     const arr = [...state.stations];
     arr[stationIdx].tasks[taskIdx].title = title;
+    setState({...state, stations: arr});
+  };
+
+  const updateTaskDescription = (stationIdx: number, taskIdx: number, description: string) => {
+    const arr = [...state.stations];
+    arr[stationIdx].tasks[taskIdx].description = description;
     setState({...state, stations: arr});
   };
 
@@ -658,41 +666,57 @@ const Step5 = ({ state, setState }: any) => {
                   const subTasks = currentStation.tasks.filter((sub: any) => sub.type === 'sub' && sub.parentId === t.id);
 
                   return (
-                    <div key={t.id} className="bg-white border border-slate-100 p-4 rounded-xl shadow-3xs space-y-4">
-                      <div className="flex items-center gap-2">
-                        <span className="flex-none text-[10px] font-extrabold bg-blue-50 text-blue-900 rounded-md px-2 py-1 select-none">أساسية</span>
+                    <div key={t.id} className="bg-white border border-slate-100 p-4 rounded-xl shadow-3xs space-y-3">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="flex-none text-[10px] font-extrabold bg-blue-50 text-blue-900 rounded-md px-2 py-1 select-none">أساسية</span>
+                          <input 
+                            className="flex-1 p-3 border border-slate-100 bg-slate-50/40 rounded-xl outline-none focus:ring-2 ring-blue-900/10 transition-all text-xs font-bold text-blue-950 placeholder-gray-300" 
+                            placeholder="مثال: كتابة مراجعة شاملة لأساسيات اللغة..." 
+                            value={t.title} 
+                            onChange={e => updateTask(selectedStation, absoluteIdx, e.target.value)} 
+                          />
+                          <button 
+                            onClick={() => removeTask(selectedStation, absoluteIdx)} 
+                            className="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-100 rounded-xl transition-all shrink-0 cursor-pointer"
+                          >
+                            <i className="pi pi-trash text-xs"></i>
+                          </button>
+                        </div>
                         <input 
-                          className="flex-1 p-3 border border-slate-100 bg-slate-50/40 rounded-xl outline-none focus:ring-2 ring-blue-900/10 transition-all text-xs font-bold text-blue-950 placeholder-gray-300" 
-                          placeholder="مثال: كتابة مراجعة شاملة لأساسيات اللغة..." 
-                          value={t.title} 
-                          onChange={e => updateTask(selectedStation, absoluteIdx, e.target.value)} 
+                          className="w-full p-2.5 border border-slate-100/60 bg-slate-50/10 hover:bg-slate-50/30 rounded-xl outline-none focus:ring-2 ring-blue-900/10 transition-all text-[11px] text-gray-500 placeholder-gray-400 font-sans" 
+                          placeholder="وصف إيضاحي للمهمة الأساسية (اختياري)..." 
+                          value={t.description || ''} 
+                          onChange={e => updateTaskDescription(selectedStation, absoluteIdx, e.target.value)} 
                         />
-                        <button 
-                          onClick={() => removeTask(selectedStation, absoluteIdx)} 
-                          className="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-100 rounded-xl transition-all shrink-0 cursor-pointer"
-                        >
-                          <i className="pi pi-trash text-xs"></i>
-                        </button>
                       </div>
 
                       <div className="mr-6 pr-4 border-r-2 border-dashed border-slate-100/80 space-y-3">
                         {subTasks.map((sub: any) => {
                           const absoluteSubIdx = currentStation.tasks.findIndex((ts: any) => ts.id === sub.id);
                           return (
-                            <div key={sub.id} className="flex items-center gap-2">
-                              <span className="flex-none text-[9px] font-bold bg-indigo-50 text-indigo-700 rounded-md px-1.5 py-0.5 select-none">فرعية</span>
+                            <div key={sub.id} className="flex flex-col gap-1.5 p-2 bg-slate-50/20 rounded-xl border border-dotted border-slate-200">
+                              <div className="flex items-center gap-2">
+                                <span className="flex-none text-[9px] font-bold bg-indigo-50 text-indigo-700 rounded-md px-1.5 py-0.5 select-none">فرعية</span>
+                                <input 
+                                  className="flex-1 p-2 border border-slate-100 bg-white rounded-lg outline-none focus:ring-2 ring-indigo-600/10 transition-all text-xs font-medium text-gray-700 placeholder-gray-300" 
+                                  placeholder="اكتب تفصيلاً فرعياً..." 
+                                  value={sub.title} 
+                                  onChange={e => updateTask(selectedStation, absoluteSubIdx, e.target.value)} 
+                                />
+                                <button 
+                                  onClick={() => removeTask(selectedStation, absoluteSubIdx)} 
+                                  className="p-2 text-gray-300 hover:text-rose-500 rounded-lg transition-colors shrink-0 cursor-pointer"
+                                >
+                                  <i className="pi pi-times text-[10px]"></i>
+                                </button>
+                              </div>
                               <input 
-                                className="flex-1 p-2 border border-slate-100 bg-white rounded-lg outline-none focus:ring-2 ring-indigo-600/10 transition-all text-xs font-medium text-gray-700 placeholder-gray-300" 
-                                placeholder="اكتب تفصيلاً فرعياً..." 
-                                value={sub.title} 
-                                onChange={e => updateTask(selectedStation, absoluteSubIdx, e.target.value)} 
+                                className="w-full p-1.5 border border-slate-100/50 bg-white rounded-md outline-none focus:ring-2 ring-indigo-600/10 transition-all text-[10px] text-gray-400 placeholder-gray-300" 
+                                placeholder="وصف للتطبيق العملي (اختياري)..." 
+                                value={sub.description || ''} 
+                                onChange={e => updateTaskDescription(selectedStation, absoluteSubIdx, e.target.value)} 
                               />
-                              <button 
-                                onClick={() => removeTask(selectedStation, absoluteSubIdx)} 
-                                className="p-2 text-gray-300 hover:text-rose-500 rounded-lg transition-colors shrink-0 cursor-pointer"
-                              >
-                                <i className="pi pi-times text-[10px]"></i>
-                              </button>
                             </div>
                           );
                         })}
@@ -748,20 +772,28 @@ const Step5 = ({ state, setState }: any) => {
                 {sideTasks.map((t: any) => {
                   const absoluteIdx = currentStation.tasks.findIndex((ts: any) => ts.id === t.id);
                   return (
-                    <div key={t.id} className="flex gap-2">
-                      <span className="flex-none text-[10px] font-extrabold bg-amber-50 text-amber-700 rounded-md px-2 py-3 select-none flex items-center">جانبية</span>
+                    <div key={t.id} className="flex flex-col gap-2 p-3 bg-white border border-slate-100 rounded-xl shadow-3xs">
+                      <div className="flex gap-2">
+                        <span className="flex-none text-[10px] font-extrabold bg-amber-50 text-amber-700 rounded-md px-2 py-3 select-none flex items-center">جانبية</span>
+                        <input 
+                          className="flex-1 p-3 border border-slate-100 bg-white rounded-xl outline-none focus:ring-2 ring-amber-600/10 transition-colors text-xs font-medium text-gray-700 placeholder-gray-300 shadow-3xs" 
+                          placeholder="مثال: التدرب على المفردات لمدة 15 دقيقة إضافية..." 
+                          value={t.title} 
+                          onChange={e => updateTask(selectedStation, absoluteIdx, e.target.value)} 
+                        />
+                        <button 
+                          onClick={() => removeTask(selectedStation, absoluteIdx)} 
+                          className="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-100 rounded-xl transition-all shrink-0 cursor-pointer font-sans"
+                        >
+                          <i className="pi pi-trash text-xs"></i>
+                        </button>
+                      </div>
                       <input 
-                        className="flex-1 p-3 border border-slate-100 bg-white rounded-xl outline-none focus:ring-2 ring-amber-600/10 transition-colors text-xs font-medium text-gray-700 placeholder-gray-300 shadow-3xs" 
-                        placeholder="مثال: التدرب على المفردات لمدة 15 دقيقة إضافية..." 
-                        value={t.title} 
-                        onChange={e => updateTask(selectedStation, absoluteIdx, e.target.value)} 
+                        className="w-full p-2 border border-slate-100 bg-amber-50/15 hover:bg-amber-50/30 rounded-lg outline-none focus:ring-2 ring-amber-600/10 transition-all text-[10px] text-amber-900/65 placeholder-amber-900/35" 
+                        placeholder="وصف إيضاحي للمهمة الجانبية (اختياري)..." 
+                        value={t.description || ''} 
+                        onChange={e => updateTaskDescription(selectedStation, absoluteIdx, e.target.value)} 
                       />
-                      <button 
-                        onClick={() => removeTask(selectedStation, absoluteIdx)} 
-                        className="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-100 rounded-xl transition-all shrink-0 cursor-pointer font-sans"
-                      >
-                        <i className="pi pi-trash text-xs"></i>
-                      </button>
                     </div>
                   );
                 })}

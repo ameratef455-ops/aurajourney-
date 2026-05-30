@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { vibrate, HAPITCS } from "../../lib/haptics";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
+import { Calendar } from "primereact/calendar";
 import { confirmPopup, ConfirmPopup } from "primereact/confirmpopup";
 import { 
   Plus, 
@@ -129,7 +130,7 @@ export function CalendarTheme({
   const [selectedDay, setSelectedDay] = useState(new Date());
   
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+  const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 0 });
   const calendarDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const selectedStationObj = stations.find(s => s.id === selectedStationId);
@@ -255,7 +256,6 @@ export function CalendarTheme({
   };
 
   const [activityTask, setActivityTask] = useState<any>(null);
-  const [activeView, setActiveView] = useState<'calendar' | 'visual'>('calendar');
 
   // Derive target station ID correctly if needed
 
@@ -315,34 +315,7 @@ export function CalendarTheme({
                   </div>
             </div>
 
-            <div className="flex gap-4 border-b border-slate-100 mb-6 px-2">
-              <button
-                onClick={() => { vibrate(HAPITCS.MAJOR_CLICK); setActiveView('calendar') }}
-                className={`py-3 px-4 font-black text-xs transition-all relative ${activeView === 'calendar' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <div className="flex items-center gap-2">
-                  <i className="pi pi-calendar" /> التقويم
-                </div>
-                {activeView === 'calendar' && (
-                  <motion.div layoutId="calendarTabIndicator" className="absolute bottom-[-1px] left-0 right-0 h-[3px] bg-indigo-600 rounded-t-full" />
-                )}
-              </button>
-              <button
-                onClick={() => { vibrate(HAPITCS.MAJOR_CLICK); setActiveView('visual') }}
-                className={`py-3 px-4 font-black text-xs transition-all relative ${activeView === 'visual' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <div className="flex items-center gap-2">
-                  <i className="pi pi-sitemap" /> المخطط البصري
-                </div>
-                {activeView === 'visual' && (
-                  <motion.div layoutId="calendarTabIndicator" className="absolute bottom-[-1px] left-0 right-0 h-[3px] bg-indigo-600 rounded-t-full" />
-                )}
-              </button>
-            </div>
-
             <div className="relative min-h-[400px]">
-              <AnimatePresence mode="wait">
-                {activeView === 'calendar' ? (
                  <motion.div
                    key="calendar-view"
                    initial={{ opacity: 0, x: -20 }}
@@ -475,81 +448,6 @@ export function CalendarTheme({
                   </div>
                 </div>
                 </motion.div>
-                ) : (
-                <motion.div
-                  key="visual-view"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.2 }}
-                >
-                <div className="mt-6 flex flex-col gap-6 w-full p-6 bg-slate-50/30 rounded-2xl border border-slate-100">
-                   {/* Visual Chart using a tree-like aesthetic */}
-                   <div className="flex flex-col items-center w-full relative">
-                      <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-6 shadow-sm border-4 border-white z-10">
-                         <Target size={28} />
-                      </div>
-                      <div className="absolute top-16 bottom-0 w-1 bg-blue-100 rounded-full" />
-                      
-                      <div className="flex flex-col gap-5 w-full max-w-2xl relative z-10">
-                        {['mains', 'subs', 'sides'].map((cat, catIdx) => {
-                          const catTasks = modalTasksData[cat as keyof typeof modalTasksData];
-                          if (!catTasks || catTasks.length === 0) return null;
-                          return (
-                            <div key={cat} className="flex gap-4 w-full justify-center">
-                              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex-1 relative flex flex-col gap-3 transition-all hover:shadow-md">
-                                <h4 className="text-[11px] font-black text-slate-800 text-right pb-2 border-b border-slate-50">
-                                  {cat === 'mains' ? 'المهام الأساسية' : cat === 'subs' ? 'المهام الفرعية' : 'المهام الجانبية'}
-                                </h4>
-                                {catTasks.map(task => (
-                                  <div key={task.id} className="flex justify-between items-center gap-3 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/60">
-                                     <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                                        <span className={`text-[10px] font-bold truncate text-right ${task.isCompleted ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                                          {task.title}
-                                        </span>
-                                        <div 
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (task.isCompleted) {
-                                              confirmPopup({
-                                                target: e.currentTarget as HTMLElement,
-                                                message: 'هل أنت متأكد من التراجع عن إكمال هذه المهمة؟ سيتم اعتبارها غير مكتملة وتحتاج لمراجعة الموعد.',
-                                                icon: 'pi pi-exclamation-triangle',
-                                                acceptLabel: 'نعم، تراجع',
-                                                rejectLabel: 'إلغاء',
-                                                className: 'font-sans text-xs',
-                                                accept: () => toggleTask(task.id, task.isCompleted, task.type)
-                                              });
-                                            } else {
-                                              toggleTask(task.id, task.isCompleted, task.type);
-                                            }
-                                          }} 
-                                          className={`w-4 h-4 rounded-full border flex items-center justify-center cursor-pointer ${task.isCompleted ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300'}`}
-                                        >
-                                          {task.isCompleted && <i className="pi pi-check text-[7px] text-white"></i>}
-                                        </div>
-                                     </div>
-                                     {task.isCompleted && renderTaskThreeDotsMenu && (
-                                       <div className="shrink-0 flex items-center gap-1">
-                                          {renderTaskThreeDotsMenu(task, {
-                                            onReview: () => onOpenReview?.(task),
-                                            onFlashcard: () => onOpenFlashcards?.(task),
-                                            onAnalytics: () => onOpenAnalytics?.(task)
-                                          })}
-                                       </div>
-                                     )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                   </div>
-                </div>
-                </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </div>
         </motion.div>
@@ -564,8 +462,8 @@ export function CalendarTheme({
         header={
           <div className="flex justify-between items-center w-full mt-2" dir="rtl">
             <span className="text-xs font-black text-slate-800 flex items-center gap-2">
-              <Shuffle className="w-4.5 h-4.5 text-indigo-500" />
-              وزع مهام الخطة على الإسبوع
+              <CalendarIcon className="w-4.5 h-4.5 text-blue-500" />
+              تحديد مواعيد المهام
             </span>
           </div>
         }
@@ -573,21 +471,16 @@ export function CalendarTheme({
         style={{ borderRadius: '32px' }}
         maskClassName="backdrop-blur-sm bg-slate-900/40"
         blockScroll
+        onShow={() => vibrate(HAPITCS.MAJOR_CLICK)}
       >
-        <div className="w-full flex flex-col md:flex-row justify-between items-start md:items-center bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 mb-5 mt-2 gap-3" dir="rtl">
-           <div className="text-right">
-              <h4 className="text-xs font-black text-indigo-900 mb-0.5">التوزيع الذكي للمهام</h4>
-              <p className="text-[10px] text-indigo-650 leading-relaxed font-semibold">هوزعلك كل المهام اللى لسه مخلصتش بالتساوى على أيام المذاكرة بتاعتك فى الأسبوع ده.</p>
-           </div>
-           <button 
-             onClick={handleAutoDistribute}
-             className="px-3.5 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-black transition-all shadow-sm flex gap-1.5 items-center shrink-0 border-none cursor-pointer"
-           >
-             <Shuffle className="w-3.5 h-3.5" /> وزع يا بطل
-           </button>
+        <div className="w-full flex-col bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-2xl border border-blue-100 mb-5 mt-2 gap-3 flex" dir="rtl">
+          <div className="text-right">
+            <h4 className="text-xs font-black text-blue-900 mb-0.5">جدولة المحطة</h4>
+            <p className="text-[10px] text-blue-700 leading-relaxed font-semibold">قم باختيار المواعيد المناسبة لكل مهمة لضمان الالتزام بجدولك الزمني.</p>
+          </div>
         </div>
 
-        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar" dir="rtl">
+        <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1 no-scrollbar pb-4" dir="rtl">
            {['mains', 'sides'].map(cat => {
               const list = modalTasksData[cat as keyof typeof modalTasksData];
               if (!list || list.length === 0) return null;
@@ -598,35 +491,86 @@ export function CalendarTheme({
               };
 
               return (
-                <div key={cat} className="space-y-2">
-                  <h5 className="text-[11px] font-black text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-1.5">
+                <div key={cat} className="space-y-3">
+                  <h5 className="text-[11px] font-black text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
                     {typeLabels[cat].icon} {typeLabels[cat].title}
                   </h5>
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-1 gap-3">
                     {list.map(task => (
-                      <div key={task.id} className="p-2.5 bg-white border border-slate-150 rounded-xl flex items-center justify-between gap-3 flex-wrap">
-                        <span className={`text-[10px] font-bold ${task.isCompleted ? 'text-slate-400 line-through' : 'text-slate-700'} truncate max-w-[180px]`}>
+                      <div key={task.id} className="p-3 bg-white border border-slate-150 rounded-2xl flex flex-col gap-3 shadow-sm hover:border-blue-200 transition-colors">
+                        <span className={`text-xs font-bold ${task.isCompleted ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                           {task.title}
                         </span>
-                        <Dropdown 
-                          value={tempAssignments[task.id] || ""}
-                          onChange={(e) => setTempAssignments(prev => ({ ...prev, [task.id]: e.value }))}
-                          options={[
-                            { label: 'من غير موعد (مش مجدولة)', value: '' },
-                            ...calendarDays.sort((a,b) => a.getTime() - b.getTime()).map(d => {
-                               const isLD = learningDays.includes(getDay(d));
-                               const dateStr = format(d, "yyyy-MM-dd");
-                               return {
-                                 label: `${format(d, "EEEE, d MMM", { locale: ar })} ${isLD ? '⭐' : ''}`,
-                                 value: dateStr
-                                };
-                            })
-                          ]}
-                          disabled={task.isCompleted}
-                          placeholder="اختار يوم"
-                          className="bg-slate-50 border border-slate-200 text-slate-700 text-[10px] font-black rounded-lg shadow-sm focus:border-indigo-400 disabled:opacity-50 !h-8.5 flex items-center min-w-[140px]"
-                          panelClassName="text-[10px] font-bold bg-white border border-slate-100 shadow-md rounded-lg"
-                        />
+                        
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">موعد التنفيذ</label>
+                            {tempAssignments[task.id] && (
+                              <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100 flex items-center gap-1">
+                                <span className="font-extrabold">{format(new Date(tempAssignments[task.id]), 'EEEE', { locale: ar })}</span>
+                                <span className="text-slate-300">|</span>
+                                <span>{format(new Date(tempAssignments[task.id]), 'd MMMM', { locale: ar })}</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="relative group">
+                            <Calendar 
+                              value={tempAssignments[task.id] ? new Date(tempAssignments[task.id]) : null}
+                              onChange={(e) => {
+                                if (e.value instanceof Date) {
+                                  // Normalize to midday to avoid timezone issues
+                                  const d = new Date(e.value);
+                                  d.setHours(12, 0, 0, 0);
+                                  setTempAssignments(prev => ({ ...prev, [task.id]: d.toISOString().split('T')[0] }));
+                                } else {
+                                  setTempAssignments(prev => ({ ...prev, [task.id]: "" }));
+                                }
+                              }}
+                              dateFormat="dd MM"
+                              placeholder="إختر تاريخ"
+                              className="w-full custom-calendar-blue transition-all"
+                              inputClassName="!bg-slate-50 !border-slate-200 !text-slate-800 !text-xs !font-black !rounded-xl !p-2.5 !h-10 hover:!border-blue-300 focus:!border-blue-500 focus:!ring-2 focus:!ring-blue-100 shadow-inner"
+                              panelClassName="p-3 bg-white border border-slate-100 shadow-xl rounded-2xl font-sans"
+                              minDate={new Date()}
+                              showIcon
+                              icon={() => <i className="pi pi-calendar text-blue-500" />}
+                              appendTo="self"
+                            />
+                            {/* Blue gradient highlight on hover via CSS sibling */}
+                            <style>{`
+                              .custom-calendar-blue .p-inputtext:hover {
+                                border-color: #3b82f6 !important;
+                                background: linear-gradient(to right, #f8fafc, #eff6ff) !important;
+                              }
+                              .p-datepicker {
+                                border-radius: 20px !important;
+                                box-shadow: 0 10px 40px rgba(0,0,0,0.08) !important;
+                                border: 1px solid #f1f5f9 !important;
+                                padding: 16px !important;
+                              }
+                              .p-datepicker .p-datepicker-header {
+                                background: transparent !important;
+                                border-bottom: 1px solid #f1f5f9 !important;
+                                margin-bottom: 8px !important;
+                                padding: 8px 0 !important;
+                              }
+                              .p-datepicker .p-datepicker-title .p-datepicker-month, .p-datepicker .p-datepicker-title .p-datepicker-year {
+                                font-weight: 900 !important;
+                                color: #1e293b !important;
+                                font-family: sans-serif !important;
+                              }
+                              .p-datepicker table td > span.p-highlight {
+                                background: linear-gradient(135deg, #3b82f6, #6366f1) !important;
+                                color: white !important;
+                                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+                              }
+                              .p-datepicker table td > span:hover {
+                                background: #f1f5f9 !important;
+                                border-radius: 50% !important;
+                              }
+                            `}</style>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>

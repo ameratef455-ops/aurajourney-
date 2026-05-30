@@ -10,8 +10,7 @@ import { Menu } from "primereact/menu";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast as toastHot } from "react-hot-toast";
 import { NotificationsPopover } from "./NotificationsPopover";
-import { Plus, Edit3 } from "lucide-react";
-import { EditorModeModal } from "./EditorModeModal";
+import { Plus } from "lucide-react";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -598,7 +597,6 @@ interface LandingProps {
 
 export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [editorModeOpen, setEditorModeOpen] = useState(false);
   const menu = useRef<Menu>(null);
 
   const handleStart = () => {
@@ -673,17 +671,6 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
           
           <div className="h-6 w-px bg-slate-200"></div>
 
-          <button
-            onClick={() => {
-               vibrate(HAPITCS.MAJOR_CLICK);
-               setEditorModeOpen(true);
-            }}
-            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-blue-900 hover:bg-blue-50 transition-colors border-none bg-transparent cursor-pointer"
-            title="وضع التحرير"
-          >
-            <Edit3 className="w-5 h-5 md:w-6 md:h-6" />
-          </button>
-
           <NotificationsPopover className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-blue-900 hover:bg-blue-50 transition-colors border-none bg-transparent cursor-pointer" />
 
           <button
@@ -704,11 +691,6 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-      />
-
-      <EditorModeModal 
-        visible={editorModeOpen}
-        onHide={() => setEditorModeOpen(false)}
       />
     </div>
   );

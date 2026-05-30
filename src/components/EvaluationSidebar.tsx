@@ -512,7 +512,7 @@ export function EvaluationSidebar({
                       return sub.tasks.map((task: any) => (
                         <TaskItem 
                           key={`${stId}-${sIdx}-${task.id}`}
-                          task={task}
+                          task={{ ...task, isPractical: true }}
                           type="main" // Reuse main styling
                           stationName={station?.name}
                           onClick={() => handleTaskClick({ ...task, stationId: stId, subStationIndex: sIdx }, 'practical')}
@@ -752,15 +752,14 @@ export function EvaluationSidebar({
               type: 'initial'
             });
 
-            // Reward once after evaluation is submitted
-            if (onRewardActivity) {
-              onRewardActivity(true);
+             if (taskToReflect?._source === 'practical' && onRewardActivity) {
+              await onRewardActivity(true);
             }
 
             if (taskToReflect._source === 'practical' && onCompletePracticalTask) {
-              onCompletePracticalTask(taskToReflect.stationId, taskToReflect.subStationIndex, taskToReflect.id);
+              await onCompletePracticalTask(taskToReflect.stationId, taskToReflect.subStationIndex, taskToReflect.id);
             } else if (onCompleteTask && taskToReflect) {
-               onCompleteTask(taskToReflect);
+               await onCompleteTask(taskToReflect);
             }
           } catch (err) {
             console.error('Failed to save reflection:', err);
@@ -1065,65 +1064,16 @@ function ActivityNode({ node, onToggle, onDelete, onEdit, onAddSub, isPostponeMo
           )}
 
           <div className="min-w-0 flex-1">
-            {isEditing ? (
-              <div className="flex gap-2 items-center">
-                 <InputText 
-                   value={editTitle} 
-                   onChange={(e) => setEditTitle(e.target.value)}
-                   className="p-1 px-3 text-[11px] h-9 font-bold border-slate-200 rounded-xl flex-1 bg-slate-50 focus:bg-white transition-colors"
-                 />
-                 <div className="w-24">
-                   <InputNumber 
-                     value={editDur} 
-                     onValueChange={(e) => setEditDur(e.value)}
-                     suffix=" دقيقة"
-                     className="w-full"
-                     inputClassName="p-0 text-[11px] h-9 font-black text-center border-slate-200 rounded-xl bg-slate-50 focus:bg-white"
-                   />
-                 </div>
-                 <div className="flex gap-1.5 pr-1">
-                   <button 
-                     onClick={handleEditSave} 
-                     className="w-9 h-9 rounded-xl force-blue-gradient flex items-center justify-center transition-all hover:brightness-110 active:scale-90"
-                     title="حفظ"
-                   >
-                      <CheckCircle2 className="w-5 h-5" />
-                   </button>
-                   <button 
-                     onClick={() => {
-                       setIsEditing(false);
-                       setEditTitle(node.title);
-                       setEditDur(node.duration || 30);
-                     }}
-                     className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 flex items-center justify-center transition-all active:scale-90"
-                     title="إلغاء"
-                   >
-                      <i className="pi pi-times text-xs"></i>
-                   </button>
-                 </div>
-              </div>
-            ) : (
-              <>
                 <p className={`text-xs font-bold truncate ${node.isCompleted ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
                   {node.title}
                 </p>
                 {node.duration && (
                   <span className="text-[10px] font-black text-slate-400">{node.duration} دقيقة</span>
                 )}
-              </>
-            )}
           </div>
         </div>
 
-        {!isEditing && (
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setIsEditing(true)}
-              className="w-8 h-8 rounded-xl force-blue-gradient flex items-center justify-center transition-all"
-              title="تعديل"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-            </button>
+        <div className="flex items-center gap-2">
             
             <button 
               onClick={(e) => {
@@ -1144,7 +1094,6 @@ function ActivityNode({ node, onToggle, onDelete, onEdit, onAddSub, isPostponeMo
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
-        )}
       </div>
 
       {isExpanded && node.children && node.children.length > 0 && (
@@ -1186,6 +1135,17 @@ function TaskItem({
     weekly: 'from-purple-500 to-fuchsia-600',
     sub: 'from-indigo-400 to-blue-500'
   };
+
+  let displayXp: number | null = null;
+  if (task.isPractical) {
+    displayXp = 25;
+  } else if (type === 'main') {
+    displayXp = 30;
+  } else if (type === 'side') {
+    displayXp = 20;
+  } else {
+    displayXp = null;
+  }
 
   return (
     <div 
@@ -1253,9 +1213,9 @@ function TaskItem({
             <span className="text-[9px] font-black text-slate-600">{task.activities.length}</span>
           </div>
         )}
-        {task.xp && (
+        {displayXp !== null && (
           <div className="bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
-            <span className="text-[10px] font-black text-emerald-400 tracking-tighter">+{task.xp} XP</span>
+            <span className="text-[10px] font-black text-emerald-400 tracking-tighter">+{displayXp} XP</span>
           </div>
         )}
       </div>
