@@ -33,6 +33,7 @@ export interface EvaluationSidebarProps {
   onRewardActivity?: (isCompleted: boolean) => void;
   onCompleteTask?: (task: any) => void;
   onCompletePracticalTask?: (stationId: string, subStationIndex: number, taskId: string) => void;
+  completeTaskAction?: (task: any) => Promise<void>;
   initialSelectedTask?: any;
 }
 
@@ -47,6 +48,7 @@ export function EvaluationSidebar({
   onRewardActivity,
   onCompleteTask,
   onCompletePracticalTask,
+  completeTaskAction,
   initialSelectedTask
 }: EvaluationSidebarProps) {
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -422,19 +424,33 @@ export function EvaluationSidebar({
         onHide={() => setInitialReflectionVisible(false)}
         onSubmit={async (data) => {
           if (selectedTask) {
-             const station = stations.find(s => s.id === selectedTask.stationId);
-             await db.reflections.add({
-                id: safeRandomUUID(),
-                taskId: selectedTask.id,
-                stationId: selectedTask.stationId,
-                stationName: station?.name || 'غير محدد',
-                taskTitle: selectedTask.title,
-                ...data,
-                createdAt: new Date().toISOString()
-             });
-             vibrate(HAPITCS.SUCCESS);
-             toastHot.success("تم تسجيل التقييم بنجاح! ✨");
-             setInitialReflectionVisible(false);
+             try {
+                 const station = stations.find(s => s.id === selectedTask.stationId);
+                 await db.reflections.add({
+                    id: safeRandomUUID(),
+                    taskId: selectedTask.id || '',
+                    stationId: selectedTask.stationId || '',
+                    stationName: station?.name || 'غير محدد',
+                    taskTitle: selectedTask.title || '',
+                    type: 'initial',
+                    ...data,
+                    createdAt: new Date().toISOString()
+                 });
+                 
+                 // If the task wasn't formally completed yet, complete it now
+                 if (completeTaskAction && !selectedTask.isCompleted && selectedTask.type !== 'practical') {
+                     await completeTaskAction(selectedTask);
+                 } else if (selectedTask.isPractical && onCompletePracticalTask && !selectedTask.isCompleted) {
+                     onCompletePracticalTask(selectedTask.stationId, selectedTask.subStationIndex, selectedTask.id);
+                 }
+                 
+                 vibrate(HAPITCS.SUCCESS);
+                 toastHot.success("تم تسجيل التقييم وختم المهمة بنجاح! ✨");
+                 setInitialReflectionVisible(false);
+             } catch (err) {
+                 console.error(err);
+                 toastHot.error("فشل حفظ التقييم وختم المهمة");
+             }
           }
         }}
         taskTitle={selectedTask?.title || ""}

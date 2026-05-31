@@ -197,3 +197,85 @@ db.version(7).stores({
 db.open().catch(err => {
   console.error("Failed to open db: ", err.stack || err);
 });
+
+// Sync logic for Firebase
+let isSyncing = false;
+let authInitialized = false;
+let currentUserId: string | null = null;
+import { auth, db as firestore } from './lib/firebase';
+import { signInAnonymously } from 'firebase/auth';
+import { collection, doc, setDoc, onSnapshot, getDocs, deleteDoc } from 'firebase/firestore';
+
+// Call this from App.tsx on mount
+export const initFirebaseSync = () => {
+  signInAnonymously(auth).then(({ user }) => {
+    currentUserId = user.uid;
+    authInitialized = true;
+    
+    // Sync Trips (userSettings) from Firebase to Dexie
+    onSnapshot(collection(firestore, `users/${user.uid}/userSettings`), async (snapshot) => {
+      isSyncing = true;
+      try {
+        const fbData = snapshot.docs.map(d => d.data() as UserSettings);
+        const localData = await db.userSettings.toArray();
+        // Simple merge: remote wins
+        for (const fbItem of fbData) {
+          await db.userSettings.put(fbItem);
+        }
+        // Remove local items not in firebase
+        const fbIds = new Set(fbData.map(d => d.id));
+        for (const localItem of localData) {
+          if (!fbIds.has(localItem.id)) {
+            await db.userSettings.delete(localItem.id);
+          }
+        }
+      } finally {
+        isSyncing = false;
+      }
+    });
+
+    // Sync Tasks from Firebase to Dexie
+    onSnapshot(collection(firestore, `users/${user.uid}/tasks`), async (snapshot) => {
+      isSyncing = true;
+      try {
+        const fbData = snapshot.docs.map(d => d.data() as Task);
+        const localData = await db.tasks.toArray();
+        for (const fbItem of fbData) {
+          await db.tasks.put(fbItem);
+        }
+        const fbIds = new Set(fbData.map(d => d.id));
+        for (const localItem of localData) {
+          if (!fbIds.has(localItem.id)) {
+            await db.tasks.delete(localItem.id);
+          }
+        }
+      } finally {
+        isSyncing = false;
+      }
+    });
+  });
+
+  // Track Dexie changes and push to Firebase
+  const pushToFirebase = async (table: string, id: string, data: any, type: 'put' | 'delete') => {
+    if (isSyncing || !authInitialized || !currentUserId) return;
+    try {
+      const ref = doc(firestore, `users/${currentUserId}/${table}`, id);
+      if (type === 'put') {
+        await setDoc(ref, data);
+      } else {
+        await deleteDoc(ref);
+      }
+    } catch(err) {
+      console.error('Firebase sync error:', err);
+    }
+  };
+
+  db.userSettings.hook('creating', (primKey, obj) => { pushToFirebase('userSettings', primKey, obj, 'put'); });
+  db.userSettings.hook('updating', (mods, primKey, obj) => { pushToFirebase('userSettings', primKey, { ...obj, ...mods }, 'put'); });
+  db.userSettings.hook('deleting', (primKey) => { pushToFirebase('userSettings', primKey, null, 'delete'); });
+
+  db.tasks.hook('creating', (primKey, obj) => { pushToFirebase('tasks', primKey, obj, 'put'); });
+  db.tasks.hook('updating', (mods, primKey, obj) => { pushToFirebase('tasks', primKey, { ...obj, ...mods }, 'put'); });
+  db.tasks.hook('deleting', (primKey) => { pushToFirebase('tasks', primKey, null, 'delete'); });
+};
+

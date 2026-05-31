@@ -1405,6 +1405,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         onRewardActivity={rewardActivity}
         onCompleteTask={handleCompleteTask}
         onCompletePracticalTask={completePracticalTask}
+        completeTaskAction={completeTask}
       />
 
       {/* FAB 1 - Gamification Engine Details */}
