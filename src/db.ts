@@ -204,7 +204,64 @@ let authInitialized = false;
 let currentUserId: string | null = null;
 import { auth, db as firestore } from './lib/firebase';
 import { signInAnonymously } from 'firebase/auth';
-import { collection, doc, setDoc, onSnapshot, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, onSnapshot, deleteDoc, getDocFromServer } from 'firebase/firestore';
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(firestore, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Please check your Firebase configuration.");
+    }
+  }
+}
 
 // Call this from App.tsx on mount
 export const initFirebaseSync = () => {
@@ -212,8 +269,11 @@ export const initFirebaseSync = () => {
     currentUserId = user.uid;
     authInitialized = true;
     
+    testConnection();
+
+    const userSettingsPath = `users/${user.uid}/userSettings`;
     // Sync Trips (userSettings) from Firebase to Dexie
-    onSnapshot(collection(firestore, `users/${user.uid}/userSettings`), async (snapshot) => {
+    onSnapshot(collection(firestore, userSettingsPath), async (snapshot) => {
       isSyncing = true;
       try {
         const fbData = snapshot.docs.map(d => d.data() as UserSettings);
@@ -232,10 +292,13 @@ export const initFirebaseSync = () => {
       } finally {
         isSyncing = false;
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, userSettingsPath);
     });
 
+    const tasksPath = `users/${user.uid}/tasks`;
     // Sync Tasks from Firebase to Dexie
-    onSnapshot(collection(firestore, `users/${user.uid}/tasks`), async (snapshot) => {
+    onSnapshot(collection(firestore, tasksPath), async (snapshot) => {
       isSyncing = true;
       try {
         const fbData = snapshot.docs.map(d => d.data() as Task);
@@ -252,12 +315,17 @@ export const initFirebaseSync = () => {
       } finally {
         isSyncing = false;
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, tasksPath);
     });
+  }).catch((error) => {
+    console.error('Firebase Auth failed:', error);
   });
 
   // Track Dexie changes and push to Firebase
   const pushToFirebase = async (table: string, id: string, data: any, type: 'put' | 'delete') => {
     if (isSyncing || !authInitialized || !currentUserId) return;
+    const path = `users/${currentUserId}/${table}/${id}`;
     try {
       const ref = doc(firestore, `users/${currentUserId}/${table}`, id);
       if (type === 'put') {
@@ -266,7 +334,7 @@ export const initFirebaseSync = () => {
         await deleteDoc(ref);
       }
     } catch(err) {
-      console.error('Firebase sync error:', err);
+      handleFirestoreError(err, type === 'put' ? OperationType.WRITE : OperationType.DELETE, path);
     }
   };
 
