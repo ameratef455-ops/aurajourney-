@@ -12,10 +12,8 @@ export interface Station {
 export interface TaskActivity {
   id: string;
   title: string;
-  description?: string;
   duration?: number; // Expected duration in minutes
   isCompleted: boolean;
-  steps?: { id: string; title: string, isCompleted: boolean }[];
   children?: TaskActivity[];
 }
 
@@ -98,12 +96,6 @@ export interface TaskReflection {
   practicalIssues: string;
   createdAt: string;
   type?: 'initial' | 'review';
-  languageLearning?: {
-    sentences: { text: string; audioData?: string; notes?: string }[];
-    accentRating: number;
-    dialectNotes: string;
-    pronunciationIssues: string;
-  };
 }
 
 export interface Stumble {

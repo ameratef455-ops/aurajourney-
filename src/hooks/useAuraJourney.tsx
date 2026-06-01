@@ -456,25 +456,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     }
 
     // Un-completing
-    const task = await db.tasks.get(taskId);
-    if (!task) return;
-
-    // Reset activities recursively if they exist
-    const resetActivities = (acts: any[]): any[] => {
-      return acts.map(a => ({
-          ...a,
-          isCompleted: false,
-          steps: a.steps?.map((s: any) => ({ ...s, isCompleted: false })),
-          children: a.children ? resetActivities(a.children) : []
-      }));
-    };
-
-    const updateData: any = { isCompleted: false, dueDate: null };
-    if (task.activities) {
-      updateData.activities = resetActivities(task.activities);
-    }
-
-    await (db.tasks as any).update(taskId, updateData);
+    await (db.tasks as any).update(taskId, { isCompleted: false, dueDate: null });
     vibrate(HAPITCS.MAJOR_CLICK);
     
     let newXp = gData.xp;
@@ -494,7 +476,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     toast.current?.show({
       severity: "info",
       summary: "تم إلغاء المهمة",
-      detail: "تم التراجع عن إكمال هذه المهمة وخُصمت نقاط الخبرة وتمت إعادة تصفير الأنشطة.",
+      detail: "تم التراجع عن إكمال هذه المهمة وخُسمت نقاط الخبرة.",
       life: 2000,
     });
 
@@ -559,7 +541,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     };
   };
 
-  const completeTask = async (task: any, onComplete?: (taskId: string) => void) => {
+  const completeTask = async (task: any) => {
     if (!user || task.isCompleted) return;
     if (user.isFrozen) {
       toast.current?.show({
@@ -588,27 +570,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       }
     }
 
-    // NEW RULE: Forbidden to complete task unless its activities are finished
-    if (task.activities) {
-      const checkActivities = (acts: any[]): boolean => {
-          return acts.every(a => a.isCompleted && (!a.children || checkActivities(a.children)));
-      };
-      if (!checkActivities(task.activities)) {
-          vibrate(HAPITCS.MAJOR_CLICK);
-          toast.current?.show({
-            severity: "warn",
-            summary: "أكمل الأنشطة أولاً ⚠️",
-            detail: "يُرجى إكمال جميع الأنشطة التنفيذية لهذه المهمة قبل محاولة ختمها وتقييمها.",
-            life: 4000
-          });
-          return;
-      }
-    }
-
     vibrate(HAPITCS.COMPLETE);
     await (db.tasks as any).update(task.id, { isCompleted: true });
-
-    if (onComplete) onComplete(task.id);
 
     let isMainCompleted = false;
 
@@ -649,8 +612,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       toast.current?.show({
         severity: "success",
         summary: "خطوة بخطوة! 🧩",
-        detail: `أكملت مهمة فرعية بنجاح! نلت +15 XP لمسيرتك.`,
-        life: 2500,
+        detail: `أكملت مهمة فرعية!`,
+        life: 2000,
       });
     } else if (task.type === "side") {
       toast.current?.show({
@@ -1062,11 +1025,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
     const updatedTasks = sTasks.map(t => {
       if (t.id === taskId) {
-        return { 
-          ...t, 
-          isCompleted: false,
-          subTasks: t.subTasks?.map(st => ({ ...st, isCompleted: false }))
-        };
+        return { ...t, isCompleted: false };
       }
       return t;
     });
@@ -1084,13 +1043,6 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
         ...user.subStations,
         [stationId]: updatedStationSubs
       }
-    });
-    
-    toast.current?.show({
-      severity: "info",
-      summary: "تم التراجع عن المهمة",
-      detail: "تمت إعادة تصفير المهمة وأنشطتها الفرعية كغير مكتملة.",
-      life: 3000
     });
   };
 
@@ -1223,25 +1175,6 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
   const completePracticalTask = async (stationId: string, subStationIndex: number, taskId: string) => {
     if (!user) return;
-
-    // Check if sub-tasks are completed before allowing main practical task completion
-    const rawSubsCheck = user.subStations?.[stationId];
-    const stationSubsCheck = Array.isArray(rawSubsCheck) ? rawSubsCheck : (rawSubsCheck ? [rawSubsCheck] : []);
-    const subStationCheck = stationSubsCheck[subStationIndex];
-    if (subStationCheck) {
-      const taskCheck = subStationCheck.tasks.find(t => t.id === taskId);
-      if (taskCheck && taskCheck.subTasks && taskCheck.subTasks.some(st => !st.isCompleted)) {
-        vibrate(HAPITCS.MAJOR_CLICK);
-        toast.current?.show({
-          severity: "warn",
-          summary: "أكمل المهام الفرعية أولاً ⚠️",
-          detail: "هذه المهمة التطبيقية تحتوي على نقاط فرعية لم تكتمل بعد.",
-          life: 3000
-        });
-        return;
-      }
-    }
-
     vibrate(HAPITCS.COMPLETE);
     await db.userSettings.where('id').equals(user.id).modify(u => {
       const rawSubs = u.subStations?.[stationId];
@@ -1307,7 +1240,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       toast.current?.show({
         severity: "success",
         summary: "تطبيق ناجح! 🛠️",
-        detail: "أنجزت مهمة تطبيقية بنجاح!",
+        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +15 XP وزادت طاقة الخطة بـ 15%.",
         life: 3000,
       });
     }

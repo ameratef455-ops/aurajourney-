@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Splash } from './components/Splash';
-import { Tutorial } from './components/Tutorial';
 import { db } from './db';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster } from 'react-hot-toast';
@@ -9,7 +8,7 @@ import { SetupWizard } from './components/SetupWizard';
 import { Maps } from './components/Maps';
 import { playTickSound } from './lib/haptics';
 
-type AppState = 'splash' | 'tutorial' | 'landing' | 'wizard' | 'maps';
+type AppState = 'splash' | 'landing' | 'wizard' | 'maps';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('splash');
@@ -29,7 +28,7 @@ export default function App() {
         if (isClickable) {
            playTickSound();
            break;
-         }
+        }
         target = target.parentElement;
       }
     };
@@ -37,8 +36,8 @@ export default function App() {
 
     const init = async () => {
        try {
-         const tutorialCompleted = localStorage.getItem('via_tutorial_completed');
-         setTargetState(tutorialCompleted ? 'landing' : 'tutorial');
+         // Keep targetState initialized to landing as requested
+         setTargetState('landing');
        } catch (e) {
          console.error('DB Init Error', e);
        }
@@ -82,21 +81,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {appState === 'tutorial' && (
-            <motion.div
-              key="tutorial"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full h-full relative z-10"
-            >
-              <Tutorial onComplete={() => {
-                localStorage.setItem('via_tutorial_completed', 'true');
-                setAppState('landing');
-              }} />
-            </motion.div>
-          )}
-
           {appState === 'landing' && (
             <motion.div
               key="landing"
@@ -123,31 +107,40 @@ export default function App() {
             </motion.div>
           )}
 
-          {(appState === 'wizard' || appState === 'maps') && (
+          {appState === 'wizard' && (
             <motion.div
-              key={appState}
+              key="wizard"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.5, ease: "easeInOut" }}
               className="w-full h-full flex items-center justify-center relative z-10"
             >
-              {appState === 'wizard' ? (
-                <SetupWizard 
-                  editingTripId={editingTripId}
-                  onComplete={(uid) => {
-                    setEditingTripId(null);
-                    setSelectedTripId(uid);
-                    setAppState('maps');
-                  }} 
-                  onCancel={() => {
-                    setEditingTripId(null);
-                    setAppState(editingTripId ? 'maps' : 'landing');
-                  }}
-                />
-              ) : (
-                <Maps tripId={selectedTripId} onBack={() => setAppState('landing')} />
-              )}
+              <SetupWizard 
+                editingTripId={editingTripId}
+                onComplete={(uid) => {
+                  setEditingTripId(null);
+                  setSelectedTripId(uid);
+                  setAppState('maps');
+                }} 
+                onCancel={() => {
+                  setEditingTripId(null);
+                  setAppState(editingTripId ? 'maps' : 'landing');
+                }}
+              />
+            </motion.div>
+          )}
+
+          {appState === 'maps' && (
+            <motion.div
+              key="maps"
+              initial={{ opacity: 0, scale: 1.02 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className="w-full h-full relative z-10"
+            >
+              <Maps tripId={selectedTripId} onBack={() => setAppState('landing')} />
             </motion.div>
           )}
         </AnimatePresence>
