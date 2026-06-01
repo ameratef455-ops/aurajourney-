@@ -31,9 +31,21 @@ interface UserProfile {
 export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
+  const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'users' | 'trips' | 'firestore' | 'stats' | 'ads'>('users');
   const [assigningTrip, setAssigningTrip] = useState<any | null>(null);
+
+  // Ad Admin Form States
+  const [adModalOpen, setAdModalOpen] = useState(false);
+  const [editingAd, setEditingAd] = useState<any | null>(null);
+  const [adTitle, setAdTitle] = useState("");
+  const [adText, setAdText] = useState("");
+  const [adLink, setAdLink] = useState("");
+  const [adImageUrl, setAdImageUrl] = useState("");
+  const [adPosition, setAdPosition] = useState<'top' | 'bottom'>('top');
+  const [adIsActive, setAdIsActive] = useState(true);
+  const [submittingAd, setSubmittingAd] = useState(false);
 
   // Firestore Explorer State
   const [explorerCollection, setExplorerCollection] = useState<'users' | 'publicTrips' | 'ads'>('users');
@@ -83,11 +95,84 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
       // Fetch trips from local Dexie database
       const localTrips = await db.userSettings.toArray();
       setTrips(localTrips);
+
+      // Fetch ads from Firestore
+      const adsSnap = await getDocs(collection(firestore, 'ads'));
+      const fetchedAds: any[] = [];
+      adsSnap.forEach(d => {
+        fetchedAds.push({ id: d.id, ...d.data() });
+      });
+      setAds(fetchedAds);
     } catch (error: any) {
       console.error(error);
       toastHot.error("فشل تحميل بيانات لوحة التحكم ⚠️");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenAdForm = (ad: any | null = null) => {
+    vibrate(HAPITCS.MAJOR_CLICK);
+    if (ad) {
+      setEditingAd(ad);
+      setAdTitle(ad.title || "");
+      setAdText(ad.text || "");
+      setAdLink(ad.link || "");
+      setAdImageUrl(ad.imageUrl || "");
+      setAdPosition(ad.position || 'top');
+      setAdIsActive(ad.isActive !== undefined ? ad.isActive : true);
+    } else {
+      setEditingAd(null);
+      setAdTitle("");
+      setAdText("");
+      setAdLink("");
+      setAdImageUrl("");
+      setAdPosition('top');
+      setAdIsActive(true);
+    }
+    setAdModalOpen(true);
+  };
+
+  const handleSaveAd = async () => {
+    if (!adTitle.trim() || !adText.trim()) {
+      toastHot.error("يرجى ملء العنوان والتفاصيل.");
+      return;
+    }
+
+    setSubmittingAd(true);
+    try {
+      const adId = editingAd ? editingAd.id : `ad_${Date.now()}`;
+      const adData = {
+        title: adTitle.trim(),
+        text: adText.trim(),
+        link: adLink.trim(),
+        imageUrl: adImageUrl.trim(),
+        position: adPosition,
+        isActive: adIsActive
+      };
+
+      await setDoc(doc(firestore, 'ads', adId), adData);
+      toastHot.success("تم حفظ الإعلان بنجاح! 🚀");
+      setAdModalOpen(false);
+      fetchAdminData();
+    } catch (err) {
+      console.error(err);
+      toastHot.error("فشل حفظ الإعلان السحابي.");
+    } finally {
+      setSubmittingAd(false);
+    }
+  };
+
+  const handleDeleteAd = async (adId: string) => {
+    vibrate(HAPITCS.MAJOR_CLICK);
+    if (!confirm("هل أنت متأكد من حذف هذا الإعلان؟")) return;
+    try {
+      await deleteDoc(doc(firestore, 'ads', adId));
+      toastHot.success("تم حذف الإعلان.");
+      fetchAdminData();
+    } catch (err) {
+      console.error(err);
+      toastHot.error("فشل حذف الإعلان.");
     }
   };
 
@@ -515,7 +600,7 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
               <div className="space-y-1">
                 <h1 className="text-3xl font-black text-white tracking-tighter">لوحة التحكم المركزية</h1>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/20">Aura HQ • v2.1</span>
+                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-3 py-1 rounded-lg border border-indigo-500/20">لوحة الإداريين</span>
                   <div className="w-1 h-1 rounded-full bg-slate-700" />
                   <p className="text-xs font-bold text-slate-500">إدارة القنوات، العضويات، ومستودعات Firestore</p>
                 </div>
@@ -674,33 +759,133 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
 
                 {!loading && activeTab === 'ads' && (
                   <div className="space-y-8 animate-fade-in">
-                    <div className="flex justify-between items-center bg-slate-900 border border-white/5 p-8 rounded-[48px] shadow-xl">
+                    {/* Header Card */}
+                    <div className="flex flex-col sm:flex-row justify-between items-center bg-slate-900 border border-white/5 p-8 rounded-[48px] shadow-xl gap-4">
                       <div className="text-right space-y-1">
-                        <h4 className="text-xl font-black text-white">إدارة الحملات الإعلانية</h4>
-                        <p className="text-xs font-bold text-slate-500">تحكم باللافتات الدعائية التي تظهر للمستخدمين</p>
+                        <h4 className="text-xl font-black text-white">إدارى الاستهداف الدعائي والمحتوى الممول</h4>
+                        <p className="text-xs font-bold text-slate-500">قم بجدولة وتخصيص الحملات الدعائية في أعلى وأسفل الخريطة العامة بشكل منفصل</p>
                       </div>
                       <button
-                        onClick={() => {
-                          vibrate(HAPITCS.MAJOR_CLICK);
-                          setExplorerCollection('ads');
-                          setExplorerSubcollection(null);
-                          setActiveTab('firestore');
-                        }}
-                        className="px-8 py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-3xl font-black text-sm transition-all shadow-xl shadow-rose-900/20 active:scale-95 flex items-center gap-3 border-none cursor-pointer"
+                        onClick={() => handleOpenAdForm(null)}
+                        className="px-8 py-4 bg-gradient-to-r from-rose-600 to-indigo-600 hover:opacity-90 text-white rounded-3xl font-black text-sm transition-all shadow-xl active:scale-95 flex items-center gap-3 border-none cursor-pointer"
                       >
                         <Plus className="w-5 h-5" />
                         <span>إضافة إعلان جديد</span>
                       </button>
                     </div>
 
-                    <div className="p-8 bg-amber-500/10 border border-amber-500/20 rounded-[40px] flex items-center gap-6">
-                       <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500 shrink-0">
-                          <Info className="w-6 h-6" />
-                       </div>
-                       <div className="space-y-1">
-                          <p className="text-sm font-black text-amber-400 leading-tight">توجيه ذكي</p>
-                          <p className="text-[10px] font-bold text-slate-400">الإعلانات تظهر للمستخدمين المجانيين فقط لزيادة العائدات أو تشجيعهم على الترقية.</p>
-                       </div>
+                    {/* Notice */}
+                    <div className="p-6 bg-indigo-500/15 border border-indigo-500/20 rounded-[32px] flex items-start gap-4">
+                      <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400 shrink-0 mt-1">
+                        <Info className="w-5 h-5" />
+                      </div>
+                      <div className="space-y-1 text-right">
+                        <p className="text-xs font-black text-indigo-400">توجيه وسلوك الظهور</p>
+                        <p className="text-[10px] font-bold text-slate-300 leading-relaxed font-sans">
+                          يستقبل مستخدمو الفئة العامة (Free Tier) فقط هذه الوحدات لدعم المشروع بشكل مستدام، بينما يستمتع حاملو البطاقات الممتازة (Premium Members) بالتطبيق دون لافتات. يتم عرض الإعلانات بتأثير Carousel مرن ومتجاوب لتلقي عروض متعددة.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Ad sections (Top & Bottom lists) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Top Ads */}
+                      <div className="bg-slate-900/40 border border-white/5 rounded-[40px] p-6 space-y-4">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                          <span className="text-xs font-black text-slate-300 bg-slate-800/80 px-3 py-1 rounded-xl">
+                            {ads.filter(a => a.position === 'top' || !a.position).length} إعلانات
+                          </span>
+                          <h4 className="text-sm font-black text-indigo-400 flex items-center gap-2">
+                            <span>🔝 الجزء العلوي (Top Carousel)</span>
+                          </h4>
+                        </div>
+
+                        <div className="space-y-3">
+                          {ads.filter(a => a.position === 'top' || !a.position).length === 0 ? (
+                            <p className="text-[11px] font-bold text-slate-500 text-center py-8">لا يوجد إعلانات حالية في الجزء العلوي.</p>
+                          ) : (
+                            ads.filter(a => a.position === 'top' || !a.position).map((ad) => (
+                              <div key={ad.id} className="p-4 bg-slate-950 border border-white/5 hover:border-indigo-500/20 rounded-2xl flex items-start gap-4 transition-all">
+                                {ad.imageUrl && (
+                                  <img src={ad.imageUrl} alt={ad.title} className="w-16 h-16 object-cover rounded-xl shrink-0" referrerPolicy="no-referrer" />
+                                )}
+                                <div className="flex-1 text-right space-y-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className={`px-1.5 py-0.5 text-[8px] font-black rounded-md ${ad.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                                      {ad.isActive ? "نشط" : "مسودة"}
+                                    </span>
+                                    <h5 className="font-black text-xs text-white">{ad.title}</h5>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed font-sans">{ad.text}</p>
+                                  <div className="flex justify-end gap-1.5 pt-2">
+                                    <button
+                                      onClick={() => handleOpenAdForm(ad)}
+                                      className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg text-[9px] font-bold flex items-center gap-1 transition border-none cursor-pointer"
+                                    >
+                                      <Edit3 className="w-3 h-3" /> تعديل
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteAd(ad.id)}
+                                      className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-[9px] font-bold flex items-center gap-1 transition border-none cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3 h-3" /> حذف
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bottom Ads */}
+                      <div className="bg-slate-900/40 border border-white/5 rounded-[40px] p-6 space-y-4">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                          <span className="text-xs font-black text-slate-300 bg-slate-800/80 px-3 py-1 rounded-xl">
+                            {ads.filter(a => a.position === 'bottom').length} إعلانات
+                          </span>
+                          <h4 className="text-sm font-black text-amber-500 flex items-center gap-2">
+                            <span>🔛 الجزء السفلي (Bottom Carousel)</span>
+                          </h4>
+                        </div>
+
+                        <div className="space-y-3">
+                          {ads.filter(a => a.position === 'bottom').length === 0 ? (
+                            <p className="text-[11px] font-bold text-slate-500 text-center py-8">لا يوجد إعلانات حالية في الجزء السفلي.</p>
+                          ) : (
+                            ads.filter(a => a.position === 'bottom').map((ad) => (
+                              <div key={ad.id} className="p-4 bg-slate-950 border border-white/5 hover:border-amber-500/20 rounded-2xl flex items-start gap-4 transition-all">
+                                {ad.imageUrl && (
+                                  <img src={ad.imageUrl} alt={ad.title} className="w-16 h-16 object-cover rounded-xl shrink-0" referrerPolicy="no-referrer" />
+                                )}
+                                <div className="flex-1 text-right space-y-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className={`px-1.5 py-0.5 text-[8px] font-black rounded-md ${ad.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                                      {ad.isActive ? "نشط" : "مسودة"}
+                                    </span>
+                                    <h5 className="font-black text-xs text-white">{ad.title}</h5>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed font-sans">{ad.text}</p>
+                                  <div className="flex justify-end gap-1.5 pt-2">
+                                    <button
+                                      onClick={() => handleOpenAdForm(ad)}
+                                      className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg text-[9px] font-bold flex items-center gap-1 transition border-none cursor-pointer"
+                                    >
+                                      <Edit3 className="w-3 h-3" /> تعديل
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteAd(ad.id)}
+                                      className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-[9px] font-bold flex items-center gap-1 transition border-none cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3 h-3" /> حذف
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1370,6 +1555,158 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
             </motion.div>
           </div>
         )}
+        </AnimatePresence>
+
+        {/* CUSTOM AD CREATION/EDITING MODAL */}
+        <AnimatePresence mode="wait">
+          {adModalOpen && (
+            <div key="ad-form-overlay" className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[300] flex items-center justify-center p-4 overflow-y-auto font-sans" dir="rtl">
+              <motion.div
+                key="ad-form-content"
+                initial={{ opacity: 0, scale: 0.9, y: 40 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 40 }}
+                className="w-full max-w-lg bg-slate-900 border border-indigo-500/20 rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,0.9)] overflow-hidden flex flex-col text-right"
+              >
+                {/* Header */}
+                <div className="p-6 border-b border-white/5 bg-slate-900/80 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-indigo-900/20 text-indigo-400 rounded-xl">
+                      <Sparkles className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-white">
+                        {editingAd ? "تعديل الإعلان الممول" : "إضافة إعلان ممول جديد"}
+                      </h3>
+                      <p className="text-[10px] text-slate-400 font-bold">تحديد تفاصيل الحملة الإعلانية وتوجيه الظهور</p>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => setAdModalOpen(false)}
+                    className="w-8 h-8 rounded-full bg-white/5 text-white flex items-center justify-center hover:bg-white/10 cursor-pointer border-none"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Body */}
+                <div className="p-6 space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-indigo-300">عنوان الحملة / الاسم المختصر *</label>
+                    <input
+                      type="text"
+                      value={adTitle}
+                      onChange={(e) => setAdTitle(e.target.value)}
+                      placeholder="مثال: خصم 50% على باقة التميز"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:border-indigo-500 transition text-right"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-indigo-300">تفاصيل الإعلان / النص التعريفي *</label>
+                    <textarea
+                      value={adText}
+                      onChange={(e) => setAdText(e.target.value)}
+                      placeholder="اكتب هنا ما يظهر للمستخدم في لافتة الإعلان لجذبه..."
+                      rows={3}
+                      className="w-full p-4 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:border-indigo-500 transition text-right resize-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-indigo-300">رابط التوجيه / زر مشاهدة المزيد (اختياري)</label>
+                    <input
+                      type="url"
+                      value={adLink}
+                      onChange={(e) => setAdLink(e.target.value)}
+                      placeholder="https://example.com/promo"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-slate-300 outline-none focus:border-indigo-500 transition text-left font-mono"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-indigo-300">رابط صورة الإعلان الجانبية (اختياري)</label>
+                    <input
+                      type="url"
+                      value={adImageUrl}
+                      onChange={(e) => setAdImageUrl(e.target.value)}
+                      placeholder="https://example.com/image.png"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-white/10 rounded-xl text-xs font-bold text-slate-300 outline-none focus:border-indigo-500 transition text-left font-mono"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  {/* Switchers for Position & Status */}
+                  <div className="grid grid-cols-2 gap-4 font-sans">
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-indigo-300">موضع ظهور الإعلان</label>
+                      <div className="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-xl border border-white/5">
+                        <button
+                          type="button"
+                          onClick={() => { vibrate(HAPITCS.MINOR_CLICK); setAdPosition('top'); }}
+                          className={`py-2 text-[10px] font-black rounded-lg border-none cursor-pointer transition-all ${adPosition === 'top' ? 'bg-indigo-600 text-white shadow-md' : 'bg-transparent text-slate-400 hover:text-white'}`}
+                        >
+                          في الأعلى 🔝
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { vibrate(HAPITCS.MINOR_CLICK); setAdPosition('bottom'); }}
+                          className={`py-2 text-[10px] font-black rounded-lg border-none cursor-pointer transition-all ${adPosition === 'bottom' ? 'bg-indigo-600 text-white shadow-md' : 'bg-transparent text-slate-400 hover:text-white'}`}
+                        >
+                          في الأسفل 🔛
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-indigo-300">حالة الحملة</label>
+                      <button
+                        type="button"
+                        onClick={() => { vibrate(HAPITCS.MINOR_CLICK); setAdIsActive(!adIsActive); }}
+                        className={`w-full py-2.5 text-[10px] font-black rounded-xl border-none cursor-pointer transition-all flex items-center justify-center gap-2 ${adIsActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}
+                      >
+                        {adIsActive ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>نشط ومفعل</span>
+                          </>
+                        ) : (
+                          <>
+                            <X className="w-3.5 h-3.5" />
+                            <span>تجميد مؤقت</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-6 border-t border-white/5 bg-slate-900/60 flex justify-end gap-2 shrink-0">
+                  <button
+                    onClick={() => setAdModalOpen(false)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border-none cursor-pointer transition-all"
+                  >
+                    إلغاء الأمر
+                  </button>
+                  <button
+                    onClick={handleSaveAd}
+                    disabled={submittingAd}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-black rounded-xl flex items-center gap-1.5 shadow-md border-none cursor-pointer transition-all"
+                  >
+                    {submittingAd ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    <span>حفظ وإعلان 🚀</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
         </AnimatePresence>
         </motion.div>
       </div>

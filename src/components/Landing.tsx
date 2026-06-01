@@ -10,10 +10,11 @@ import { Menu } from "primereact/menu";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast as toastHot } from "react-hot-toast";
 import { NotificationsPopover } from "./NotificationsPopover";
-import { Plus, User, LogOut, Settings as SettingsIcon, Share2, Download, X, Compass, Sparkles, Shield, Info } from "lucide-react";
+import { Plus, User, LogOut, Settings as SettingsIcon, Share2, Download, X, Compass, Sparkles, Shield, Info, Star, AlertTriangle } from "lucide-react";
 import { AdminPanel } from "./AdminPanel";
 import { auth } from "../lib/firebase";
 import { signOut } from "firebase/auth";
+import { safeRandomUUID } from "../lib/uuid";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -27,63 +28,33 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     alert("Install PWA requested. (Will prompt if PWA criteria are met)");
   };
 
-  const handleExportData = async (type: 'gamification' | 'journeys' | 'system') => {
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<'complaint' | 'rating' | 'suggestion'>('rating');
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackComment, setFeedbackComment] = useState("");
+
+  const handleSubmitFeedback = async () => {
+    if (!feedbackComment.trim()) {
+      toastHot.error("يرجى كتابة تعليقك أولاً! ⚠️");
+      return;
+    }
     try {
-      let data: any = {};
-      const filename = `via_${type}_export_${new Date().toISOString().slice(0,10)}.json`;
-
-      if (type === 'gamification') {
-        // Gamification includes EVERYTHING: journeys + settings + system
-        const settings = await db.userSettings.toArray();
-        const stations = await db.stations.toArray();
-        const tasks = await db.tasks.toArray();
-        const reflections = await db.reflections.toArray();
-        const stumbles = await db.stumbles.toArray();
-        data = { 
-          settings, 
-          stations, 
-          tasks, 
-          reflections, 
-          stumbles,
-          exportType: 'full_gamification_backup'
-        };
-      } else if (type === 'journeys') {
-        // Journeys includes stations, tasks, and setup wizard details
-        const stations = await db.stations.toArray();
-        const tasks = await db.tasks.toArray();
-        const settings = await db.userSettings.toArray();
-        
-        // Extract setup wizard details from settings
-        const wizardDetails = settings.map(s => ({
-          learningGoal: s.learningGoal,
-          psychology: s.psychology,
-          unlockedStationIds: s.unlockedStationIds,
-          subStations: s.subStations
-        }));
-
-        data = { 
-          stations, 
-          tasks, 
-          wizardDetails,
-          exportType: 'detailed_journeys'
-        };
-      } else {
-        const reflections = await db.reflections.toArray();
-        const stumbles = await db.stumbles.toArray();
-        const notifications = await db.notifications.toArray();
-        data = { reflections, stumbles, notifications };
-      }
-
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      toastHot.success(`تم تصدير ملف ${type} بنجاح!`);
+      const userEmail = auth.currentUser?.email || 'anonymous';
+      await db.feedbacks.add({
+        id: safeRandomUUID(),
+        userId: auth.currentUser?.uid || 'anonymous',
+        userName: userEmail,
+        rating: feedbackType === 'complaint' ? 0 : feedbackRating,
+        comment: feedbackComment.trim(),
+        type: feedbackType,
+        createdAt: new Date().toISOString()
+      });
+      setShowFeedbackModal(false);
+      setFeedbackComment("");
+      setFeedbackRating(5);
+      toastHot.success("تم إرسال تعقيبك بنجاح، شكراً للمشاركة! ❤️");
     } catch (err) {
-      toastHot.error("فشل تصدير البيانات");
+      toastHot.error("فشل إرسال التعليق");
     }
   };
 
@@ -163,33 +134,36 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <button
-                    onClick={() => handleExportData('journeys')}
-                    className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-2"
+                    onClick={() => {
+                      vibrate(HAPITCS.MINOR_CLICK);
+                      setFeedbackType('rating');
+                      setFeedbackRating(5);
+                      setShowFeedbackModal(true);
+                    }}
+                    className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[11px] font-black text-amber-400 flex items-center justify-center gap-2"
                   >
-                    <Compass className="w-3 h-3" /> تصدير الرحلات
+                    <Star className="w-4 h-4 text-amber-400 animate-pulse" /> قيمنا ⭐️
                   </button>
                   <button
-                    onClick={() => handleExportData('gamification')}
-                    className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-2"
+                    onClick={() => {
+                      vibrate(HAPITCS.MINOR_CLICK);
+                      setFeedbackType('complaint');
+                      setShowFeedbackModal(true);
+                    }}
+                    className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[11px] font-black text-rose-400 flex items-center justify-center gap-2"
                   >
-                    <Sparkles className="w-3 h-3" /> تصدير Gamification
-                  </button>
-                  <button
-                    onClick={() => handleExportData('system')}
-                    className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-2"
-                  >
-                    <SettingsIcon className="w-3 h-3" /> تصدير النظام
+                    <AlertTriangle className="w-4 h-4 text-rose-400" /> شكاوى واقتراحات ⚠️
                   </button>
                   <button
                     onClick={() => {
                         vibrate(HAPITCS.MAJOR_CLICK);
                         setShowInstructions(true);
                     }}
-                    className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl hover:bg-indigo-500/20 transition-all text-[10px] font-black text-indigo-300 uppercase tracking-widest flex items-center justify-center gap-2"
+                    className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl hover:bg-indigo-500/20 transition-all text-[11px] font-black text-indigo-300 flex items-center justify-center gap-2"
                   >
-                    <Info className="w-3 h-3" /> إرشادات الرحلة
+                    <Info className="w-4 h-4 text-indigo-400" /> إرشادات الرحلة 🧭
                   </button>
                 </div>
 
@@ -284,6 +258,62 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             </div>
           </motion.div>
+
+          {/* Feedback Dialog */}
+          <Dialog
+            visible={showFeedbackModal}
+            onHide={() => setShowFeedbackModal(false)}
+            header={
+              <div className="flex items-center gap-2 text-rose-950 font-black pr-4 text-xs font-sans" dir="rtl">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center p-1 border border-indigo-500/20">
+                  <Star className="w-4 h-4 text-indigo-550" />
+                </div>
+                <span>{feedbackType === 'complaint' ? 'تقديم شكوى أو اقتراح ⚠️' : 'تسجيل تقييمك ورأيك النير ⭐️'}</span>
+              </div>
+            }
+            className="w-[96vw] max-w-sm !rounded-[32px] overflow-hidden bg-slate-950 border border-white/10"
+            style={{ borderRadius: '32px' }}
+            maskClassName="backdrop-blur-md bg-slate-950/60 z-[300]"
+            closable
+            dismissableMask
+          >
+            <div className="p-4 flex flex-col gap-5 text-right font-sans" dir="rtl">
+              {feedbackType !== 'complaint' && (
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">تقييمك للتجربة</label>
+                  <div className="flex items-center justify-center gap-2 py-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => { vibrate(HAPITCS.MINOR_CLICK); setFeedbackRating(star); }}
+                        className={`text-2xl transition-all ${feedbackRating >= star ? 'text-amber-400 scale-110 drop-shadow-sm' : 'text-slate-300 grayscale opacity-40'}`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                  {feedbackType === 'complaint' ? 'تفاصيل الشكوى أو الاقتراح' : 'اكتب تعليقك أو ملاحظتك هنا'}
+                </label>
+                <textarea
+                  value={feedbackComment}
+                  onChange={(e) => setFeedbackComment(e.target.value)}
+                  placeholder={feedbackType === 'complaint' ? "اكتب لنا عن المشكلة التي واجهتك بالتفصيل، وسيتواصل معك الدعم لحلها فوراً..." : "اكتب لنا أي تعليق يدور في خاطرك، نعدك بالاستجابة والطلب المستمر..."}
+                  className="w-full p-4 bg-slate-900 border border-white/10 rounded-2xl text-[11px] font-bold text-white placeholder-slate-500 outline-none focus:ring-2 ring-indigo-500/20 min-h-[100px] transition-all resize-none"
+                />
+              </div>
+
+              <Button
+                label="إرسال الآن 🚀"
+                className="w-full bg-gradient-to-r from-indigo-600 to-blue-700 hover:from-indigo-500 hover:to-blue-600 border-none rounded-2xl py-4 font-black text-xs shadow-xl active:scale-95 transition-all text-white cursor-pointer"
+                onClick={handleSubmitFeedback}
+              />
+            </div>
+          </Dialog>
         </>
       )}
     </AnimatePresence>

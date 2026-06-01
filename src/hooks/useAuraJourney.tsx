@@ -668,8 +668,9 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     };
   };
 
-  const completeTask = async (task: any, onComplete?: (taskId: string) => void) => {
-    if (!user || task.isCompleted) return;
+  const completeTask = async (inputTask: any, onComplete?: (taskId: string) => void) => {
+    const task = await db.tasks.get(inputTask.id || inputTask);
+    if (!task || !user || task.isCompleted) return;
     if (user.isFrozen) {
       toast.current?.show({
         severity: "warn",

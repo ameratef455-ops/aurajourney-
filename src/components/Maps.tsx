@@ -33,6 +33,7 @@ import { TaskReflectionModal } from "./TaskReflectionModal";
 import { TaskDetailsModal } from "./TaskDetailsModal";
 import { RevertConfirmModal } from "./RevertConfirmModal";
 import { CalendarTheme } from "./themes/CalendarTheme";
+import { AdsCarousel } from "./AdsCarousel";
 import { addDays, getDay, format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -1006,22 +1007,8 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
   };
 
   const renderAds = (position: 'top' | 'bottom') => {
-    return ads.filter(ad => ad.position === position || !ad.position).map((ad) => (
-      <div key={ad.id} className="w-full max-w-2xl mx-auto my-4 bg-white border border-slate-100 rounded-[28px] overflow-hidden shadow-sm flex flex-col md:flex-row items-center gap-4 p-4 pointer-events-auto">
-        {ad.imageUrl && (
-          <img src={ad.imageUrl} alt={ad.title} className="w-full md:w-32 h-32 object-cover rounded-2xl" referrerPolicy="no-referrer" />
-        )}
-        <div className="flex-1 text-right" dir="rtl">
-          <h4 className="font-black text-blue-950 text-sm mb-1">{ad.title}</h4>
-          <p className="text-[11px] text-slate-500 font-bold leading-relaxed">{ad.text}</p>
-          {ad.link && (
-            <a href={ad.link} target="_blank" rel="noopener noreferrer" className="inline-block mt-3 px-4 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-[10px] font-black border border-blue-100 no-underline hover:bg-blue-100 transition-colors">
-              مشاهدة المزيد <i className="pi pi-external-link text-[8px] ml-1"></i>
-            </a>
-          )}
-        </div>
-      </div>
-    ));
+    const positionAds = ads.filter(ad => ad.position === position || (!ad.position && position === 'top'));
+    return <AdsCarousel ads={positionAds} />;
   };
 
   if (!stations || !tasks || !user) return null;
