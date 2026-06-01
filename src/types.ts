@@ -10,7 +10,6 @@ export interface WizardState {
   dailyDuration?: number;
   learningDays?: number[];
   theme?: 'cards' | 'calendar';
-  role?: 'free' | 'premium' | 'admin';
 }
 
 export interface WizardStation {
@@ -20,9 +19,6 @@ export interface WizardStation {
   description: string;
   targetDate: string;
   tasks: WizardTask[];
-  isPractical?: boolean;
-  isPremium?: boolean;
-  completionMessage?: string;
 }
 
 export interface WizardTask {

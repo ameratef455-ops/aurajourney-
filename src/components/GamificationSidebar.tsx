@@ -14,7 +14,6 @@ export interface GamificationSidebarProps {
   gData: { xp: number; keys: number; fuel?: number; streak?: number };
   buyKeys: (count: 5 | 10) => void;
   activeStationEnergy?: number;
-  leaderboard?: any[];
 }
 
 export function GamificationSidebar({
@@ -25,8 +24,7 @@ export function GamificationSidebar({
   createTabHeader,
   gData,
   buyKeys,
-  activeStationEnergy = 0,
-  leaderboard = []
+  activeStationEnergy = 0
 }: GamificationSidebarProps) {
   
   // Calculate percentage progressions for stats
@@ -330,62 +328,6 @@ export function GamificationSidebar({
 
                   </div>
                 </div>
-              </TabPanel>
-              {/* Tab 3: Leaderboard (Top 10) */}
-              <TabPanel headerTemplate={createTabHeader("pi-list", "لوحة الأبطال")}>
-                 <div className="pt-4 space-y-4">
-                    <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 rounded-3xl text-white shadow-lg relative overflow-hidden">
-                       <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-                       <div className="flex items-center gap-4 relative z-10">
-                          <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-white/30">👑</div>
-                          <div>
-                             <h3 className="text-xl font-black">أعلى 10 عمالقة XP</h3>
-                             <p className="text-[11px] text-amber-50 font-bold opacity-80 leading-relaxed uppercase tracking-widest mt-1">يتم التحديث تلقائياً لأفضل الساعين في المملكة</p>
-                          </div>
-                       </div>
-                    </div>
-
-                    <div className="space-y-3">
-                       {leaderboard.length > 0 ? (
-                         leaderboard.map((entry, idx) => (
-                           <motion.div
-                              key={entry.id}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: idx * 0.05 }}
-                              className={`p-4 rounded-2xl flex items-center justify-between border transition-all ${
-                                idx === 0 ? "bg-amber-50 border-amber-200 shadow-md" : 
-                                idx === 1 ? "bg-slate-50 border-slate-200 shadow-sm" : 
-                                idx === 2 ? "bg-orange-50 border-orange-200 shadow-xs" : 
-                                "bg-white border-slate-100"
-                              }`}
-                           >
-                              <div className="flex items-center gap-4">
-                                 <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm border ${
-                                   idx === 0 ? "bg-amber-500 text-white border-amber-600" :
-                                   idx === 1 ? "bg-slate-400 text-white border-slate-500" :
-                                   idx === 2 ? "bg-orange-500 text-white border-orange-600" :
-                                   "bg-slate-100 text-slate-500 border-slate-200"
-                                 }`}>
-                                    {idx + 1}
-                                 </span>
-                                 <div className="text-right">
-                                    <p className="text-sm font-black text-slate-800">{entry.userName}</p>
-                                    <p className="text-[10px] text-slate-400 font-bold">آخر تحديث: {new Date(entry.lastUpdated).toLocaleDateString('ar-EG')}</p>
-                                 </div>
-                              </div>
-                              <div className="bg-indigo-950 text-white px-4 py-1.5 rounded-xl font-black text-xs shadow-sm">
-                                 {entry.xp} XP
-                              </div>
-                           </motion.div>
-                         ))
-                       ) : (
-                         <div className="py-12 text-center text-slate-300 font-bold italic">
-                            سيتم ظهور العمالقة هنا قريباً... كن أولهم!
-                         </div>
-                       )}
-                    </div>
-                 </div>
               </TabPanel>
             </TabView>
           </motion.div>

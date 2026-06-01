@@ -17,7 +17,7 @@ import { Tree } from "primereact/tree";
 import { toast as toastHot } from "react-hot-toast";
 import { 
   Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy, History, TrendingUp, Calendar, Info,
-  Sparkles, Volume2, MessageSquare, Mic, Shield, Play
+  Sparkles, Volume2, MessageSquare, Mic
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import confetti from "canvas-confetti";
@@ -33,7 +33,6 @@ import { TaskReflectionModal } from "./TaskReflectionModal";
 import { TaskDetailsModal } from "./TaskDetailsModal";
 import { RevertConfirmModal } from "./RevertConfirmModal";
 import { CalendarTheme } from "./themes/CalendarTheme";
-import { AdsCarousel } from "./AdsCarousel";
 import { addDays, getDay, format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -47,9 +46,7 @@ const ARABIC_DAYS_MAP: Record<number, string> = {
   6: "السبت"
 };
 
-export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId?: string | null; userRole?: 'admin' | 'free' | 'premium' | 'guest' | null }) {
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [paymentStation, setPaymentStation] = useState<any>(null);
+export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string | null }) {
   const toast = useRef({
     show: (options: { severity?: string; summary?: string; detail?: string; life?: number }) => {
       const msg = options.detail || options.summary || "";
@@ -192,11 +189,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
     setSideTaskFilter,
     practicalFilter,
     setPracticalFilter,
-    ads,
-    leaderboard,
-    showCompletionModal,
-    setShowCompletionModal,
-    completionModalData,
     createTabHeader,
     editingNote,
     setEditingNote,
@@ -266,8 +258,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
   const [stationFormDescription, setStationFormDescription] = useState("");
   const [stationFormIcon, setStationFormIcon] = useState("pi pi-flag-fill");
   const [stationFormDate, setStationFormDate] = useState("");
-  const [stationFormIsPremium, setStationFormIsPremium] = useState(false);
-  const [stationFormCompletionMessage, setStationFormCompletionMessage] = useState("");
 
   const ICON_PRESETS = [
     "pi pi-flag-fill", 
@@ -287,8 +277,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
     setStationFormDescription("");
     setStationFormIcon("pi pi-flag-fill");
     setStationFormDate(new Date().toISOString().split('T')[0]);
-    setStationFormIsPremium(false);
-    setStationFormCompletionMessage("");
     setIsAddStationVisible(true);
   };
 
@@ -299,8 +287,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
     setStationFormDescription(st.description || "");
     setStationFormIcon(st.icon || "pi pi-flag-fill");
     setStationFormDate(st.targetDate || new Date().toISOString().split('T')[0]);
-    setStationFormIsPremium(!!st.isPremium);
-    setStationFormCompletionMessage(st.completionMessage || "");
     setIsEditStationVisible(true);
   };
 
@@ -324,9 +310,7 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
       description: stationFormDescription.trim(),
       icon: stationFormIcon || 'pi pi-flag-fill',
       targetDate: stationFormDate || new Date().toISOString().split('T')[0],
-      order: currentMaxOrder + 1,
-      isPremium: stationFormIsPremium,
-      completionMessage: stationFormCompletionMessage.trim()
+      order: currentMaxOrder + 1
     });
 
     // Add a default task to make the plan functional
@@ -353,9 +337,7 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
       name: stationFormName.trim(),
       description: stationFormDescription.trim(),
       icon: stationFormIcon,
-      targetDate: stationFormDate,
-      isPremium: stationFormIsPremium,
-      completionMessage: stationFormCompletionMessage.trim()
+      targetDate: stationFormDate
     });
 
     setIsEditStationVisible(false);
@@ -516,32 +498,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
   const [revertingTask, setRevertingTask] = useState<any>(null);
   const [flashcardTask, setFlashcardTask] = useState<any>(null);
   const [taskDetailsVisible, setTaskDetailsVisible] = useState(false);
-
-  // Feedback states
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackRating, setFeedbackRating] = useState(5);
-  const [feedbackComment, setFeedbackComment] = useState("");
-  const [feedbackType, setFeedbackType] = useState<'complaint' | 'rating' | 'suggestion'>('rating');
-
-  const handleSubmitFeedback = async () => {
-    if (!feedbackComment.trim()) {
-      toastHot.error("يرجى كتابة تعليقك أولاً! ⚠️");
-      return;
-    }
-    await db.feedbacks.add({
-      id: safeRandomUUID(),
-      userId: user?.id || 'anonymous',
-      userName: user?.psychology?.target || user?.learningGoal || 'مستخدم',
-      rating: feedbackRating,
-      comment: feedbackComment.trim(),
-      type: feedbackType,
-      createdAt: new Date().toISOString()
-    });
-    setShowFeedbackModal(false);
-    setFeedbackComment("");
-    setFeedbackRating(5);
-    toastHot.success("تم إرسال تعقيبك بنجاح، شكراً للمشاركة! ❤️");
-  };
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<any>(null);
   const [reviewReflectionVisible, setReviewReflectionVisible] = useState(false);
   const [initialReflectionVisible, setInitialReflectionVisible] = useState(false);
@@ -844,24 +800,7 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
   const currentTheme = user?.theme || 'cards';
   const displayTheme = currentTheme === 'calendar' ? 'cards' : currentTheme;
 
-  const handleStationClick = (id: string, isUnlocked: boolean, i: number, isPremium?: boolean) => {
-    const station = stations.find(s => s.id === id);
-
-    // Admin bypass all check
-    if (userRole === 'admin') {
-      setSelectedStation(id);
-      setViewMode('tasks');
-      return;
-    }
-
-    const isFreeUser = userRole === 'free' || userRole === 'guest' || userRole === null || userRole === undefined || user?.role === 'free';
-    if (isPremium && isFreeUser) {
-      vibrate(HAPITCS.FAILURE);
-      setPaymentStation(station);
-      setShowPaymentDialog(true);
-      return;
-    }
-
+  const handleStationClick = (id: string, isUnlocked: boolean, i: number) => {
     if (isUnlocked) {
       vibrate(HAPITCS.MAJOR_CLICK);
       setPoppedStationId(id);
@@ -870,7 +809,7 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
         setViewMode('tasks');
       }, 300);
     } else if (i === unlockedStations.length) {
-      vibrate(HAPITCS.FAILURE);
+      vibrate(HAPITCS.GUIDANCE);
       setSelectedStation(id);
       const st = stations[i];
       const prevSt = stations[i - 1];
@@ -1007,11 +946,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
     }
   };
 
-  const renderAds = (position: 'top' | 'bottom') => {
-    const positionAds = ads.filter(ad => ad.position === position || (!ad.position && position === 'top'));
-    return <AdsCarousel ads={positionAds} />;
-  };
-
   if (!stations || !tasks || !user) return null;
 
   // EnergyRing logic removed as per user request
@@ -1105,19 +1039,8 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
         }
       `}</style>
 
-      {/* Notifications and Support */}
-      <div className="absolute top-8 left-6 z-40 flex items-center gap-3">
-         <button
-           onClick={() => {
-             vibrate(HAPITCS.MAJOR_CLICK);
-             setFeedbackType('rating');
-             setShowFeedbackModal(true);
-           }}
-           className="bg-white/90 hover:bg-white text-rose-500 w-11 h-11 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center transition-all active:scale-95 cursor-pointer backdrop-blur-sm"
-           title="قيمنا وشكاوى"
-         >
-           <i className="pi pi-heart-fill text-sm"></i>
-         </button>
+      {/* Notifications */}
+      <div className="absolute top-8 left-6 z-40">
          <NotificationsPopover />
       </div>
 
@@ -1198,19 +1121,13 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
           <div className="w-full max-w-md px-5 mx-auto flex flex-col items-center justify-start relative z-10 mb-8">
           {displayTheme === 'cards' && (
             <div className="w-full flex flex-col items-center gap-12 relative pb-20 pt-10">
-              {/* Top Ads */}
-              <div className="w-full px-2">
-                {renderAds('top')}
-              </div>
 
               {stations.map((st, i) => {
                 const isUnlocked = unlockedStations.includes(st.id);
-                const isPremiumUser = userRole === 'premium' || userRole === 'admin';
-                const isPremiumLocked = st.isPremium && !isPremiumUser;
                 const isActive = isUnlocked && st.id === activeStationId;
                 const isCompleted = isUnlocked && !isActive && stationEnergy[st.id] >= 100;
-                const isLocked = !isUnlocked || isPremiumLocked;
-                const isNextLocked = !isUnlocked && i === unlockedStations.length;
+                const isLocked = !isUnlocked;
+                const isNextLocked = isLocked && i === unlockedStations.length;
 
                 return (
                   <motion.div
@@ -1325,7 +1242,7 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
                         whileHover={isUnlocked ? { scale: 1.03, y: -8 } : {}}
                         whileTap={isUnlocked ? { scale: 0.97 } : {}}
                         transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                        onClick={() => handleStationClick(st.id, isUnlocked, i, st.isPremium)}
+                        onClick={() => handleStationClick(st.id, isUnlocked, i)}
                         className={`relative z-10 w-full p-6 rounded-[32px] flex items-center gap-5 cursor-pointer transition-all duration-500 border-2
                           ${isActive 
                             ? "bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-900 border-blue-400 shadow-[0_20px_40px_rgba(30,58,138,0.3)]" 
@@ -1344,9 +1261,7 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
                                : 'bg-slate-50 border-slate-100'}
                          `}>
                            {isLocked ? (
-                             <div className="flex flex-col items-center gap-1">
-                               <i className={`pi ${isPremiumLocked ? 'pi-star-fill' : 'pi-lock'} ${isNextLocked ? 'text-amber-500 animate-pulse' : isPremiumLocked ? 'text-amber-500' : 'text-slate-300'} text-lg`} />
-                             </div>
+                             <i className={`pi pi-lock ${isNextLocked ? 'text-amber-500 animate-pulse' : 'text-slate-300'}`} />
                            ) : (
                              <i className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-2xl 
                                ${isActive ? 'text-blue-300' : isCompleted ? 'text-blue-600' : 'text-blue-500'}`} 
@@ -1360,13 +1275,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
                                <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-blue-400' : 'text-slate-400'}`}>
                                  الخطة {i + 1}
                                </span>
-                               {st.isPremium && (
-                                 <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border animate-pulse-slow
-                                   ${isActive ? 'bg-amber-400/20 text-amber-300 border-amber-400/40' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
-                                   <i className="pi pi-star-fill text-[7px]" />
-                                   بريميوم
-                                 </span>
-                               )}
                              </div>
                              {isCompleted && <i className="pi pi-check-circle text-blue-600 text-xs text-sans font-black" />}
                           </div>
@@ -1420,11 +1328,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
                   </motion.div>
                 );
               })}
-
-              {/* Bottom Ads */}
-              <div className="w-full px-2 mt-8">
-                {renderAds('bottom')}
-              </div>
             </div>
           )}
           </div>
@@ -1449,9 +1352,9 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
                 user={user} 
                 onSaveArrangement={handleSaveArrangement} 
                 toggleSubStationTask={toggleSubStationTask} 
-                onOpenEvaluation={(task) => { 
-                   setSelectedTaskForDetails(task); 
-                   setTaskDetailsVisible(true); 
+                onOpenEvaluation={(task) => { if (task?.isCompleted) return setReviewingTask(task); 
+                   setSelectedTaskForEvaluation(task); 
+                   setEvaluationSidebarVisible(true); 
                 }}
                 onOpenReview={setReviewingTask}
                 onOpenFlashcards={setFlashcardTask}
@@ -1514,7 +1417,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
         createTabHeader={createTabHeader}
         gData={gData}
         buyKeys={buyKeys}
-        leaderboard={leaderboard}
         activeStationEnergy={activeStationId ? stationEnergy[activeStationId] || 0 : 0}
       />
 
@@ -1571,7 +1473,8 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
         onCompleteTask={(taskId) => {
            const t = tasks.find(x => x.id === taskId);
            if (t) {
-              completeTask(t);
+              setReviewingTask(t);
+              setInitialReflectionVisible(true);
            }
         }}
         onOpenReflection={(t) => {
@@ -1872,70 +1775,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
           </>
         )}
       </AnimatePresence>
-
-      {/* Payment and Subscription Dialog */}
-      <Dialog
-        visible={showPaymentDialog}
-        onHide={() => setShowPaymentDialog(false)}
-        header={
-          <div className="flex items-center gap-3 text-amber-500 font-extrabold pr-4 text-xl font-sans" dir="rtl">
-            <i className="pi pi-shield text-xl bg-amber-50 p-2 rounded-xl border border-amber-100"></i>
-            <span>ترقية الرحلة لمستوى بريميوم 💎</span>
-          </div>
-        }
-        className="w-[98vw] max-w-sm font-sans mx-4 !rounded-[40px] overflow-hidden"
-        closable
-        dismissableMask
-        maskClassName="backdrop-blur-xl bg-slate-900/60"
-      >
-        <div className="p-2 space-y-6 text-right font-sans" dir="rtl">
-          <div className="bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900 p-8 rounded-[36px] text-center text-white shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-3xl rounded-full" />
-            <div className="relative z-10">
-              <span className="inline-block px-4 py-1.5 bg-amber-500/20 text-amber-400 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border border-amber-500/30">Premium Station</span>
-              <h3 className="text-2xl font-black mb-2 leading-tight">فتحة الخطة: {paymentStation?.name}</h3>
-              <div className="flex items-center justify-center gap-1.5 mt-4">
-                 <span className="text-4xl font-black text-amber-400">50</span>
-                 <span className="text-sm font-bold text-blue-200">جنيه مصري</span>
-              </div>
-              <p className="text-[11px] text-blue-100/60 mt-4 font-medium leading-relaxed">
-                استثمر في عقلك، فالتعلم هو أعظم استثمار! افتح آفاقاً جديدة لنجاحك بتفعيل هذه الخطة الفاخرة. 🚀
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-             <div className="p-5 bg-emerald-50 border border-emerald-100 rounded-3xl flex items-center gap-4">
-                <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shadow-lg shrink-0">
-                   <i className="pi pi-phone text-lg" />
-                </div>
-                <div className="flex-1">
-                   <p className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">تحويل فودافون كاش</p>
-                   <p className="text-xl font-black text-emerald-950 tracking-tighter">01282920387</p>
-                </div>
-             </div>
-
-             <div className="p-5 bg-blue-50 border border-blue-100 rounded-3xl flex items-center gap-4">
-                <div className="w-12 h-12 bg-[#26A5E4] text-white rounded-2xl flex items-center justify-center shadow-lg shrink-0">
-                   <i className="pi pi-send text-lg" />
-                </div>
-                <div className="flex-1">
-                   <p className="text-[10px] font-black text-blue-800 uppercase tracking-wider">تواصل معنا للتفعيل</p>
-                   <p className="text-sm font-bold text-blue-950">أرسل صورة التحويل عبر تيليجرام</p>
-                </div>
-             </div>
-          </div>
-
-          <div className="pt-2">
-            <Button
-              label="تواصل عبر تيليجرام الآن 📱"
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl py-4.5 font-black shadow-xl shadow-blue-900/20 border-none hover:brightness-110 active:scale-95 transition-all text-sm cursor-pointer"
-              onClick={() => window.open('https://t.me/AmerAtef', '_blank')}
-            />
-            <p className="text-center text-[10px] text-slate-400 mt-4 font-bold">بمجرد إرسال الصورة سيتم تفعيل الخطة لك فوراً ✨</p>
-          </div>
-        </div>
-      </Dialog>
 
       {/* Locked Station Dialog */}
       <Dialog
@@ -3242,9 +3081,8 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
                                         <div className="flex gap-1">
                                           {s.audioData && (
                                             <Button 
-                                              icon={<Play className="w-3.5 h-3.5" />} 
+                                              icon={<Mic className="w-3.5 h-3.5" />} 
                                               className="p-button-text p-button-rounded text-rose-500 w-8 h-8" 
-                                              title="تشغيل المقطع الصوتي"
                                               onClick={() => {
                                                 const audio = new Audio(s.audioData);
                                                 audio.play();
@@ -4069,7 +3907,7 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
             <div className="flex flex-wrap gap-2 justify-center py-1">
               {ICON_PRESETS.map((icon) => (
                 <button
-                  key={`create-station-${icon}`}
+                  key={icon}
                   type="button"
                   onClick={() => {
                     vibrate(HAPITCS.MAJOR_CLICK);
@@ -4082,38 +3920,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
               ))}
             </div>
           </div>
-
-          <div className="flex items-center justify-between bg-slate-50 border border-slate-150 p-3.5 rounded-2xl font-sans">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-slate-700">خطة بريميوم (بفلوس)؟ 💎</span>
-              <span className="text-[8px] text-slate-400 font-bold">سيتم قفلها للمشتركين المجانيين</span>
-            </div>
-            <button
-               type="button"
-               onClick={() => {
-                 vibrate(HAPITCS.MINOR_CLICK);
-                 setStationFormIsPremium(!stationFormIsPremium);
-               }}
-               className={`w-12 h-6 rounded-full p-1 transition-all flex items-center ${stationFormIsPremium ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
-            >
-               <motion.div 
-                 layout
-                 className="w-4 h-4 bg-white rounded-full shadow-sm"
-               />
-            </button>
-          </div>
-
-          {!stationFormIsPremium && (
-            <div className="flex flex-col gap-1.5 font-sans">
-              <label className="text-[10px] font-black text-slate-400 font-sans">رسالة إتمام المحطة المجانية 🎁</label>
-              <textarea 
-                value={stationFormCompletionMessage}
-                onChange={(e) => setStationFormCompletionMessage(e.target.value)}
-                className="w-full p-3.5 bg-slate-50 border border-slate-150 rounded-2xl outline-none focus:ring-2 ring-indigo-500/10 text-xs font-bold text-slate-800 placeholder-slate-300 transition-all font-sans min-h-[60px]"
-                placeholder="رسالة تظهر للمستخدم المجاني عند إنهاء المحطة (مثلاً لتشجيعه على البريميوم)..."
-              />
-            </div>
-          )}
 
           <div className="border-t border-slate-100 my-1 font-sans" />
 
@@ -4190,7 +3996,7 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
             <div className="flex flex-wrap gap-2 justify-center py-1">
               {ICON_PRESETS.map((icon) => (
                 <button
-                  key={`edit-station-${icon}`}
+                  key={icon}
                   type="button"
                   onClick={() => {
                     vibrate(HAPITCS.MAJOR_CLICK);
@@ -4203,38 +4009,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
               ))}
             </div>
           </div>
-
-          <div className="flex items-center justify-between bg-slate-50 border border-slate-150 p-3.5 rounded-2xl font-sans">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-slate-700">خطة بريميوم (بفلوس)؟ 💎</span>
-              <span className="text-[8px] text-slate-400 font-bold">سيتم قفلها للمشتركين المجانيين</span>
-            </div>
-            <button
-               type="button"
-               onClick={() => {
-                 vibrate(HAPITCS.MINOR_CLICK);
-                 setStationFormIsPremium(!stationFormIsPremium);
-               }}
-               className={`w-12 h-6 rounded-full p-1 transition-all flex items-center ${stationFormIsPremium ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
-            >
-               <motion.div 
-                 layout
-                 className="w-4 h-4 bg-white rounded-full shadow-sm"
-               />
-            </button>
-          </div>
-
-          {!stationFormIsPremium && (
-            <div className="flex flex-col gap-1.5 font-sans">
-              <label className="text-[10px] font-black text-slate-400 font-sans">رسالة إتمام المحطة المجانية 🎁</label>
-              <textarea 
-                value={stationFormCompletionMessage}
-                onChange={(e) => setStationFormCompletionMessage(e.target.value)}
-                className="w-full p-3.5 bg-slate-50 border border-slate-150 rounded-2xl outline-none focus:ring-2 ring-indigo-500/10 text-xs font-bold text-slate-800 placeholder-slate-300 transition-all font-sans min-h-[60px]"
-                placeholder="رسالة تظهر للمستخدم المجاني عند إنهاء المحطة (مثلاً لتشجيعه على البريميوم)..."
-              />
-            </div>
-          )}
 
           <div className="border-t border-slate-100 my-1 font-sans" />
 
@@ -4292,119 +4066,6 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
           </div>
         </div>
       </Dialog>
-
-      {/* Complaints and Rating (قيمنا وشكاوى) Dialog */}
-      <Dialog
-        visible={showFeedbackModal}
-        onHide={() => setShowFeedbackModal(false)}
-        header={
-          <div className="flex items-center gap-2 text-rose-950 font-black pr-4 text-xs font-sans" dir="rtl">
-            <i className="pi pi-heart-fill text-rose-600 bg-rose-50 p-1.5 rounded-lg border border-rose-100"></i>
-            <span>تعليقاتك تهمنا ❤️ (شكاوى واقتراحات)</span>
-          </div>
-        }
-        className="w-[96vw] max-w-sm !rounded-[32px] overflow-hidden"
-        style={{ borderRadius: '32px' }}
-        maskClassName="backdrop-blur-sm bg-slate-900/40"
-        closable
-        dismissableMask
-      >
-        <div className="p-4 flex flex-col gap-5 text-right font-sans" dir="rtl">
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">ما هو نوع تعليقك؟</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'rating', label: 'تقييم ⭐️', color: 'indigo' },
-                { id: 'complaint', label: 'شكوى ⚠️', color: 'rose' },
-                { id: 'suggestion', label: 'اقتراح 💡', color: 'emerald' }
-              ].map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => { vibrate(HAPITCS.MINOR_CLICK); setFeedbackType(t.id as any); }}
-                  className={`p-2.5 rounded-xl border-2 text-[10px] font-black transition-all ${feedbackType === t.id ? `bg-${t.color}-600 border-${t.color}-600 text-white shadow-lg` : `bg-white border-slate-100 text-slate-400 hover:border-${t.color}-200`}`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">تقييمك للتجربة</label>
-            <div className="flex items-center justify-center gap-2 py-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => { vibrate(HAPITCS.MINOR_CLICK); setFeedbackRating(star); }}
-                  className={`text-2xl transition-all ${feedbackRating >= star ? 'text-amber-400 scale-110 drop-shadow-sm' : 'text-slate-200 grayscale opacity-50'}`}
-                >
-                  <i className="pi pi-star-fill"></i>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">اكتب تعليقك أو شكواك هنا</label>
-            <textarea
-              value={feedbackComment}
-              onChange={(e) => setFeedbackComment(e.target.value)}
-              placeholder="اكتب لنا أي شيء يدور في خاطرك، نعدك بالاستجابة والتحسين المستمر..."
-              className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-bold text-slate-800 placeholder-slate-300 outline-none focus:ring-2 ring-rose-500/10 min-h-[100px] transition-all resize-none"
-            />
-          </div>
-
-          <Button
-            label="إرسال التعليق الآن 🚀"
-            className="w-full bg-gradient-to-r from-rose-600 to-indigo-650 border-none rounded-2xl py-4 font-black text-xs shadow-xl shadow-indigo-900/10 active:scale-95 transition-all text-white cursor-pointer"
-            onClick={handleSubmitFeedback}
-          />
-        </div>
-      </Dialog>
-      <Dialog
-        visible={showCompletionModal}
-        onHide={() => setShowCompletionModal(false)}
-        className="w-[96vw] max-w-sm !rounded-[40px] overflow-hidden"
-        dismissableMask
-        closable
-        showHeader={false}
-      >
-        <div className="relative p-8 text-center space-y-6 bg-slate-900 overflow-hidden" dir="rtl">
-           {/* Animated Background Decor */}
-           <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500 rounded-full blur-[80px]" />
-              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-amber-500 rounded-full blur-[80px]" />
-           </div>
-
-           <div className="relative space-y-4">
-              <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-[32px] flex items-center justify-center mx-auto shadow-2xl shadow-indigo-500/30 rotate-3 text-white">
-                 <Shield className="w-10 h-10" />
-              </div>
-              
-              <h2 className="text-2xl font-black text-white leading-tight">
-                 {completionModalData?.title}
-              </h2>
-           </div>
-
-           <div className="p-6 bg-white/5 border border-white/10 rounded-[32px] backdrop-blur-md">
-              <p className="text-sm font-bold text-slate-300 leading-relaxed">
-                 {completionModalData?.message}
-              </p>
-           </div>
-
-           <div className="space-y-3">
-              <Button 
-                label="فهمت، استكمال الرحلة ✨" 
-                className="w-full bg-indigo-600 hover:bg-indigo-700 border-none rounded-2xl py-4 font-black shadow-lg shadow-indigo-900/20 active:scale-95 transition-all text-white cursor-pointer text-xs"
-                onClick={() => {
-                  vibrate(HAPITCS.MINOR_CLICK);
-                  setShowCompletionModal(false);
-                }}
-              />
-              <p className="text-[10px] text-slate-500 font-bold">شكراً لالتزامك بالتطوير الذاتي!</p>
-           </div>
-        </div>
-      </Dialog>
     </motion.div>
-  );
+);
 }

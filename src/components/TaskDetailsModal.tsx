@@ -465,27 +465,14 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
               })()
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center max-w-sm mx-auto">
-                <div className="w-32 h-32 bg-slate-50 rounded-[48px] flex items-center justify-center text-indigo-200 mb-10 relative mt-16">
+                <div className="w-32 h-32 bg-slate-50 rounded-[48px] flex items-center justify-center text-indigo-200 mb-10 relative">
                    <div className="absolute inset-0 bg-indigo-100/30 rounded-[48px] animate-ping" />
                    <Sparkles className="w-14 h-14 relative z-10" />
                 </div>
                 <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">هندسة الأنشطة</h3>
-                <p className="text-base font-bold text-slate-500 leading-relaxed mb-12">
+                <p className="text-base font-bold text-slate-500 leading-relaxed">
                   حول كل مهمة كبيرة لتسلسل من الأنشطة والخطوات الفرعية لتصل لمستوى احتراف فائق في رحلتك.
                 </p>
-                {!task.isCompleted && (
-                  <button 
-                    onClick={() => {
-                      vibrate(HAPITCS.MAJOR_CLICK);
-                      confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
-                      toast.success("تم إنهاء المهمة! حان وقت التقييم 🏆✨");
-                      if (onCompleteTask) onCompleteTask(taskId as string);
-                    }}
-                    className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle2 className="w-5 h-5" /> إنهاء المهمة مباشرة
-                  </button>
-                )}
               </div>
             )}
           </div>

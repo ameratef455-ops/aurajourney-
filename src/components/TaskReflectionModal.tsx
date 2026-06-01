@@ -136,43 +136,29 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
-    // Small delay to ensure cancellation finishes and browser is ready
-    setTimeout(() => {
-      const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Set language to Arabic if text contains Arabic characters, otherwise English
+    const isArabic = /[\u0600-\u06FF]/.test(text);
+    utterance.lang = isArabic ? 'ar-SA' : 'en-US';
+    
+    // Try to find a better voice
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      const preferredVoice = voices.find(v => 
+        (isArabic ? v.lang.includes('ar') : v.lang.includes('en')) && v.localService
+      ) || voices.find(v => isArabic ? v.lang.includes('ar') : v.lang.includes('en'));
       
-      // Set language to Arabic if text contains Arabic characters, otherwise English
-      const isArabic = /[\u0600-\u06FF]/.test(text);
-      utterance.lang = isArabic ? 'ar-SA' : 'en-US';
-      
-      const setVoiceAndSpeak = () => {
-        const voices = window.speechSynthesis.getVoices();
-        if (voices.length > 0) {
-          const preferredVoice = voices.find(v => 
-            (isArabic ? v.lang.includes('ar') : (v.lang.includes('en') || v.lang.includes('en-US'))) && v.localService
-          ) || voices.find(v => isArabic ? v.lang.includes('ar') : (v.lang.includes('en') || v.lang.includes('en-US')));
-          
-          if (preferredVoice) {
-            utterance.voice = preferredVoice;
-          }
-        }
-        utterance.rate = 0.9;
-        window.speechSynthesis.speak(utterance);
-      };
-
-      if (window.speechSynthesis.getVoices().length === 0) {
-        window.speechSynthesis.onvoiceschanged = () => {
-          setVoiceAndSpeak();
-          window.speechSynthesis.onvoiceschanged = null;
-        };
-      } else {
-        setVoiceAndSpeak();
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
       }
-    }, 100);
+    }
+
+    window.speechSynthesis.speak(utterance);
   };
 
   const [isListening, setIsListening] = useState(false);
   const [listeningTargetIdx, setListeningTargetIdx] = useState<number | null>(null);
-  const [listeningField, setListeningField] = useState<string | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTargetIdx, setRecordingTargetIdx] = useState<number | null>(null);
@@ -226,7 +212,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
     }
   };
 
-  const startListening = (idx: number | null, field?: string) => {
+  const startListening = (idx: number) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("متصفحك لا يدعم ميزة التعرف على الكلام.");
@@ -235,49 +221,25 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
 
     vibrate(HAPITCS.MAJOR_CLICK);
     const recognition = new SpeechRecognition();
-    
-    // Smart language detection
-    if (field === 'sentences' || field === 'sentences-notes') {
-       recognition.lang = isLanguageLearning ? 'en-US' : 'ar-SA';
-    } else {
-       recognition.lang = 'ar-SA';
-    }
-
+    recognition.lang = 'en-US'; // Default to English, ideally this should be configurable
     recognition.continuous = false;
     recognition.interimResults = false;
 
     recognition.onstart = () => {
       setIsListening(true);
       setListeningTargetIdx(idx);
-      setListeningField(field || null);
     };
 
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
-      
-      if (field === 'sentences' && idx !== null) {
-        const newSentences = [...sentences];
-        newSentences[idx].text = transcript;
-        setSentences(newSentences);
-      } else if (field === 'sentences-notes' && idx !== null) {
-        const newSentences = [...sentences];
-        newSentences[idx].notes = transcript;
-        setSentences(newSentences);
-      } else if (field === 'strengths') {
-        setStrengths(prev => prev ? `${prev} ${transcript}` : transcript);
-      } else if (field === 'weaknesses') {
-        setWeaknesses(prev => prev ? `${prev} ${transcript}` : transcript);
-      } else if (field === 'learnings') {
-        setLearnings(prev => prev ? `${prev} ${transcript}` : transcript);
-      } else if (field === 'practicalIssues') {
-        setPracticalIssues(prev => prev ? `${prev} ${transcript}` : transcript);
-      }
+      const newSentences = [...sentences];
+      newSentences[idx].text = transcript;
+      setSentences(newSentences);
     };
 
     recognition.onerror = (event: any) => {
       setIsListening(false);
       setListeningTargetIdx(null);
-      setListeningField(null);
       if (event.error === 'not-allowed') {
         alert("صلاحية الميكروفون مرفوضة. يرجى تفعيلها من إعدادات المتصفح.");
       }
@@ -286,7 +248,6 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
     recognition.onend = () => {
       setIsListening(false);
       setListeningTargetIdx(null);
-      setListeningField(null);
     };
 
     recognition.start();
@@ -380,19 +341,12 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
                 </div>
               </div>
 
+              {/* Strengths & Weaknesses */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between mr-1">
-                    <label className="text-xs font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-                      💪 نقاط القوة:
-                    </label>
-                    <Button 
-                      icon={<Mic className={`w-3 h-3 ${isListening && listeningField === 'strengths' ? 'animate-pulse text-rose-500' : ''}`} />} 
-                      className="p-button-rounded p-button-text w-6 h-6 p-0 text-emerald-600"
-                      onClick={() => startListening(null, 'strengths')}
-                      title="STT لتدوين نقاط القوة"
-                    />
-                  </div>
+                  <label className="text-xs font-black text-emerald-600 uppercase tracking-wider block mr-1 flex items-center gap-1">
+                    💪 نقاط القوة:
+                  </label>
                   <InputTextarea 
                     value={strengths}
                     onChange={(e) => setStrengths(e.target.value)}
@@ -401,17 +355,9 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
                   />
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between mr-1">
-                    <label className="text-xs font-black text-rose-600 uppercase tracking-wider flex items-center gap-1">
-                      🧨 نقاط الضعف:
-                    </label>
-                    <Button 
-                      icon={<Mic className={`w-3 h-3 ${isListening && listeningField === 'weaknesses' ? 'animate-pulse text-rose-500' : ''}`} />} 
-                      className="p-button-rounded p-button-text w-6 h-6 p-0 text-rose-600"
-                      onClick={() => startListening(null, 'weaknesses')}
-                      title="STT لتدوين نقاط الضعف"
-                    />
-                  </div>
+                  <label className="text-xs font-black text-rose-600 uppercase tracking-wider block mr-1 flex items-center gap-1">
+                    🧨 نقاط الضعف:
+                  </label>
                   <InputTextarea 
                     value={weaknesses}
                     onChange={(e) => setWeaknesses(e.target.value)}
@@ -423,18 +369,10 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
 
               {/* Key Learnings */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between mr-1">
-                  <label className="text-xs font-black text-blue-600 uppercase tracking-wider flex items-center gap-1">
-                    <Lightbulb className="w-4 h-4" />
-                    أهم الأفكار المكتسبة:
-                  </label>
-                  <Button 
-                    icon={<Mic className={`w-3 h-3 ${isListening && listeningField === 'learnings' ? 'animate-pulse text-rose-500' : ''}`} />} 
-                    className="p-button-rounded p-button-text w-6 h-6 p-0 text-blue-600"
-                    onClick={() => startListening(null, 'learnings')}
-                    title="STT لتدوين الأفكار"
-                  />
-                </div>
+                <label className="text-xs font-black text-blue-600 uppercase tracking-wider block mr-1 flex items-center gap-1">
+                  <Lightbulb className="w-4 h-4" />
+                  أهم الأفكار المكتسبة:
+                </label>
                 <InputTextarea 
                   value={learnings}
                   onChange={(e) => setLearnings(e.target.value)}
@@ -459,18 +397,10 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
                       className="overflow-hidden"
                     >
                       <div className="space-y-2 p-1">
-                        <div className="flex items-center justify-between mr-1">
-                          <label className="text-xs font-black text-indigo-600 uppercase tracking-wider flex items-center gap-1">
-                            <Wrench className="w-4 h-4 ml-1" />
-                            المشاكل التي واجهتك وكيف حللتها:
-                          </label>
-                          <Button 
-                            icon={<Mic className={`w-3 h-3 ${isListening && listeningField === 'practicalIssues' ? 'animate-pulse text-rose-500' : ''}`} />} 
-                            className="p-button-rounded p-button-text w-6 h-6 p-0 text-indigo-600"
-                            onClick={() => startListening(null, 'practicalIssues')}
-                            title="STT لتدوين التحديات"
-                          />
-                        </div>
+                        <label className="text-xs font-black text-indigo-600 uppercase tracking-wider block mr-1 flex items-center gap-1">
+                          <Wrench className="w-4 h-4 ml-1" />
+                          المشاكل التي واجهتك وكيف حللتها:
+                        </label>
                         <InputTextarea 
                           value={practicalIssues}
                           onChange={(e) => setPracticalIssues(e.target.value)}
@@ -542,14 +472,12 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
                                 }}
                               />
                               <Button 
-                                icon={<Mic className={`w-3.5 h-3.5 ${isListening && listeningTargetIdx === idx && listeningField === 'sentences' ? 'animate-pulse text-rose-500' : ''}`} />} 
-                                className="w-8 h-8 p-button-rounded p-button-text text-indigo-500" 
-                                title="تحويل الكلام إلى نص (STT)"
-                                onClick={() => startListening(idx, 'sentences')}
+                                icon={<Mic className={`w-3.5 h-3.5 ${isListening && listeningTargetIdx === idx ? 'animate-pulse text-rose-500' : ''}`} />} 
+                                className="w-8 h-8 p-button-rounded p-button-text text-slate-400" 
+                                onClick={() => startListening(idx)}
                               />
                               <Button 
-                                icon={isRecording && recordingTargetIdx === idx ? <Square className="w-3.5 h-3.5 text-rose-600 animate-pulse" /> : <div className="w-3 h-3 rounded-full bg-blue-500" />} 
-                                title="تسجيل صوتي (Audio)"
+                                icon={isRecording && recordingTargetIdx === idx ? <Square className="w-3.5 h-3.5 text-rose-600 animate-pulse" /> : <Mic className="w-3.5 h-3.5 text-blue-500" />} 
                                 className={`w-8 h-8 p-button-rounded p-button-text ${isRecording && recordingTargetIdx === idx ? 'bg-rose-50' : ''}`} 
                                 onClick={() => isRecording ? stopRecording() : startRecording(idx)}
                               />
