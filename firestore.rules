@@ -90,5 +90,17 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
     }
+
+    // Global Ads system
+    match /ads/{adId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Dynamic Leaderboard (read globally by players, write owned or by admin)
+    match /leaderboard/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+    }
   }
 }

@@ -500,7 +500,7 @@ function TripsList({ onEdit, onOpen, userRole }: { onEdit: (id: string) => void;
                 )}
 
                 {/* Three dots absolute position */}
-                {userRole === 'admin' && (
+                {(userRole === 'admin' || userRole === 'free' || userRole === 'premium') && (
                   <div 
                     className="absolute top-4 left-4 z-30" 
                     onClick={(e) => e.stopPropagation()}
@@ -523,17 +523,21 @@ function TripsList({ onEdit, onOpen, userRole }: { onEdit: (id: string) => void;
                           onClick={() => setActiveMenuTripId(null)}
                         />
                         <div className="absolute left-0 mt-2 w-44 bg-white border border-gray-100 rounded-2xl shadow-2xl z-20 py-2 text-right overflow-hidden">
-                          <button
-                            onClick={() => {
-                              setActiveMenuTripId(null);
-                              startEdit(trip);
-                            }}
-                            className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-blue-950 hover:bg-blue-50 transition border-none bg-transparent font-bold cursor-pointer"
-                          >
-                            <i className="pi pi-pencil text-blue-600"></i>
-                            <span>تعديل المحطات</span>
-                          </button>
-                          <div className="h-px bg-gray-50 mx-2" />
+                          {userRole === 'admin' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setActiveMenuTripId(null);
+                                  startEdit(trip);
+                                }}
+                                className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-blue-950 hover:bg-blue-50 transition border-none bg-transparent font-bold cursor-pointer"
+                              >
+                                <i className="pi pi-pencil text-blue-600"></i>
+                                <span>تعديل المحطات</span>
+                              </button>
+                              <div className="h-px bg-gray-50 mx-2" />
+                            </>
+                          )}
                           <button
                             onClick={() => {
                               setActiveMenuTripId(null);
@@ -557,17 +561,21 @@ function TripsList({ onEdit, onOpen, userRole }: { onEdit: (id: string) => void;
                             <i className={`pi ${isFrozen ? 'pi-play' : 'pi-stop-circle'} ${isFrozen ? 'text-emerald-500' : 'text-cyan-500'}`}></i>
                             <span>{isFrozen ? "إلغاء التجميد" : "تجميد الرحلة"}</span>
                           </button>
-                          <div className="h-px bg-gray-50 mx-2" />
-                          <button
-                            onClick={() => {
-                              setActiveMenuTripId(null);
-                              setDeleteTripId(trip.id);
-                            }}
-                            className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-rose-600 hover:bg-rose-50 transition border-none bg-transparent font-bold cursor-pointer"
-                          >
-                            <i className="pi pi-trash text-rose-500"></i>
-                            <span>حذف الرحلة</span>
-                          </button>
+                          {userRole === 'admin' && (
+                            <>
+                              <div className="h-px bg-gray-50 mx-2" />
+                              <button
+                                onClick={() => {
+                                  setActiveMenuTripId(null);
+                                  setDeleteTripId(trip.id);
+                                }}
+                                className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-rose-600 hover:bg-rose-50 transition border-none bg-transparent font-bold cursor-pointer"
+                              >
+                                <i className="pi pi-trash text-rose-500"></i>
+                                <span>حذف الرحلة</span>
+                              </button>
+                            </>
+                          )}
                         </div>
                       </>
                     )}

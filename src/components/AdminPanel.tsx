@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db } from '../db';
+import { db, sanitizeForFirestore } from '../db';
 import { auth, db as firestore } from '../lib/firebase';
 import { collection, doc, getDocs, updateDoc, setDoc, deleteDoc, getDoc, getDocFromServer } from 'firebase/firestore';
 import { toast as toastHot } from 'react-hot-toast';
@@ -151,7 +151,7 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
         isActive: adIsActive
       };
 
-      await setDoc(doc(firestore, 'ads', adId), adData);
+      await setDoc(doc(firestore, 'ads', adId), sanitizeForFirestore(adData));
       toastHot.success("تم حفظ الإعلان بنجاح! 🚀");
       setAdModalOpen(false);
       fetchAdminData();
@@ -283,7 +283,7 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
       
       if (nextIsFree) {
         // Copy trip document to publicTrips
-        await setDoc(publicRef, {
+        await setDoc(publicRef, sanitizeForFirestore({
           id: trip.id,
           learningGoal: trip.learningGoal,
           psychology: trip.psychology || {},
@@ -292,18 +292,18 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
           isFree: true,
           theme: trip.theme || 'cards',
           createdAt: new Date().toISOString()
-        });
+        }));
         
         // Copy related stations
         const stations = await db.stations.toArray();
         for (const st of stations) {
-          await setDoc(doc(firestore, `publicTrips/${trip.id}/stations`, st.id), st);
+          await setDoc(doc(firestore, `publicTrips/${trip.id}/stations`, st.id), sanitizeForFirestore(st));
         }
         
         // Copy related tasks
         const tasks = await db.tasks.toArray();
         for (const t of tasks) {
-          await setDoc(doc(firestore, `publicTrips/${trip.id}/tasks`, t.id), t);
+          await setDoc(doc(firestore, `publicTrips/${trip.id}/tasks`, t.id), sanitizeForFirestore(t));
         }
         
         toastHot.success("تم تصنيف الرحلة كـ مجانية ونشرها كدليل تفاعلي عام! 🌟");
@@ -331,21 +331,21 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
       
       // Copy trip (UserSettings) to target user's path in Firestore
       const targetTripRef = doc(firestore, `users/${targetUser.uid}/userSettings`, assigningTrip.id);
-      await setDoc(targetTripRef, {
+      await setDoc(targetTripRef, sanitizeForFirestore({
         ...assigningTrip,
         isFree: !!assigningTrip.isFree
-      });
+      }));
       
       // Copy stations
       const stations = await db.stations.toArray();
       for (const st of stations) {
-        await setDoc(doc(firestore, `users/${targetUser.uid}/stations`, st.id), st);
+        await setDoc(doc(firestore, `users/${targetUser.uid}/stations`, st.id), sanitizeForFirestore(st));
       }
       
       // Copy tasks
       const tasks = await db.tasks.toArray();
       for (const t of tasks) {
-        await setDoc(doc(firestore, `users/${targetUser.uid}/tasks`, t.id), t);
+        await setDoc(doc(firestore, `users/${targetUser.uid}/tasks`, t.id), sanitizeForFirestore(t));
       }
       
       toastHot.success(`تم تعيين الرحلة المنهجية لـ ${targetUser.email} بنجاح! 🚀`);
@@ -555,7 +555,7 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
 
     try {
       // Create document in Firestore
-      await setDoc(doc(firestore, path, docId), parsedData);
+      await setDoc(doc(firestore, path, docId), sanitizeForFirestore(parsedData));
       toastHot.success(editingDoc.isNew ? "تم إنشاء المستند بنجاح! 🎉" : "تم حفظ وتحديث المستند في Firestore! 💾");
       setEditingDoc(null);
       fetchExplorerDocs();

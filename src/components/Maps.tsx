@@ -854,7 +854,8 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
       return;
     }
 
-    if (isPremium && user?.role === 'free') {
+    const isFreeUser = userRole === 'free' || userRole === 'guest' || userRole === null || userRole === undefined || user?.role === 'free';
+    if (isPremium && isFreeUser) {
       vibrate(HAPITCS.FAILURE);
       setPaymentStation(station);
       setShowPaymentDialog(true);
@@ -1204,7 +1205,8 @@ export function Maps({ onBack, tripId, userRole }: { onBack?: () => void; tripId
 
               {stations.map((st, i) => {
                 const isUnlocked = unlockedStations.includes(st.id);
-                const isPremiumLocked = st.isPremium && user?.isFree;
+                const isPremiumUser = userRole === 'premium' || userRole === 'admin';
+                const isPremiumLocked = st.isPremium && !isPremiumUser;
                 const isActive = isUnlocked && st.id === activeStationId;
                 const isCompleted = isUnlocked && !isActive && stationEnergy[st.id] >= 100;
                 const isLocked = !isUnlocked || isPremiumLocked;

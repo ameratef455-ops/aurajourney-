@@ -317,6 +317,23 @@ async function testConnection() {
   }
 }
 
+export function sanitizeForFirestore(obj: any): any {
+  if (obj === null || obj === undefined || typeof obj !== 'object') {
+    return obj === undefined ? null : obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeForFirestore(item));
+  }
+  const result: any = {};
+  for (const key of Object.keys(obj)) {
+    const val = obj[key];
+    if (val !== undefined) {
+      result[key] = sanitizeForFirestore(val);
+    }
+  }
+  return result;
+}
+
 let unsubscribeSettings: (() => void) | null = null;
 let unsubscribeTasks: (() => void) | null = null;
 let unsubscribeStations: (() => void) | null = null;
@@ -351,25 +368,25 @@ const uploadLocalDataToFirestore = async (userId: string) => {
         const batch = writeBatch(firestore);
         
         for (const item of localSettings) {
-          batch.set(doc(firestore, `users/${userId}/userSettings`, item.id), item);
+          batch.set(doc(firestore, `users/${userId}/userSettings`, item.id), sanitizeForFirestore(item));
         }
         for (const item of localStations) {
-          batch.set(doc(firestore, `users/${userId}/stations`, item.id), item);
+          batch.set(doc(firestore, `users/${userId}/stations`, item.id), sanitizeForFirestore(item));
         }
         for (const item of localTasks) {
-          batch.set(doc(firestore, `users/${userId}/tasks`, item.id), item);
+          batch.set(doc(firestore, `users/${userId}/tasks`, item.id), sanitizeForFirestore(item));
         }
         for (const item of localReflections) {
-          batch.set(doc(firestore, `users/${userId}/reflections`, item.id), item);
+          batch.set(doc(firestore, `users/${userId}/reflections`, item.id), sanitizeForFirestore(item));
         }
         for (const item of localStumbles) {
-          batch.set(doc(firestore, `users/${userId}/stumbles`, item.id), item);
+          batch.set(doc(firestore, `users/${userId}/stumbles`, item.id), sanitizeForFirestore(item));
         }
         for (const item of localNotifications) {
-          batch.set(doc(firestore, `users/${userId}/notifications`, item.id), item);
+          batch.set(doc(firestore, `users/${userId}/notifications`, item.id), sanitizeForFirestore(item));
         }
         for (const item of localFeedbacks) {
-          batch.set(doc(firestore, `users/${userId}/feedbacks`, item.id), item);
+          batch.set(doc(firestore, `users/${userId}/feedbacks`, item.id), sanitizeForFirestore(item));
         }
         
         await batch.commit();
@@ -592,7 +609,7 @@ export const initFirebaseSync = () => {
     try {
       const ref = doc(firestore, `users/${currentUserId}/${table}`, id);
       if (type === 'put') {
-        await setDoc(ref, data);
+        await setDoc(ref, sanitizeForFirestore(data));
       } else {
         await deleteDoc(ref);
       }
