@@ -619,29 +619,27 @@ export function AdminPanel({ isOpen, onClose }: AdminPanelProps) {
 
           <div className="flex-1 flex overflow-hidden">
             {/* Sidebar Navigation */}
-            <nav className="w-80 border-l border-white/5 bg-slate-900/20 p-8 flex flex-col gap-2 shrink-0">
-              <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mb-4 pr-2">القوائم الأساسية</p>
+            <nav className="w-24 border-l border-white/5 bg-slate-900/20 p-3 flex flex-col gap-3 shrink-0 items-center overflow-y-auto">
+              <p className="text-[9px] font-black text-slate-600 uppercase tracking-wider mb-2 text-center">القوائم</p>
               {[
-                { id: 'users', label: 'إدارة الأعضاء', icon: Users, color: 'indigo', desc: 'تعديل الرتب والصلاحيات' },
-                { id: 'trips', label: 'المسارات العامة', icon: Compass, color: 'blue', desc: 'إدارة المحتوى المتاح للجميع' },
-                { id: 'ads', label: 'إدارة الإعلانات', icon: Sparkles, color: 'rose', desc: 'اللافتات العلوية والسفلية' },
-                { id: 'stats', label: 'إحصائيات النمو', icon: PieChartIcon, color: 'amber', desc: 'توزيع الباقات والنشاط' },
-                { id: 'firestore', label: 'مستكشف البيانات', icon: Database, color: 'emerald', desc: 'معاينة مباشرة للجداول' },
+                { id: 'users', label: 'الأعضاء', icon: Users, color: 'indigo' },
+                { id: 'trips', label: 'المسارات', icon: Compass, color: 'blue' },
+                { id: 'ads', label: 'الإعلانات', icon: Sparkles, color: 'rose' },
+                { id: 'stats', label: 'الإحصائيات', icon: PieChartIcon, color: 'amber' },
+                { id: 'firestore', label: 'البيانات', icon: Database, color: 'emerald' },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => { vibrate(HAPITCS.MAJOR_CLICK); setActiveTab(tab.id as any); }}
-                  className={`p-4 rounded-3xl flex flex-col gap-1 transition-all text-right group ${
+                  title={tab.label}
+                  className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all text-center group border ${
                     activeTab === tab.id 
-                      ? `bg-${tab.color}-500/10 border border-${tab.color}-500/20 text-${tab.color}-400` 
-                      : 'hover:bg-white/5 text-slate-500 border border-transparent'
+                      ? `bg-${tab.color}-500/10 border-${tab.color}-500/20 text-${tab.color}-400` 
+                      : 'hover:bg-white/5 text-slate-500 border-transparent'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? `text-${tab.color}-400` : 'text-slate-600 group-hover:text-slate-400'}`} />
-                    <span className="font-black text-sm">{tab.label}</span>
-                  </div>
-                  <span className="text-[10px] font-bold opacity-60 pr-7">{tab.desc}</span>
+                  <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? `text-${tab.color}-400` : 'text-slate-600 group-hover:text-slate-400'}`} />
+                  <span className="font-black text-[9px] truncate max-w-full px-1">{tab.label}</span>
                 </button>
               ))}
             </nav>
