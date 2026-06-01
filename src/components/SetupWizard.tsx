@@ -3,20 +3,22 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../db';
 import { vibrate, HAPITCS } from '../lib/haptics';
 import { WizardState } from '../types';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Compass } from 'lucide-react';
 import { TabMenu } from 'primereact/tabmenu';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
+import { Calendar } from 'primereact/calendar';
 import { safeRandomUUID } from '../lib/uuid';
 
 interface SetupWizardProps {
   onComplete: (tripId: string) => void;
   onCancel?: () => void;
   editingTripId?: string | null;
+  userRole?: 'admin' | 'free' | 'premium' | 'guest' | null;
 }
 
-export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizardProps) {
+export function SetupWizard({ onComplete, onCancel, editingTripId, userRole }: SetupWizardProps) {
   const [step, setStep] = useState(1);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [state, setState] = useState<WizardState>({
@@ -25,7 +27,8 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
     stations: [],
     dailyDuration: 30,
     learningDays: [0, 1, 2, 3, 4],
-    theme: 'cards'
+    theme: 'cards',
+    role: 'free'
   });
 
   useEffect(() => {
@@ -67,12 +70,26 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
 
   const nextStep = () => {
     vibrate(HAPITCS.MAJOR_CLICK);
-    if (step < 6) setStep(step + 1);
+    let next = step + 1;
+    
+    // When editing, skip psychological and stations/tasks (Steps 2, 3, 4)
+    if (editingTripId) {
+      if (step === 1) next = 5; // Jump from Goal to Routine
+    }
+    
+    if (next <= 6) setStep(next);
   };
 
   const prevStep = () => {
     vibrate(HAPITCS.MAJOR_CLICK);
-    if (step > 1) setStep(step - 1);
+    let prev = step - 1;
+    
+    // When editing, jump back from Routine to Goal
+    if (editingTripId) {
+      if (step === 5) prev = 1;
+    }
+    
+    if (prev >= 1) setStep(prev);
   };
 
   const handleSave = async () => {
@@ -96,6 +113,9 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
       dailyDuration: state.dailyDuration || 30,
       learningDays: state.learningDays || [0, 1, 2, 3, 4],
       theme: state.theme || 'cards',
+      role: state.role || 'free',
+      isFree: (state.role || 'free') === 'free',
+      completionMessage: (state as any).completionMessage || "",
       gameData,
       notes: existingTrip?.notes || {},
       timeCapsules: existingTrip?.timeCapsules || {}
@@ -116,7 +136,9 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
         icon: st.icon || 'pi pi-flag-fill',
         description: st.description,
         targetDate: st.targetDate,
-        order: i
+        order: i,
+        isPremium: !!st.isPremium,
+        completionMessage: st.completionMessage || ""
       });
 
       for (const t of st.tasks) {
@@ -161,7 +183,7 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
                  transition={{ duration: 0.3, ease: 'easeOut' }}
                  className="h-full flex flex-col"
                >
-                 {step === 1 && <Step1 state={state} setState={setState} />}
+                 {step === 1 && <Step1 state={state} setState={setState} userRole={userRole} editingTripId={editingTripId} />}
                  {step === 2 && <Step2 state={state} setState={setState} />}
                  {step === 3 && <Step4 state={state} setState={setState} />}
                  {step === 4 && <Step5 state={state} setState={setState} />}
@@ -267,12 +289,69 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
 // STEP COMPONENTS
 // -------------------------------------------------------------
 
-const Step1 = ({ state, setState }: any) => (
-  <div className="flex flex-col gap-10 mt-4">
+const Step1 = ({ state, setState, userRole, editingTripId }: any) => (
+  <div className="flex flex-col gap-8 mt-4">
+    {editingTripId && (
+      <div className="p-6 bg-gradient-to-r from-blue-900 to-indigo-900 border border-white/10 rounded-[32px] flex items-center gap-4 shadow-xl mb-4">
+         <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md">
+            <Compass className="w-6 h-6 text-white animate-spin-slow" />
+         </div>
+         <div>
+           <p className="text-xs font-black text-white leading-relaxed uppercase tracking-widest mb-1">تحديث البوصلة التعليمية</p>
+           <p className="text-[11px] font-bold text-indigo-100 leading-relaxed opacity-80">
+             أنت الآن في وضع تعديل المسار. مسموح لك بتحديث الهدف والروتين اليومي فقط.
+           </p>
+         </div>
+      </div>
+    )}
     <div className="space-y-4">
       <label className="text-3xl font-bold text-blue-950 block">عايز تتعلم ايه؟</label>
       <p className="text-gray-400">حدد المجال الأساسي الذي ترغب في إتقانه خلال هذه الرحلة</p>
     </div>
+
+    {/* Plan Selection Field */}
+    <div className="p-5 bg-indigo-50/40 rounded-[28px] border border-indigo-100/50 flex items-center justify-between">
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-black text-indigo-950">نوع اشتراك الرحلة (Free/Premium) 💎</span>
+        <p className="text-[10px] text-indigo-600 font-bold">البريميوم يتيح لك الوصول الكامل لكافة المميزات والمسارات.</p>
+      </div>
+
+      <div className="flex bg-white/60 p-1.5 rounded-2xl border border-indigo-100 shadow-sm gap-1">
+        <button
+          type="button"
+          disabled={userRole !== 'admin'}
+          onClick={() => setState({...state, role: 'free'})}
+          className={`px-6 py-2 rounded-xl text-[11px] font-black transition-all ${
+            (state.role || 'free') === 'free' 
+            ? 'bg-blue-900 text-white shadow-md' 
+            : 'text-slate-400 hover:bg-slate-50'
+          } ${userRole !== 'admin' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+        >
+          مجاني (Free)
+        </button>
+        <button
+          type="button"
+          disabled={userRole !== 'admin'}
+          onClick={() => setState({...state, role: 'premium'})}
+          className={`px-6 py-2 rounded-xl text-[11px] font-black transition-all ${
+            (state.role || 'premium') === 'premium' 
+            ? 'bg-amber-500 text-white shadow-md' 
+            : 'text-slate-400 hover:bg-slate-50'
+          } ${userRole !== 'admin' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+        >
+          بريميوم (Premium)
+        </button>
+      </div>
+    </div>
+
+    {userRole !== 'admin' && (state.role || 'free') === 'free' && (
+      <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-3">
+         <i className="pi pi-info-circle text-amber-600 text-lg"></i>
+         <p className="text-[11px] font-black text-amber-900 leading-relaxed">
+           خطتك الحالية هي <span className="text-blue-900 underline decoration-blue-200">الخطة المجانية</span>. تواصل معنا للترقية لمستوى البريميوم وفتح جميع المحطات والمميزات الحصرية لضمان التفوق والوصول لقمة مستواك! 💎🚀
+         </p>
+      </div>
+    )}
     
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {[
@@ -348,9 +427,19 @@ const StepTheme = ({ state, setState }: any) => {
 
   return (
     <div className="flex flex-col gap-6 pb-6 text-right font-sans" dir="rtl">
-      <div>
-        <h2 className="text-2xl font-black text-blue-950 mb-2">اختر الثيم المفضل</h2>
-        <p className="text-slate-400 font-bold text-xs">خصص مظهر رحلتك بالطريقة التي تفضل رؤية خططك بها.</p>
+      <div className="space-y-1">
+        <h2 className="text-2xl font-black text-blue-950">تخصيص التجربة النهائية</h2>
+        <p className="text-slate-400 font-bold text-xs">اختر كيف ستظهر رحلتك وماذا ستشاهد عند الإتمام.</p>
+      </div>
+
+      <div className="p-6 bg-slate-50 border border-slate-100 rounded-[32px] space-y-4">
+        <label className="text-xs font-black text-slate-500 block">رسالة إتمام الرحلة بالكامل 🏁</label>
+        <textarea 
+          className="w-full bg-white border-0 rounded-2xl p-4 outline-none focus:ring-2 ring-blue-900/10 transition-all resize-none h-20 text-[11px] font-bold text-blue-950 placeholder-slate-300"
+          placeholder="هذه الرسالة ستظهر لك بعد إنهاء كل المحطات بنجاح..."
+          value={(state as any).completionMessage || ""}
+          onChange={e => setState({...state, completionMessage: e.target.value})}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 mt-4">
@@ -424,9 +513,9 @@ const Step4 = ({ state, setState }: any) => {
 
   const addStation = () => setState({
     ...state, 
-    stations: [...state.stations, { id: safeRandomUUID(), icon: 'pi pi-flag-fill', name: '', description: '', targetDate: '', tasks: [] }]
+    stations: [...state.stations, { id: safeRandomUUID(), icon: 'pi pi-flag-fill', name: '', description: '', targetDate: '', tasks: [], isPremium: false, completionMessage: '' }]
   });
-  const updateStation = (i: number, field: string, val: string) => {
+  const updateStation = (i: number, field: string, val: any) => {
     const arr = [...state.stations];
     arr[i] = { ...arr[i], [field]: val };
     setState({...state, stations: arr});
@@ -487,12 +576,41 @@ const Step4 = ({ state, setState }: any) => {
               onChange={e => updateStation(i, 'description', e.target.value)} 
             />
             
-            <input 
-              type="date" 
-              className="w-full p-4 bg-gray-50 border-0 rounded-xl outline-none text-sm focus:ring-2 ring-blue-900/10 transition-colors text-gray-500 font-medium" 
-              value={st.targetDate} 
-              onChange={e => updateStation(i, 'targetDate', e.target.value)} 
+            <Calendar 
+              value={st.targetDate ? new Date(st.targetDate) : null} 
+              onChange={(e) => updateStation(i, 'targetDate', e.value?.toISOString().split('T')[0] || '')}
+              dateFormat="dd MM"
+              placeholder="تاريخ الوصول المستهدف (يوم شهر)"
+              showIcon
+              className="w-full custom-wizard-calendar"
+              inputClassName="p-5 bg-indigo-50/30 border border-indigo-100 rounded-2xl outline-none text-base focus:ring-4 ring-indigo-500/5 transition-all text-blue-950 font-bold w-full placeholder:text-indigo-300"
             />
+
+            <div className="flex items-center justify-between p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+               <div className="flex flex-col text-right">
+                  <span className="text-[10px] font-black text-blue-900">محتوى بريميوم 💎</span>
+                  <span className="text-[8px] font-bold text-blue-400">لن يظهر للمشتركين المجانيين</span>
+               </div>
+               <button 
+                 type="button"
+                 onClick={() => updateStation(i, 'isPremium', !st.isPremium)}
+                 className={`w-10 h-5 rounded-full p-1 transition-all flex items-center ${st.isPremium ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+               >
+                 <motion.div layout className="w-3.5 h-3.5 bg-white rounded-full shadow-sm" />
+               </button>
+            </div>
+
+            {!st.isPremium && (
+               <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 pr-2">رسالة إتمام المحطة المجانية 🎁</label>
+                  <textarea 
+                    className="w-full p-3.5 bg-gray-50 border-0 rounded-xl outline-none text-[10px] resize-none h-16 focus:ring-2 ring-blue-900/10 transition-colors text-blue-950 placeholder-gray-300 font-bold" 
+                    placeholder="شجع المستخدمين على الاشتراك بعد انتهاء هذه المحطة..." 
+                    value={st.completionMessage || ""} 
+                    onChange={e => updateStation(i, 'completionMessage', e.target.value)} 
+                  />
+               </div>
+            )}
           </div>
         ))}
       </div>
@@ -804,6 +922,45 @@ const Step5 = ({ state, setState }: any) => {
       </div>
 
       <style>{`
+        .custom-wizard-calendar .p-calendar {
+          width: 100% !important;
+        }
+        .custom-wizard-calendar .p-inputtext {
+          box-shadow: none !important;
+          border: 1px solid #f1f5f9 !important;
+        }
+        .custom-wizard-calendar .p-inputtext:focus {
+          border-color: #1e3a8a !important;
+        }
+        .custom-wizard-calendar .p-datepicker {
+          border-radius: 24px !important;
+          border: none !important;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
+          padding: 1.5rem !important;
+          font-family: inherit !important;
+        }
+        .p-datepicker .p-datepicker-header {
+           background: transparent !important;
+           border-bottom: 1px solid #f8fafc !important;
+           padding-bottom: 1rem !important;
+           margin-bottom: 0.5rem !important;
+        }
+        .p-datepicker table th {
+           font-size: 10px !important;
+           font-weight: 900 !important;
+           color: #94a3b8 !important;
+           text-transform: uppercase !important;
+        }
+        .p-datepicker table td > span {
+           border-radius: 12px !important;
+           font-weight: 700 !important;
+           font-size: 13px !important;
+        }
+        .p-datepicker table td > span.p-highlight {
+           background: #1e3a8a !important;
+           color: white !important;
+        }
+
         .custom-wizard-tabs .p-tabview-nav {
           background: transparent !important;
           border-bottom: 2px solid #f8fafc !important;

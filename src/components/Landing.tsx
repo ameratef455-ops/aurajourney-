@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { vibrate, HAPITCS, playTickSound } from "../lib/haptics";
 import { db } from "../db";
@@ -10,7 +10,10 @@ import { Menu } from "primereact/menu";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast as toastHot } from "react-hot-toast";
 import { NotificationsPopover } from "./NotificationsPopover";
-import { Plus, User, LogOut, Settings as SettingsIcon, Share2, Download, X, Compass, Sparkles } from "lucide-react";
+import { Plus, User, LogOut, Settings as SettingsIcon, Share2, Download, X, Compass, Sparkles, Shield, Info } from "lucide-react";
+import { AdminPanel } from "./AdminPanel";
+import { auth } from "../lib/firebase";
+import { signOut } from "firebase/auth";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -18,6 +21,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const [showInstructions, setShowInstructions] = useState(false);
   const handleInstallPWA = () => {
     vibrate(HAPITCS.MAJOR_CLICK);
     alert("Install PWA requested. (Will prompt if PWA criteria are met)");
@@ -159,7 +163,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <button
                     onClick={() => handleExportData('journeys')}
                     className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-2"
@@ -178,6 +182,104 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   >
                     <SettingsIcon className="w-3 h-3" /> تصدير النظام
                   </button>
+                  <button
+                    onClick={() => {
+                        vibrate(HAPITCS.MAJOR_CLICK);
+                        setShowInstructions(true);
+                    }}
+                    className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl hover:bg-indigo-500/20 transition-all text-[10px] font-black text-indigo-300 uppercase tracking-widest flex items-center justify-center gap-2"
+                  >
+                    <Info className="w-3 h-3" /> إرشادات الرحلة
+                  </button>
+                </div>
+
+                <Dialog 
+                  visible={showInstructions} 
+                  onHide={() => setShowInstructions(false)}
+                  header={<div className="text-right font-black text-blue-400 pr-4">دليل رحلة VIA 🧭</div>}
+                  className="w-[95vw] max-w-2xl bg-slate-950 border border-white/10 rounded-[32px]"
+                  style={{ direction: 'rtl' }}
+                  maskClassName="backdrop-blur-xl"
+                  modal
+                >
+                  <div className="p-6 space-y-6 text-white overflow-y-auto max-h-[70vh] custom-scrollbar text-right">
+                    <section className="space-y-3">
+                      <h4 className="text-lg font-black text-indigo-400 flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">🚀</div>
+                        مبدأ الرحلة
+                      </h4>
+                      <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                        VIA هو مسار حياة، وليس مجرد تطبيق مهام. الرحلة هنا تُقاس بالاستمرارية والتطبيق العملي. كل خطة تعليمية (Station) هي محطة تجتازها لتقترب من هدفك الكبير.
+                      </p>
+                    </section>
+
+                    <section className="space-y-3">
+                      <h4 className="text-lg font-black text-emerald-400 flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">⚖️</div>
+                        نظام الاستهلاك والاستحقاق
+                      </h4>
+                      <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                        لديك مخزون من <span className="text-cyan-400 font-bold">الوقود (Fuel)</span> يقل مع مرور الوقت. الالتزام بالتقييم اليومي (Reflection) هو ما يعيد شحن البنزين. إذا كنت بحاجة لراحة، استخدم <span className="text-emerald-400 font-bold">وضع الأجازة</span> لحماية السلسلة (Streak).
+                      </p>
+                    </section>
+
+                    <section className="space-y-3">
+                      <h4 className="text-lg font-black text-amber-400 flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">🎯</div>
+                        المهام والأنشطة التنفيذية
+                       </h4>
+                      <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                        المهمة لا تُغلق بمجرد "القراءة" أو "المشاهدة". يجب عليك إتمام <span className="text-amber-400 font-bold">الأنشطة التنفيذية</span> المرتبطة بها أولاً. إتمام هذه الأنشطة هو الدليل القاطع على الفهم، وهو ما يفتح لك قفل التقييم النهائي للمهمة.
+                      </p>
+                    </section>
+
+                    <section className="space-y-3">
+                      <h4 className="text-lg font-black text-sky-400 flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center">🔑</div>
+                        مفاتيح فك الأقفال
+                      </h4>
+                      <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                        تحصل على <span className="text-indigo-400 font-bold">XP</span> من خلال التفاعل والتعلم. يمكنك مقايضة هذه النقاط في المتجر للحصول على <span className="text-sky-400 font-bold">مفاتيح</span> لفتح محطات متقدمة أو إبراز رحلاتك للآخرين.
+                      </p>
+                    </section>
+
+                    <section className="space-y-3">
+                      <h4 className="text-lg font-black text-rose-400 flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">🛡️</div>
+                        حماية التقدم
+                      </h4>
+                      <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                         إذا واجهت "عثرة" (Stumble) منعتك من التعلم اليوم، قم بتسجيلها فوراً. تسجيل العثرات يحمي السلسلة (Streak) الخاصة بك ويمنعها من الانكسار، اعترافاً منا بأن الرحلة قد تواجه صعوبات بشرية.
+                      </p>
+                    </section>
+                  </div>
+                </Dialog>
+
+                <div className="pt-6 border-t border-white/5">
+                  <div className="flex flex-col items-center justify-between gap-4 md:flex-row pb-2">
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase font-black tracking-wider text-slate-500 mb-0.5">الحساب النشط</p>
+                      <p className="text-xs font-bold text-slate-300">
+                        {auth.currentUser?.isAnonymous ? "مستكشف زائر (حساب مؤقت)" : auth.currentUser?.email || "غير متصل"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        vibrate(HAPITCS.MAJOR_CLICK);
+                        try {
+                          await signOut(auth);
+                          toastHot.success("تم تسجيل الخروج بنجاح 👋");
+                          onClose();
+                        } catch (err) {
+                          toastHot.error("فشل تسجيل الخروج");
+                        }
+                      }}
+                      className="w-full md:w-auto px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all border border-red-500/20 cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>تسجيل الخروج</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -188,7 +290,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   );
 }
 
-function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (id: string) => void }) {
+function TripsList({ onEdit, onOpen, userRole }: { onEdit: (id: string) => void; onOpen: (id: string) => void; userRole: any }) {
   const trips = useLiveQuery(() => db.userSettings.toArray());
   const allStations = useLiveQuery(() => db.stations ? db.stations.orderBy('order').toArray() : []) || [];
   
@@ -368,77 +470,79 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
                 )}
 
                 {/* Three dots absolute position */}
-                <div 
-                  className="absolute top-4 left-4 z-30" 
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 backdrop-blur-md hover:bg-white/20 text-white/70 transition border border-white/10 cursor-pointer shadow-lg"
-                    onClick={() => {
-                      vibrate(HAPITCS.MAJOR_CLICK);
-                      setActiveMenuTripId(activeMenuTripId === trip.id ? null : trip.id);
-                    }}
-                    title="خيارات"
+                {userRole === 'admin' && (
+                  <div 
+                    className="absolute top-4 left-4 z-30" 
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <i className="pi pi-ellipsis-v text-xs"></i>
-                  </button>
-                  {activeMenuTripId === trip.id && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-10" 
-                        onClick={() => setActiveMenuTripId(null)}
-                      />
-                      <div className="absolute left-0 mt-2 w-44 bg-white border border-gray-100 rounded-2xl shadow-2xl z-20 py-2 text-right overflow-hidden">
-                        <button
-                          onClick={() => {
-                            setActiveMenuTripId(null);
-                            startEdit(trip);
-                          }}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-blue-950 hover:bg-blue-50 transition border-none bg-transparent font-bold cursor-pointer"
-                        >
-                          <i className="pi pi-pencil text-blue-600"></i>
-                          <span>تعديل المحطات</span>
-                        </button>
-                        <div className="h-px bg-gray-50 mx-2" />
-                        <button
-                          onClick={() => {
-                            setActiveMenuTripId(null);
-                            setResetTrip(trip);
-                          }}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-amber-600 hover:bg-amber-50 transition border-none bg-transparent font-bold cursor-pointer"
-                        >
-                          <i className="pi pi-refresh text-amber-500"></i>
-                          <span>ابدأ الرحلة من جديد</span>
-                        </button>
-                        <div className="h-px bg-gray-50 mx-2" />
-                        <button
-                          onClick={() => {
-                            setActiveMenuTripId(null);
-                            setFreezeConfirmTrip(trip);
-                          }}
-                          className={`w-full flex items-center gap-3 px-5 py-3.5 text-sm transition border-none bg-transparent font-bold cursor-pointer ${
-                            isFrozen ? "text-emerald-600 hover:bg-emerald-50" : "text-cyan-600 hover:bg-cyan-50"
-                          }`}
-                        >
-                          <i className={`pi ${isFrozen ? 'pi-play' : 'pi-stop-circle'} ${isFrozen ? 'text-emerald-500' : 'text-cyan-500'}`}></i>
-                          <span>{isFrozen ? "إلغاء التجميد" : "تجميد الرحلة"}</span>
-                        </button>
-                        <div className="h-px bg-gray-50 mx-2" />
-                        <button
-                          onClick={() => {
-                            setActiveMenuTripId(null);
-                            setDeleteTripId(trip.id);
-                          }}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-rose-600 hover:bg-rose-50 transition border-none bg-transparent font-bold cursor-pointer"
-                        >
-                          <i className="pi pi-trash text-rose-500"></i>
-                          <span>حذف الرحلة</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                    <button
+                      type="button"
+                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 backdrop-blur-md hover:bg-white/20 text-white/70 transition border border-white/10 cursor-pointer shadow-lg"
+                      onClick={() => {
+                        vibrate(HAPITCS.MAJOR_CLICK);
+                        setActiveMenuTripId(activeMenuTripId === trip.id ? null : trip.id);
+                      }}
+                      title="خيارات"
+                    >
+                      <i className="pi pi-ellipsis-v text-xs"></i>
+                    </button>
+                    {activeMenuTripId === trip.id && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setActiveMenuTripId(null)}
+                        />
+                        <div className="absolute left-0 mt-2 w-44 bg-white border border-gray-100 rounded-2xl shadow-2xl z-20 py-2 text-right overflow-hidden">
+                          <button
+                            onClick={() => {
+                              setActiveMenuTripId(null);
+                              startEdit(trip);
+                            }}
+                            className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-blue-950 hover:bg-blue-50 transition border-none bg-transparent font-bold cursor-pointer"
+                          >
+                            <i className="pi pi-pencil text-blue-600"></i>
+                            <span>تعديل المحطات</span>
+                          </button>
+                          <div className="h-px bg-gray-50 mx-2" />
+                          <button
+                            onClick={() => {
+                              setActiveMenuTripId(null);
+                              setResetTrip(trip);
+                            }}
+                            className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-amber-600 hover:bg-amber-50 transition border-none bg-transparent font-bold cursor-pointer"
+                          >
+                            <i className="pi pi-refresh text-amber-500"></i>
+                            <span>ابدأ الرحلة من جديد</span>
+                          </button>
+                          <div className="h-px bg-gray-50 mx-2" />
+                          <button
+                            onClick={() => {
+                              setActiveMenuTripId(null);
+                              setFreezeConfirmTrip(trip);
+                            }}
+                            className={`w-full flex items-center gap-3 px-5 py-3.5 text-sm transition border-none bg-transparent font-bold cursor-pointer ${
+                              isFrozen ? "text-emerald-600 hover:bg-emerald-50" : "text-cyan-600 hover:bg-cyan-50"
+                            }`}
+                          >
+                            <i className={`pi ${isFrozen ? 'pi-play' : 'pi-stop-circle'} ${isFrozen ? 'text-emerald-500' : 'text-cyan-500'}`}></i>
+                            <span>{isFrozen ? "إلغاء التجميد" : "تجميد الرحلة"}</span>
+                          </button>
+                          <div className="h-px bg-gray-50 mx-2" />
+                          <button
+                            onClick={() => {
+                              setActiveMenuTripId(null);
+                              setDeleteTripId(trip.id);
+                            }}
+                            className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-rose-600 hover:bg-rose-50 transition border-none bg-transparent font-bold cursor-pointer"
+                          >
+                            <i className="pi pi-trash text-rose-500"></i>
+                            <span>حذف الرحلة</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* Trip Icon / Visual with Glow */}
                 <div className={`mt-4 w-20 h-20 rounded-2xl bg-white flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 relative z-10 ${
@@ -658,10 +762,12 @@ interface LandingProps {
   onStart: () => void;
   onEdit: (tripId: string) => void;
   onOpen: (tripId: string) => void;
+  userRole?: 'admin' | 'free' | 'premium' | 'guest' | null;
 }
 
-export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
+export function Landing({ onStart, onEdit, onOpen, userRole }: LandingProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const menu = useRef<Menu>(null);
 
   const handleStart = () => {
@@ -723,16 +829,33 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
         </div>
         
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
+          {userRole === 'admin' && (
+            <button
+              onClick={() => {
+                vibrate(HAPITCS.MAJOR_CLICK);
+                setAdminOpen(true);
+              }}
+              className="px-4 h-10 md:h-12 bg-indigo-600 hover:bg-slate-950 hover:text-white text-white font-black text-xs md:text-sm rounded-2xl flex items-center gap-2 shadow-lg transition-all border-none cursor-pointer"
+              title="لوحة تحكم المسؤول"
+            >
+              <Shield className="w-4 h-4 text-indigo-200 animate-pulse" />
+              <span className="hidden sm:inline font-sans">لوحة المسؤول</span>
+            </button>
+          )}
+
           <Menu model={menuItems} popup ref={menu} id="create_menu" className="font-sans text-xs font-bold rounded-3xl shadow-2xl border-none bg-transparent p-0 overflow-visible" />
-          <button
-            onClick={(e) => {
-              vibrate(HAPITCS.MAJOR_CLICK);
-              menu.current?.toggle(e);
-            }}
-            className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-gradient-to-r from-blue-800 to-blue-950 text-white rounded-2xl shadow-lg hover:brightness-110 active:scale-95 transition-all border-none cursor-pointer"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
+          
+          {userRole === 'admin' && (
+            <button
+              onClick={(e) => {
+                vibrate(HAPITCS.MAJOR_CLICK);
+                menu.current?.toggle(e);
+              }}
+              className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-gradient-to-r from-blue-800 to-blue-950 text-white rounded-2xl shadow-lg hover:brightness-110 active:scale-95 transition-all border-none cursor-pointer"
+            >
+              <Plus className="w-6 h-6" />
+            </button>
+          )}
           
           <div className="h-6 w-px bg-slate-200"></div>
 
@@ -752,12 +875,135 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
         {/* Title removed from body as it is now in the header only */}
       </div>
  
-      <TripsList onEdit={onEdit} onOpen={onOpen} />
+      <TripsList onEdit={onEdit} onOpen={onOpen} userRole={userRole} />
+
+      {userRole === 'premium' && (
+        <AvailableFreeTrips />
+      )}
 
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
+
+      <AdminPanel
+        isOpen={adminOpen}
+        onClose={() => setAdminOpen(false)}
+      />
+    </div>
+  );
+}
+
+function AvailableFreeTrips() {
+  const [freeTrips, setFreeTrips] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const localTrips = useLiveQuery(() => db.userSettings.toArray()) || [];
+
+  const fetchFreeTrips = async () => {
+    setLoading(true);
+    try {
+      const { db: firestore } = await import('../lib/firebase');
+      const { collection, getDocs } = await import('firebase/firestore');
+      const snap = await getDocs(collection(firestore, 'publicTrips'));
+      const tripsList: any[] = [];
+      snap.forEach((d) => {
+        tripsList.push(d.data());
+      });
+      setFreeTrips(tripsList);
+    } catch (err) {
+      console.error("Failed to load free trips", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFreeTrips();
+  }, [localTrips]);
+
+  const handleActivateTrip = async (trip: any) => {
+    vibrate(HAPITCS.MAJOR_CLICK);
+    try {
+      setLoading(true);
+      const { db: firestore } = await import('../lib/firebase');
+      const { collection, getDocs } = await import('firebase/firestore');
+      
+      const exists = await db.userSettings.get(trip.id);
+      if (exists) {
+        toastHot.error("هذه الرحلة مضافة لديك بالفعل! 🎯");
+        return;
+      }
+      
+      // Fetch stations
+      const stationsSnap = await getDocs(collection(firestore, `publicTrips/${trip.id}/stations`));
+      for (const docSnap of stationsSnap.docs) {
+        await db.stations.put(docSnap.data() as any);
+      }
+      
+      // Fetch tasks
+      const tasksSnap = await getDocs(collection(firestore, `publicTrips/${trip.id}/tasks`));
+      for (const docSnap of tasksSnap.docs) {
+        await db.tasks.put(docSnap.data() as any);
+      }
+      
+      // Save UserSettings
+      await db.userSettings.put({
+        id: trip.id,
+        learningGoal: trip.learningGoal,
+        psychology: trip.psychology || {},
+        dailyDuration: trip.dailyDuration || 30,
+        learningDays: trip.learningDays || [0, 1, 2, 3, 4],
+        theme: trip.theme || 'cards',
+        gameData: { fuel: 100, xp: 0, keys: 0, lastReflectionDate: "" },
+        notes: {},
+        timeCapsules: {}
+      });
+      
+      toastHot.success("تم تفعيل اللحاق بالرحلة المجانية بنجاح! 🚀");
+    } catch (err) {
+      console.error(err);
+      toastHot.error("فشل تفعيل وتنزيل الرحلة المجانية 🔒");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const unaddedFreeTrips = freeTrips.filter(ft => !localTrips.some(lt => lt.id === ft.id));
+
+  if (unaddedFreeTrips.length === 0) return null;
+
+  return (
+    <div className="w-full max-w-2xl mt-12 mx-auto" dir="rtl">
+      <div className="flex justify-center mb-6">
+         <span className="px-6 py-2.5 bg-gradient-to-r from-emerald-800 to-teal-900 text-white rounded-full font-black text-xs shadow-lg flex items-center gap-2 border border-white/20">
+            <Sparkles className="w-4 h-4 text-emerald-300" />
+            رحلات تفاعلية مجانية متاحة للانضمام
+         </span>
+      </div>
+      
+      <div className="grid grid-cols-1 gap-4">
+        {unaddedFreeTrips.map((ft) => (
+          <div key={ft.id} className="p-6 bg-slate-950/60 border border-emerald-500/10 rounded-[32px] flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-900 flex items-center justify-center text-emerald-400">
+                <Compass className="w-5 h-5 animate-spin" style={{ animationDuration: '8s' }} />
+              </div>
+              <div className="text-right">
+                <h4 className="font-extrabold text-white text-base">{ft.learningGoal}</h4>
+                <p className="text-xs text-slate-400">مسار مجاني برعاية المسؤول العام</p>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => handleActivateTrip(ft)}
+              disabled={loading}
+              className="px-5 py-2 w-fit bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl flex items-center gap-2 shadow-md transition-all border-none cursor-pointer"
+            >
+              <span>انضم الآن</span>
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

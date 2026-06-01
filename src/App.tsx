@@ -2,20 +2,27 @@ import { useState, useEffect, useCallback } from 'react';
 import { Splash } from './components/Splash';
 import { Tutorial } from './components/Tutorial';
 import { db, initFirebaseSync } from './db';
+import { db as firestore } from './lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster } from 'react-hot-toast';
 import { Landing } from './components/Landing';
 import { SetupWizard } from './components/SetupWizard';
 import { Maps } from './components/Maps';
 import { playTickSound } from './lib/haptics';
+import { Login } from './components/Login';
+import { Signup } from './components/Signup';
+import { auth } from './lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
-type AppState = 'splash' | 'tutorial' | 'landing' | 'wizard' | 'maps';
+type AppState = 'splash' | 'login' | 'signup' | 'tutorial' | 'landing' | 'wizard' | 'maps';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('splash');
   const [targetState, setTargetState] = useState<AppState>('landing');
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'free' | 'premium' | 'guest' | null>(null);
 
   useEffect(() => {
     // Add global click listener for tick sound
@@ -30,7 +37,7 @@ export default function App() {
            playTickSound();
            break;
          }
-        target = target.parentElement;
+         target = target.parentElement;
       }
     };
     document.addEventListener('click', handleClick);
@@ -38,8 +45,51 @@ export default function App() {
     const init = async () => {
        try {
          initFirebaseSync();
-         const tutorialCompleted = localStorage.getItem('via_tutorial_completed');
-         setTargetState(tutorialCompleted ? 'landing' : 'tutorial');
+         onAuthStateChanged(auth, async (user) => {
+           if (user) {
+             if (user.isAnonymous) {
+               setUserRole('free');
+               const tutorialCompleted = localStorage.getItem(`via_tutorial_completed_${user.uid}`);
+               const nextState = tutorialCompleted ? 'landing' : 'tutorial';
+               setTargetState(nextState);
+               setAppState((prev) => (prev === 'splash' || prev === 'login' || prev === 'signup' ? nextState : prev));
+               return;
+             }
+
+             // Load user's profile and role from Firestore
+             const userRef = doc(firestore, 'users', user.uid);
+             let userSnap = await getDoc(userRef);
+             
+             let role: 'admin' | 'free' | 'premium' = user.email?.toLowerCase() === 'ameratef455@gmail.com' ? 'admin' : 'free';
+             
+             if (!userSnap.exists()) {
+               await setDoc(userRef, {
+                 uid: user.uid,
+                 email: user.email?.toLowerCase() || '',
+                 role: role,
+                 createdAt: new Date().toISOString()
+               });
+             } else {
+               const data = userSnap.data();
+               role = data?.role || role;
+               // Robust check for ameratef455@gmail.com to guarantee admin role privileges
+               if (user.email?.toLowerCase() === 'ameratef455@gmail.com' && role !== 'admin') {
+                 role = 'admin';
+                 await setDoc(userRef, { role: 'admin' }, { merge: true });
+               }
+             }
+             
+             setUserRole(role);
+
+             const tutorialCompleted = localStorage.getItem(`via_tutorial_completed_${user.uid}`);
+             const nextState = tutorialCompleted ? 'landing' : 'tutorial';
+             setTargetState(nextState);
+             setAppState((prev) => (prev === 'splash' || prev === 'login' || prev === 'signup' ? nextState : prev));
+           } else {
+             setUserRole(null);
+             setAppState('login');
+           }
+         });
        } catch (e) {
          console.error('DB Init Error', e);
        }
@@ -79,7 +129,54 @@ export default function App() {
               transition={{ duration: 0.5, ease: "easeInOut" }}
               className="w-full h-full flex items-center justify-center relative z-10"
             >
-              <Splash onComplete={() => setAppState(targetState)} />
+              <Splash onComplete={() => {
+                // If there is no user, force to login. Otherwise, we can transition to targetState.
+                if (!auth.currentUser) {
+                  setAppState('login');
+                } else {
+                  setAppState(targetState);
+                }
+              }} />
+            </motion.div>
+          )}
+
+          {appState === 'login' && (
+            <motion.div
+              key="login"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
+              className="w-full h-full flex items-center justify-center relative z-10 p-4 overflow-y-auto"
+            >
+              <Login
+                onRegisterClick={() => setAppState('signup')}
+                onSuccess={() => {
+                  const uid = auth.currentUser?.uid || 'guest';
+                  const tutorialCompleted = localStorage.getItem(`via_tutorial_completed_${uid}`);
+                  setAppState(tutorialCompleted ? 'landing' : 'tutorial');
+                }}
+              />
+            </motion.div>
+          )}
+
+          {appState === 'signup' && (
+            <motion.div
+              key="signup"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
+              className="w-full h-full flex items-center justify-center relative z-10 p-4 overflow-y-auto"
+            >
+              <Signup
+                onLoginClick={() => setAppState('login')}
+                onSuccess={() => {
+                  const uid = auth.currentUser?.uid || 'guest';
+                  const tutorialCompleted = localStorage.getItem(`via_tutorial_completed_${uid}`);
+                  setAppState(tutorialCompleted ? 'landing' : 'tutorial');
+                }}
+              />
             </motion.div>
           )}
 
@@ -92,7 +189,8 @@ export default function App() {
               className="w-full h-full relative z-10"
             >
               <Tutorial onComplete={() => {
-                localStorage.setItem('via_tutorial_completed', 'true');
+                const uid = auth.currentUser?.uid || 'guest';
+                localStorage.setItem(`via_tutorial_completed_${uid}`, 'true');
                 setAppState('landing');
               }} />
             </motion.div>
@@ -120,6 +218,7 @@ export default function App() {
                   setSelectedTripId(tripId);
                   setAppState('maps');
                 }}
+                userRole={userRole}
               />
             </motion.div>
           )}
@@ -136,6 +235,7 @@ export default function App() {
               {appState === 'wizard' ? (
                 <SetupWizard 
                   editingTripId={editingTripId}
+                  userRole={userRole}
                   onComplete={(uid) => {
                     setEditingTripId(null);
                     setSelectedTripId(uid);
@@ -147,7 +247,7 @@ export default function App() {
                   }}
                 />
               ) : (
-                <Maps tripId={selectedTripId} onBack={() => setAppState('landing')} />
+                <Maps tripId={selectedTripId} userRole={userRole} onBack={() => setAppState('landing')} />
               )}
             </motion.div>
           )}

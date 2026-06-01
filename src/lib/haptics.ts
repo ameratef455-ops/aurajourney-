@@ -25,6 +25,7 @@ export const playTickSound = () => {
 
 export const HAPITCS = {
   MAJOR_CLICK: 15,
+  MINOR_CLICK: 10,
   COMPLETE: [20, 50, 20],
   SUCCESS: [10, 30, 50],
   FAILURE: 100,

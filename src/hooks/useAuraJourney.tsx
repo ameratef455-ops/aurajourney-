@@ -1,18 +1,77 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../db";
+import { db, UserProfile, Station, Task, TaskReflection as Reflection, Stumble, Notification, Ad, LeaderboardEntry } from "../db";
+import { getAuth } from "firebase/auth";
+import { auth, db as firestore } from "../lib/firebase";
+import { 
+  collection, doc, setDoc, updateDoc, getDoc, onSnapshot, query, where, 
+  orderBy, limit, getDocs, deleteDoc, writeBatch, serverTimestamp, arrayUnion, arrayRemove, increment
+} from "firebase/firestore";
 import { vibrate, HAPITCS } from "../lib/haptics";
 import { safeRandomUUID } from "../lib/uuid";
 import confetti from "canvas-confetti";
 import { motion } from "motion/react";
 import { 
-  Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma
+  Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Shield
 } from "lucide-react";
 
 export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toast: any }) {
   const settings = useLiveQuery(() => db.userSettings.toArray());
   const stations = useLiveQuery(() => db.stations.orderBy("order").toArray());
   const tasks = useLiveQuery(() => db.tasks.toArray());
+
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [completionModalData, setCompletionModalData] = useState<{ title: string; message: string; stationId: string } | null>(null);
+
+  // Keep track of which stations have already shown their completion message in this session to avoid spamming
+  const [shownCompletionMessages, setShownCompletionMessages] = useState<Set<string>>(new Set());
+
+  const [ads, setAds] = useState<Ad[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+
+  const user = useMemo(() => {
+    if (!settings) return null;
+    if (tripId) {
+      return settings.find((s) => s.id === tripId) || settings[0];
+    }
+    return settings[0];
+  }, [settings, tripId]);
+
+  // Fetch Ads
+  useEffect(() => {
+    const q = query(collection(firestore, "ads"), where("isActive", "==", true));
+    return onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Ad));
+      setAds(docs);
+    });
+  }, []);
+
+  // Fetch Leaderboard (Top 10)
+  useEffect(() => {
+    const q = query(collection(firestore, "leaderboard"), orderBy("xp", "desc"), limit(10));
+    return onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as LeaderboardEntry));
+      setLeaderboard(docs);
+    });
+  }, []);
+
+  // Update user's own leaderboard entry when XP changes
+  useEffect(() => {
+    if (!user || user.xp === undefined) return;
+    
+    const updateLeaderboard = async () => {
+      const entryRef = doc(firestore, "leaderboard", user.uid);
+      await setDoc(entryRef, {
+        id: user.uid,
+        userName: user.email?.split('@')[0] || 'Unknown',
+        xp: user.xp,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+    };
+
+    const timeout = setTimeout(updateLeaderboard, 2000); // Debounce
+    return () => clearTimeout(timeout);
+  }, [user?.xp]);
 
   const [gamificationSidebar, setGamificationSidebar] = useState(false);
   const [reflectionSidebar, setReflectionSidebar] = useState(false);
@@ -184,14 +243,6 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     });
   };
 
-  const user = useMemo(() => {
-    if (!settings) return null;
-    if (tripId) {
-      return settings.find((s) => s.id === tripId) || settings[0];
-    }
-    return settings[0];
-  }, [settings, tripId]);
-
   const gData = user?.gameData || {
     fuel: 100,
     xp: 0,
@@ -286,8 +337,66 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     return map;
   }, [stations, tasks, user]);
 
+  // Detect station completion and show message
+  useEffect(() => {
+    if (!stations || !user || !stationEnergy) return;
+    
+    // We only show these messages to free users for non-premium stations
+    if (user.role && user.role !== 'free') return;
+
+    for (const st of stations) {
+      const energy = stationEnergy[st.id] || 0;
+      if (energy >= 100 && !st.isPremium && st.completionMessage && !shownCompletionMessages.has(st.id)) {
+        setCompletionModalData({
+          title: `تم إكمال ${st.name}! 🏁`,
+          message: st.completionMessage,
+          stationId: st.id
+        });
+        setShowCompletionModal(true);
+        setShownCompletionMessages(prev => new Set(prev).add(st.id));
+        vibrate(HAPITCS.COMPLETE);
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      }
+    }
+  }, [stations, user, stationEnergy, shownCompletionMessages]);
+
+  // Detect journey completion
+  useEffect(() => {
+    if (!stations || !user || !stationEnergy || stations.length === 0) return;
+    if (user.role && user.role !== 'free') return;
+    if (shownCompletionMessages.has('JOURNEY_COMPLETE')) return;
+
+    const allFinished = stations.every(st => (stationEnergy[st.id] || 0) >= 100);
+    
+    if (allFinished && user.completionMessage) {
+      setCompletionModalData({
+        title: "تهانينا! لقد أتممت الرحلة بالكامل 🏆",
+        message: user.completionMessage,
+        stationId: 'JOURNEY_COMPLETE'
+      });
+      setShowCompletionModal(true);
+      setShownCompletionMessages(prev => new Set(prev).add('JOURNEY_COMPLETE'));
+      vibrate(HAPITCS.COMPLETE);
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.5 }
+      });
+    }
+  }, [stations, user, stationEnergy, shownCompletionMessages, setCompletionModalData, setShowCompletionModal]);
+
   const unlockedStations = useMemo(() => {
     if (!stations || !user) return [];
+    
+    // ADMIN BYPASS: Admins have access to everything
+    if (user.role === 'admin') {
+      return stations.map(s => s.id);
+    }
+
     const dbUnlocked = user.unlockedStationIds || [];
     const unlocked = [...dbUnlocked];
     
@@ -297,7 +406,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     }
     
     return unlocked;
-  }, [stations, user?.unlockedStationIds]);
+  }, [stations, user?.unlockedStationIds, user?.role]);
 
   const unlockStation = async (stationId: string) => {
     if (!user || !tasks) return;
@@ -1391,6 +1500,11 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     setSideTaskFilter,
     practicalFilter,
     setPracticalFilter,
+    ads,
+    leaderboard,
+    showCompletionModal,
+    setShowCompletionModal,
+    completionModalData,
     createTabHeader,
     editingNote,
     setEditingNote,
