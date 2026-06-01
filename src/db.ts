@@ -124,13 +124,25 @@ export interface Notification {
   link?: string;
 }
 
+export interface LearningRepository {
+  id: string;
+  tripId: string;
+  name: string;
+  createdAt: string;
+  sentences?: { id: string; text: string; translation?: string; date: string; category?: string }[];
+  listeningTricks?: { id: string; title: string; videoUrl?: string; trick: string; date: string }[];
+  errorsGaps?: { id: string; error: string; correction: string; area: string; date: string }[];
+  dailyContexts?: { id: string; topic: string; paragraph: string; date: string }[];
+}
+
 export const db = new Dexie('AuraJourneyDatabase') as Dexie & {
   stations: EntityTable<Station, 'id'>,
   tasks: EntityTable<Task, 'id'>,
   userSettings: EntityTable<UserSettings, 'id'>,
   reflections: EntityTable<TaskReflection, 'id'>,
   stumbles: EntityTable<Stumble, 'id'>,
-  notifications: EntityTable<Notification, 'id'>
+  notifications: EntityTable<Notification, 'id'>,
+  learningRepositories: EntityTable<LearningRepository, 'id'>
 };
 
 db.on('versionchange', () => {
@@ -185,13 +197,14 @@ db.version(6).stores({
   businessSpaces: 'id'
 });
 
-db.version(7).stores({
+db.version(8).stores({
   stations: 'id, order',
   tasks: 'id, stationId, type, parentId',
   userSettings: 'id',
   reflections: 'id, taskId, stationId, createdAt',
   stumbles: 'id, stationId, createdAt',
-  notifications: 'id, isRead, createdAt'
+  notifications: 'id, isRead, createdAt',
+  learningRepositories: 'id, tripId'
 });
 
 db.open().catch(err => {

@@ -36,6 +36,9 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
   const [newActivityTitle, setNewActivityTitle] = useState("");
   const stepInputRef = useRef<HTMLInputElement>(null);
 
+  const [showPostponeDialog, setShowPostponeDialog] = useState(false);
+  const [selectedForPostpone, setSelectedForPostpone] = useState<string[]>([]);
+
   // Use live query to keep data in sync
   const task = useLiveQuery(() => 
     taskId ? db.tasks.get(taskId) : null
@@ -45,9 +48,71 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
     taskId ? db.reflections.where("taskId").equals(taskId).toArray() : []
   , [taskId]);
 
+  const settings = useLiveQuery(() => db.userSettings.toArray());
+  const user = settings?.[0];
+
   if (!task || !taskId) return null;
 
   const hasReflection = reflectionsForTask && reflectionsForTask.length > 0;
+
+  const getNextDateForDayOfWeek = (dayIndex: number) => {
+    const resultDate = new Date();
+    const currentDayIndex = resultDate.getDay();
+    let daysToAdd = (dayIndex - currentDayIndex + 7) % 7;
+    if (daysToAdd === 0) {
+      daysToAdd = 7;
+    }
+    resultDate.setDate(resultDate.getDate() + daysToAdd);
+    const yyyy = resultDate.getFullYear();
+    const mm = String(resultDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(resultDate.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const handlePostponeAction = async (targetDateString: string, dayLabel: string) => {
+    try {
+      vibrate(HAPITCS.MAJOR_CLICK);
+      const activitiesToMove = (task.activities || []).filter(act => selectedForPostpone.includes(act.id));
+      const remainingActivities = (task.activities || []).filter(act => !selectedForPostpone.includes(act.id));
+
+      if (activitiesToMove.length === 0) {
+        toast.error("يرجى اختيار نشاط واحد على الأقل للتأجيل!");
+        return;
+      }
+
+      if (remainingActivities.length === 0) {
+        // Move the entire task
+        await (db.tasks as any).update(taskId, {
+          dueDate: targetDateString,
+          isRestDayTask: true
+        });
+        toast.success(`تم تأجيل المهمة بالكامل ليوم (${dayLabel}) الموافق ${targetDateString}! 🗓️`);
+      } else {
+        // Move selected activities to a new rest-day task
+        const newTask = {
+          ...task,
+          id: safeRandomUUID(),
+          dueDate: targetDateString,
+          isRestDayTask: true,
+          activities: activitiesToMove,
+          isCompleted: false
+        };
+        await (db.tasks as any).add(newTask);
+        await (db.tasks as any).update(taskId, {
+          activities: remainingActivities,
+          isCompleted: remainingActivities.length > 0 && remainingActivities.every(a => a.isCompleted)
+        });
+        toast.success(`تم نقل الأنشطة المحددة بنجاح ليوم إجازتك (${dayLabel}) الموافق ${targetDateString}! 🗓️`);
+      }
+
+      confetti({ zIndex: 999999999, particleCount: 85, spread: 55, origin: { y: 0.7 } });
+      setShowPostponeDialog(false);
+      onHide();
+    } catch (err) {
+      console.error('Failed to postpone activities:', err);
+      toast.error("حدث خطأ أثناء التأجيل");
+    }
+  };
 
   const handleAddActivity = async () => {
     if (!newActivityTitle.trim() || task.isCompleted) return;
@@ -181,7 +246,8 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
     }
 
     await (db.tasks as any).update(taskId, {
-      activities: updatedActivities
+      activities: updatedActivities,
+      isCompleted: allActivitiesCompleted
     });
   };
 
@@ -215,16 +281,18 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
     }
 
     await (db.tasks as any).update(taskId, {
-      activities: updatedActivities
+      activities: updatedActivities,
+      isCompleted: allActivitiesCompleted
     });
   };
 
   return (
-    <Dialog
-      visible={visible}
+    <>
+      <Dialog
+        visible={visible}
       onHide={onHide}
       header={
-        <div className="flex flex-col gap-1 pr-6" dir="rtl">
+        <div className="flex justify-between items-center w-full pr-6 pl-6" dir="rtl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
               <Sparkles className="w-6 h-6" />
@@ -234,19 +302,35 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
               <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{task.title}</p>
             </div>
           </div>
-          {!hasReflection && task.isCompleted && (
-            <button
-              onClick={() => {
-                vibrate(HAPITCS.MAJOR_CLICK);
-                if (onOpenReflection) onOpenReflection(task);
-                onHide();
-              }}
-              className="mr-auto ml-12 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-amber-200 border-none transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>قيم أداءك على هذه المهمة</span>
-            </button>
-          )}
+          <div className="flex items-center gap-2.5">
+            {!task.isCompleted && (task.activities || []).length > 0 && (
+              <button
+                onClick={() => {
+                  vibrate(HAPITCS.MAJOR_CLICK);
+                  setSelectedForPostpone((task.activities || []).filter(a => !a.isCompleted).map(a => a.id));
+                  setShowPostponeDialog(true);
+                }}
+                className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 px-4 py-2 rounded-xl text-xs font-black shadow-3xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                type="button"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>أجل الأنشطة 🗓️</span>
+              </button>
+            )}
+            {!hasReflection && task.isCompleted && (
+              <button
+                onClick={() => {
+                  vibrate(HAPITCS.MAJOR_CLICK);
+                  if (onOpenReflection) onOpenReflection(task);
+                  onHide();
+                }}
+                className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-amber-200 border-none transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>قيم أداءك على هذه المهمة</span>
+              </button>
+            )}
+          </div>
         </div>
       }
       className="w-full max-w-3xl font-sans"
@@ -523,6 +607,109 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
         }
       `}</style>
     </Dialog>
+
+    <Dialog
+      visible={showPostponeDialog}
+      onHide={() => setShowPostponeDialog(false)}
+      showHeader={false}
+      className="w-full max-w-sm rounded-[24px] overflow-hidden border border-slate-100 shadow-2xl relative"
+      modal
+      dismissableMask
+      contentClassName="p-0 bg-white"
+    >
+      <div className="p-7 text-center font-sans" dir="rtl">
+        {/* Clock/Delay Icon Container */}
+        <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-amber-50 text-amber-600 mb-4 border border-amber-100">
+          <Clock className="w-7 h-7" />
+        </div>
+        
+        {/* Title */}
+        <h3 className="text-base font-black text-slate-900 mb-2">
+          ترحيل وتأجيل الأنشطة 🗓️
+        </h3>
+        
+        {/* Description */}
+        <p className="text-xs font-semibold text-slate-500 leading-relaxed mb-4 px-1">
+          حدد بذكاء الأنشطة التي تود ترحيلها ليوم إجازتك، لتخفف الضغط وتكمل دراستك بطاقة متوازنة.
+        </p>
+
+        {/* Activities list to select */}
+        <div className="space-y-1.5 max-h-40 overflow-y-auto mb-6 text-right custom-scrollbar border border-slate-100/70 p-2 rounded-xl bg-slate-50/40">
+          {(task.activities || []).map(act => {
+            const isSelected = selectedForPostpone.includes(act.id);
+            return (
+              <button
+                key={act.id}
+                type="button"
+                onClick={() => {
+                  vibrate(HAPITCS.GUIDANCE);
+                  if (isSelected) {
+                    setSelectedForPostpone(selectedForPostpone.filter(id => id !== act.id));
+                  } else {
+                    setSelectedForPostpone([...selectedForPostpone, act.id]);
+                  }
+                }}
+                className={`w-full text-right p-2.5 rounded-lg border transition-all flex items-center justify-between cursor-pointer text-xs font-bold
+                  ${isSelected
+                    ? 'bg-amber-100/40 border-amber-200 text-amber-900'
+                    : 'bg-white border-transparent text-slate-600 hover:border-slate-200'}`}
+              >
+                <span>{act.title}</span>
+                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0
+                  ${isSelected ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-300 bg-white'}`}>
+                  {isSelected && <i className="pi pi-check text-[9px] font-black" />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Learning Days Selection */}
+        <div className="space-y-3 mb-6">
+          <h4 className="text-xs font-black text-slate-800 text-right pr-1">اختار يوم الإجازة اللي يريحك ترحل ليه:</h4>
+          <div className="grid grid-cols-2 gap-2">
+            {(() => {
+              const learningDaysRefs = user?.learningDays || [];
+              const fullWeekDays = [0, 1, 2, 3, 4, 5, 6];
+              const restDayIndices = fullWeekDays.filter(dayNum => !learningDaysRefs.includes(dayNum));
+              const finalRestDaysList = restDayIndices.length > 0 ? restDayIndices : [5, 6];
+              const dayNameMapping: Record<number, string> = {
+                0: "الأحد",
+                1: "الإثنين",
+                2: "الثلاثاء",
+                3: "الأربعاء",
+                4: "الخميس",
+                5: "الجمعة",
+                6: "السبت"
+              };
+              return finalRestDaysList.map(dayNum => {
+                const dayLabel = dayNameMapping[dayNum] || `يوم ${dayNum}`;
+                const targetDateString = getNextDateForDayOfWeek(dayNum);
+                return (
+                  <button
+                    key={dayNum}
+                    type="button"
+                    onClick={() => handlePostponeAction(targetDateString, dayLabel)}
+                    className="py-2.5 px-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 text-indigo-700 text-xs font-extrabold rounded-lg border border-indigo-100 transition-all text-center cursor-pointer shadow-3xs active:scale-95"
+                  >
+                    {dayLabel} ({targetDateString})
+                  </button>
+                );
+              });
+            })()}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <button
+          onClick={() => setShowPostponeDialog(false)}
+          className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl shadow-xs border border-slate-200 transition-all active:scale-[0.98] cursor-pointer"
+        >
+          تراجع وإلغاء
+        </button>
+      </div>
+    </Dialog>
+    </>
   );
 }
 

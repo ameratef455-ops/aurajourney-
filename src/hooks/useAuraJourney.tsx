@@ -559,8 +559,16 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     };
   };
 
-  const completeTask = async (task: any, onComplete?: (taskId: string) => void) => {
-    if (!user || task.isCompleted) return;
+  const completeTask = async (taskToComplete: any, onComplete?: (taskId: string) => void) => {
+    if (!user) return;
+    
+    // Fetch latest task data from DB
+    const dbTask = await db.tasks.get(taskToComplete.id);
+    if (!dbTask || dbTask.isCompleted) return;
+    
+    // Merge DB task with taskToComplete (favoring UI's version of activities)
+    const task = { ...dbTask, ...taskToComplete };
+
     if (user.isFrozen) {
       toast.current?.show({
         severity: "warn",
@@ -571,6 +579,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       return;
     }
 
+    // Task level check for subtasks
     if (task.type === "main") {
       const allStationTasks = await db.tasks.where("stationId").equals(task.stationId).toArray();
       const subTasks = allStationTasks.filter(t => t.parentId === task.id && t.type === "sub");
@@ -588,17 +597,25 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       }
     }
 
-    // NEW RULE: Forbidden to complete task unless its activities are finished
-    if (task.activities) {
+    // ACTIVITY VERIFICATION - Improved to allow parents to be headers
+    if (task.activities && task.activities.length > 0) {
       const checkActivities = (acts: any[]): boolean => {
-          return acts.every(a => a.isCompleted && (!a.children || checkActivities(a.children)));
+          return acts.every(a => {
+            const hasChildren = a.children && a.children.length > 0;
+            const isSelfDone = a.isCompleted === true || a.completed === true;
+            const childrenDone = hasChildren ? checkActivities(a.children) : true;
+            
+            // A node is done if (it's explicitly checked) OR (it has children and all children are checked)
+            return isSelfDone || (hasChildren && childrenDone);
+          });
       };
+
       if (!checkActivities(task.activities)) {
           vibrate(HAPITCS.MAJOR_CLICK);
           toast.current?.show({
             severity: "warn",
             summary: "أكمل الأنشطة أولاً ⚠️",
-            detail: "يُرجى إكمال جميع الأنشطة التنفيذية لهذه المهمة قبل محاولة ختمها وتقييمها.",
+            detail: "يُرجى إكمال جميع الأنشطة التنفيذية لهذه المهمة قبل محاولة ختمها وتقييمها. تأكد من علامة الصح الخضراء.",
             life: 4000
           });
           return;
@@ -606,75 +623,46 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     }
 
     vibrate(HAPITCS.COMPLETE);
+    // Mark as completed in DB - Using any to avoid circularity type error in Dexie KeyPaths
     await (db.tasks as any).update(task.id, { isCompleted: true });
 
     if (onComplete) onComplete(task.id);
 
-    let isMainCompleted = false;
-
+    // Rewards and Notifications
     if (task.type === "main") {
-      toast.current?.show({
-        severity: "success",
-        summary: "إنجاز رائع! ⚡",
-        detail: `أكملت مهمة أساسية مكثفة بنجاح! نلت +30 XP لمسيرتك.`,
-        life: 2500,
-      });
-      
-      // Check if all main tasks are completed
-      const allStationTasks = await db.tasks.where("stationId").equals(task.stationId).toArray();
-      const mainTasks = allStationTasks.filter(t => t.type === "main");
-      const allMainCompleted = mainTasks.every(t => t.id === task.id ? true : t.isCompleted);
-      
-      if (allMainCompleted) {
-        setStationTabsIndex(2);
-        const currentSubData = user.subStations?.[task.stationId];
-        const hasSub = Array.isArray(currentSubData) ? currentSubData.length > 0 : !!currentSubData;
-        
-        if (!hasSub) {
-          setSubStationTargetId(task.stationId);
-          setSubStationModalVisible(true);
-          setSubStationTasks([]);
-          setSubStationDuration(30);
-        }
-
-        confetti({
+       confetti({
           particleCount: 140,
           spread: 80,
           origin: { y: 0.55 },
           colors: ['#1e40af', '#2563eb', '#3b82f6', '#f59e0b', '#fbbf24'],
           zIndex: 30000000
-        });
-      }
-    } else if (task.type === "sub") {
-      toast.current?.show({
-        severity: "success",
-        summary: "خطوة بخطوة! 🧩",
-        detail: `أكملت مهمة فرعية بنجاح! نلت +15 XP لمسيرتك.`,
-        life: 2500,
-      });
-    } else if (task.type === "side") {
-      toast.current?.show({
-        severity: "success",
-        summary: "مهارة استثنائية! ⭐",
-        detail: `أنجزت مهارة بونص جانبية ومكثفة! ربحت +20 XP ومفتاح تركيز إضافي.`,
-        life: 3000,
-      });
+       });
     }
 
     let shouldShowReviewNotification = false;
 
+    // Atomically update user settings with new XP and keys
     await db.userSettings.where('id').equals(user.id).modify((u) => {
-      let currentXp = u.gameData.xp || 0;
-      let currentKeys = u.gameData.keys || 0;
+      // Create a clean local scope for calculation
+      let xpToAdd = 0;
+      let keysToAdd = 0;
 
-      if (task.type === "main") {
-         currentXp += 30;
-      } else if (task.type === "side") {
-         currentXp += 20;
-         currentKeys += 1;
+      if (task.type === "main") xpToAdd = 30;
+      else if (task.type === "sub") xpToAdd = 15;
+      else if (task.type === "side") {
+         xpToAdd = 20;
+         keysToAdd = 1;
       }
 
-      const baseGameData = { ...u.gameData, xp: currentXp, keys: currentKeys };
+      const currentXp = (u.gameData.xp || 0) + xpToAdd;
+      const currentKeys = (u.gameData.keys || 0) + keysToAdd;
+
+      const baseGameData = { 
+        ...u.gameData, 
+        xp: currentXp, 
+        keys: currentKeys 
+      };
+      
       const updatedGameData = processWorkdayAndStreak(baseGameData);
       
       if (task.type === 'sub' || task.type === 'side') {
@@ -685,6 +673,14 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       }
 
       u.gameData = updatedGameData;
+    });
+
+    // Notify user to rewards
+    toast.current?.show({
+      severity: "success",
+      summary: task.type === 'main' ? "إنجاز رائع! ⚡" : task.type === 'sub' ? "خطوة بخطوة! 🧩" : "مهارة استثنائية! ⭐",
+      detail: task.type === 'main' ? `أكملت مهمة أساسية بنجاح! +30 XP` : task.type === 'sub' ? `أكملت مهمة فرعية! +15 XP` : `أنجزت مهارة بونص! +20 XP ومفتاح إضافي.`,
+      life: 3000,
     });
 
     if (shouldShowReviewNotification) {
@@ -1272,6 +1268,10 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       };
       
       const baseGameData = { ...u.gameData };
+      if (!wasAlreadyCompleted) {
+        baseGameData.xp = (baseGameData.xp || 0) + 25;
+      }
+      
       const updatedGameData = processWorkdayAndStreak(baseGameData);
 
       u.subStations = {

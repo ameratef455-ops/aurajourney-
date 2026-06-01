@@ -11,6 +11,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { toast as toastHot } from "react-hot-toast";
 import { NotificationsPopover } from "./NotificationsPopover";
 import { Plus, User, LogOut, Settings as SettingsIcon, Share2, Download, X, Compass, Sparkles } from "lucide-react";
+import { GrowthTree } from "./GrowthTree";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -664,6 +665,13 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const menu = useRef<Menu>(null);
 
+  const trips = useLiveQuery(() => db.userSettings.toArray()) || [];
+  
+  // Get data for the tree from the first trip if available
+  const mainTrip = trips[0];
+  const treeXp = mainTrip?.gameData?.xp || 0;
+  const treeKeys = mainTrip?.gameData?.keys || 0;
+
   const handleStart = () => {
     vibrate(HAPITCS.MAJOR_CLICK);
     onStart();
@@ -748,8 +756,15 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
         </div>
       </header>
  
-      <div className="pt-24 md:pt-32">
-        {/* Title removed from body as it is now in the header only */}
+      <div className="pt-24 md:pt-32 w-full">
+        {/* Growth Tree Visualizer on Landing */}
+        <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           className="w-full max-w-sm mx-auto mb-4"
+        >
+           <GrowthTree xp={treeXp} keys={treeKeys} />
+        </motion.div>
       </div>
  
       <TripsList onEdit={onEdit} onOpen={onOpen} />

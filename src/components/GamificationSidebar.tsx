@@ -4,6 +4,7 @@ import { Button } from "primereact/button";
 import { motion, AnimatePresence } from "motion/react";
 import { LAYERS } from "../constants/layers";
 import { vibrate, HAPITCS } from "../lib/haptics";
+import { GrowthTree } from "./GrowthTree";
 
 export interface GamificationSidebarProps {
   gamificationSidebar: boolean;
@@ -77,6 +78,11 @@ export function GamificationSidebar({
               {/* Tab 1: Stats and Percentages */}
               <TabPanel headerTemplate={createTabHeader("pi-chart-pie", "تقدمك")}>
                 <div className="pt-4 space-y-6">
+                  {/* The Growth Tree Visualizer */}
+                  <div className="mb-8">
+                    <GrowthTree xp={gData.xp} keys={gData.keys} />
+                  </div>
+
                   {/* Unified Gorgeous Blue Gradients Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     

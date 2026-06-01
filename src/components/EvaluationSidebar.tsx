@@ -8,6 +8,7 @@ import { Button } from "primereact/button";
 import { Menu } from "primereact/menu";
 import { ConfirmPopup, confirmPopup } from "primereact/confirmpopup";
 import { Toast } from "primereact/toast";
+import { Calendar } from "primereact/calendar";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from 'canvas-confetti';
@@ -62,6 +63,86 @@ export function EvaluationSidebar({
   const [pendingParentId, setPendingParentId] = useState<string | undefined>(undefined);
   const [isPostponingSelected, setIsPostponingSelected] = useState(false);
   const [isPostponingEntireTask, setIsPostponingEntireTask] = useState(false);
+
+  const handleDelayToDate = async (targetDateString: string, dayLabel: string) => {
+    if (isPostponingEntireTask) {
+      try {
+        if (selectedTask._source === 'dexie') {
+          await (db.tasks as any).update(selectedTask.id, {
+            dueDate: targetDateString,
+            isRestDayTask: true
+          });
+        }
+        toast.current?.show({
+          severity: "success",
+          summary: "تأجيل المهمة 🗓️✨",
+          detail: `أجلنالك المهمة كلها ليوم (${dayLabel}) الموافق ${targetDateString}!`,
+          life: 5000
+        });
+        confetti({ particleCount: 80, spread: 50, origin: { y: 0.7 } });
+      } catch (err) {
+        console.error('Failed to move task:', err);
+      }
+    } else if (isPostponingSelected) {
+      try {
+        const activitiesToMove = selectedTask.activities.filter((act: any) => selectedForPostpone.includes(act.id));
+        const remainingActivities = selectedTask.activities.filter((act: any) => !selectedForPostpone.includes(act.id));
+        
+        // Create a new rest day task for the selected activities
+        if (activitiesToMove.length > 0) {
+          if (selectedTask._source === 'dexie') {
+            const newTask = {
+              ...selectedTask,
+              id: safeRandomUUID(),
+              dueDate: targetDateString,
+              isRestDayTask: true,
+              activities: activitiesToMove
+            };
+            delete newTask._source;
+            await (db.tasks as any).add(newTask);
+            await (db.tasks as any).update(selectedTask.id, { activities: remainingActivities });
+          }
+          setSelectedTask((prev: any) => ({ ...prev, activities: remainingActivities }));
+        }
+
+        toast.current?.show({
+          severity: "success",
+          summary: "تم الترحيل بنجاح 🗓️✨",
+          detail: `نقلنا الأنشطة ليوم إجازتك (${dayLabel}) الموافق ${targetDateString}!`,
+          life: 5000
+        });
+        confetti({ particleCount: 80, spread: 50, origin: { y: 0.7 } });
+      } catch (err) {
+        console.error('Failed to move tasks:', err);
+      }
+    } else if (pendingActivity) {
+      try {
+        await executeAddActivity(pendingActivity, pendingParentId, targetDateString);
+        
+        toast.current?.show({
+          severity: "success",
+          summary: "تم الترحيل بنجاح 🗓️✨",
+          detail: `تم ترحيل المهمة وتغيير موعدها إلى يوم إجازتك (${dayLabel}) الموافق ${targetDateString} بلون مميز في التقويم!`,
+          life: 5000
+        });
+
+        confetti({
+          particleCount: 80,
+          spread: 50,
+          origin: { y: 0.7 }
+        });
+      } catch (err) {
+        console.error('Failed to move task:', err);
+      }
+    }
+    setShowRestDayDialog(false);
+    setPendingActivity(null);
+    setPendingParentId(undefined);
+    setIsPostponingSelected(false);
+    setIsPostponingEntireTask(false);
+    setIsPostponeMode(false);
+    setSelectedForPostpone([]);
+  };
 
   const getNextDateForDayOfWeek = (dayIndex: number) => {
     const resultDate = new Date();
@@ -330,7 +411,7 @@ export function EvaluationSidebar({
     saveActivities(updatedActivities);
   };
 
-  const toggleActivityCompletion = (id: string) => {
+  const toggleActivityCompletion = async (id: string) => {
     const updatedActivities = selectedTask.activities ? [...selectedTask.activities] : [];
     
     const toggleInList = (list: TaskActivity[]) => {
@@ -345,7 +426,23 @@ export function EvaluationSidebar({
     };
 
     toggleInList(updatedActivities);
-    saveActivities(updatedActivities);
+    await saveActivities(updatedActivities);
+
+    // Reward activity completion individually
+    const findStatus = (list: TaskActivity[]): boolean | null => {
+      for (const act of list) {
+        if (act.id === id) return act.isCompleted;
+        if (act.children) {
+          const res = findStatus(act.children);
+          if (res !== null) return res;
+        }
+      }
+      return null;
+    };
+    const status = findStatus(updatedActivities);
+    if (status === true && onRewardActivity) {
+      onRewardActivity(true);
+    }
 
     // Check for task completion
     const checkAllCompleted = (list: TaskActivity[]): boolean => {
@@ -368,7 +465,7 @@ export function EvaluationSidebar({
       
       // Automatically trigger completion which will open reflection in Maps
       if (onCompleteTask) {
-         onCompleteTask(selectedTask);
+         onCompleteTask({ ...selectedTask, activities: updatedActivities });
       }
 
       toast.current?.show({
@@ -378,24 +475,6 @@ export function EvaluationSidebar({
         life: 3000
       });
     }
-
-    // Call reward callback removed from here to prevent duplicate rewards
-    /*
-    if (onRewardActivity) {
-      const findStatus = (list: TaskActivity[]): boolean | null => {
-        for (const act of list) {
-          if (act.id === id) return act.isCompleted;
-          if (act.children) {
-            const res = findStatus(act.children);
-            if (res !== null) return res;
-          }
-        }
-        return null;
-      };
-      const status = findStatus(updatedActivities);
-      if (status !== null) onRewardActivity(status);
-    }
-    */
   };
 
   const completedWithoutReflection = [...mainTasks, ...sideTasks, ...subTasks].filter(t => t.isCompleted && !reflections.some(r => r.taskId === t.id));
@@ -892,7 +971,28 @@ export function EvaluationSidebar({
           )}
           
           <div className="mt-2">
-            <h5 className="text-xs font-black text-indigo-900 mb-2">اختار يوم الإجازة اللي يريحك نأجل ليه المهمة:</h5>
+            <h5 className="text-xs font-black text-indigo-900 mb-2">اختار يوم الإجازة أو حدد تاريخ معين:</h5>
+            
+            <div className="mb-4">
+              <Calendar 
+                onChange={(e) => {
+                  if (e.value instanceof Date) {
+                    const d = new Date(e.value);
+                    d.setHours(12, 0, 0, 0);
+                    const targetDateString = d.toISOString().split('T')[0];
+                    handleDelayToDate(targetDateString, "تاريخ مخصص");
+                  }
+                }}
+                placeholder="إختر تاريخ من التقويم مباشرة..."
+                className="w-full custom-delay-calendar"
+                inputClassName="!bg-white !border-slate-200 !text-slate-800 !text-xs !font-black !rounded-2xl !p-4 !h-12 shadow-sm"
+                minDate={new Date()}
+                showIcon
+                icon={() => <i className="pi pi-calendar-plus text-indigo-500" />}
+                appendTo="self"
+              />
+            </div>
+
             <div className="grid grid-cols-1 gap-2">
               {(() => {
                 const learningDaysRefs = user?.learningDays || [];
@@ -908,6 +1008,7 @@ export function EvaluationSidebar({
                   5: "الجمعة",
                   6: "السبت"
                 };
+                
                 return finalRestDaysList.map(dayNum => {
                   const dayLabel = dayNameMapping[dayNum] || `يوم ${dayNum}`;
                   const targetDateString = getNextDateForDayOfWeek(dayNum);
@@ -915,85 +1016,7 @@ export function EvaluationSidebar({
                     <button
                       key={dayNum}
                       type="button"
-                      onClick={async () => {
-                        if (isPostponingEntireTask) {
-                          try {
-                            if (selectedTask._source === 'dexie') {
-                              await (db.tasks as any).update(selectedTask.id, {
-                                dueDate: targetDateString,
-                                isRestDayTask: true
-                              });
-                            }
-                            toast.current?.show({
-                              severity: "success",
-                              summary: "تأجيل المهمة 🗓️✨",
-                              detail: `أجلنالك المهمة كلها ليوم (${dayLabel}) الموافق ${targetDateString}!`,
-                              life: 5000
-                            });
-                            confetti({ particleCount: 80, spread: 50, origin: { y: 0.7 } });
-                          } catch (err) {
-                            console.error('Failed to move task:', err);
-                          }
-                        } else if (isPostponingSelected) {
-                          try {
-                            const activitiesToMove = selectedTask.activities.filter((act: any) => selectedForPostpone.includes(act.id));
-                            const remainingActivities = selectedTask.activities.filter((act: any) => !selectedForPostpone.includes(act.id));
-                            
-                            // Create a new rest day task for the selected activities
-                            if (activitiesToMove.length > 0) {
-                              if (selectedTask._source === 'dexie') {
-                                const newTask = {
-                                  ...selectedTask,
-                                  id: safeRandomUUID(),
-                                  dueDate: targetDateString,
-                                  isRestDayTask: true,
-                                  activities: activitiesToMove
-                                };
-                                delete newTask._source;
-                                await (db.tasks as any).add(newTask);
-                                await (db.tasks as any).update(selectedTask.id, { activities: remainingActivities });
-                              }
-                              setSelectedTask((prev: any) => ({ ...prev, activities: remainingActivities }));
-                            }
-
-                            toast.current?.show({
-                              severity: "success",
-                              summary: "تم الترحيل بنجاح 🗓️✨",
-                              detail: `نقلنا الأنشطة ليوم إجازتك (${dayLabel}) الموافق ${targetDateString}!`,
-                              life: 5000
-                            });
-                            confetti({ particleCount: 80, spread: 50, origin: { y: 0.7 } });
-                          } catch (err) {
-                            console.error('Failed to move tasks:', err);
-                          }
-                        } else if (pendingActivity) {
-                          try {
-                            await executeAddActivity(pendingActivity, pendingParentId, targetDateString);
-                            
-                            toast.current?.show({
-                              severity: "success",
-                              summary: "تم الترحيل بنجاح 🗓️✨",
-                              detail: `تم ترحيل المهمة وتغيير موعدها إلى يوم إجازتك (${dayLabel}) الموافق ${targetDateString} بلون مميز في التقويم!`,
-                              life: 5000
-                            });
-
-                            confetti({
-                              particleCount: 80,
-                              spread: 50,
-                              origin: { y: 0.7 }
-                            });
-                          } catch (err) {
-                            console.error('Failed to move task:', err);
-                          }
-                        }
-                        setShowRestDayDialog(false);
-                        setPendingActivity(null);
-                        setPendingParentId(undefined);
-                        setIsPostponingSelected(false);
-                        setIsPostponingEntireTask(false);
-                        setIsPostponeMode(false);
-                        setSelectedForPostpone([]);
-                      }}
+                      onClick={() => handleDelayToDate(targetDateString, dayLabel)}
                       className="w-full p-4 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/50 hover:border-rose-300 text-rose-950 rounded-2xl text-xs font-black text-right transition-all flex justify-between items-center cursor-pointer shadow-3xs"
                     >
                       <span>{dayLabel}</span>
@@ -1304,11 +1327,6 @@ function TaskItem({
           <div className="bg-slate-100 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1">
             <ListChecks className="w-3 h-3 text-slate-400" />
             <span className="text-[9px] font-black text-slate-600">{task.activities.length}</span>
-          </div>
-        )}
-        {displayXp !== null && (
-          <div className="bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
-            <span className="text-[10px] font-black text-emerald-400 tracking-tighter">+{displayXp} XP</span>
           </div>
         )}
       </div>

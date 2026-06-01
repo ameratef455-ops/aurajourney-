@@ -16,8 +16,8 @@ import { DataView } from "primereact/dataview";
 import { Tree } from "primereact/tree";
 import { toast as toastHot } from "react-hot-toast";
 import { 
-  Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy, History, TrendingUp, Calendar, Info,
-  Sparkles, Volume2, MessageSquare, Mic
+  Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy, History, TrendingUp, Calendar, Info, FileText,
+  Sparkles, Volume2, MessageSquare, Mic, Plus, Clock, Target
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import confetti from "canvas-confetti";
@@ -32,6 +32,7 @@ import { TaskReviewModal } from "./TaskReviewModal";
 import { TaskReflectionModal } from "./TaskReflectionModal";
 import { TaskDetailsModal } from "./TaskDetailsModal";
 import { RevertConfirmModal } from "./RevertConfirmModal";
+import { LearningRepoModal } from "./LearningRepoModal";
 import { CalendarTheme } from "./themes/CalendarTheme";
 import { addDays, getDay, format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -258,6 +259,18 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [stationFormDescription, setStationFormDescription] = useState("");
   const [stationFormIcon, setStationFormIcon] = useState("pi pi-flag-fill");
   const [stationFormDate, setStationFormDate] = useState("");
+  const [learningRepoVisible, setLearningRepoVisible] = useState(false);
+
+  const isLanguageJourney = useMemo(() => {
+    const goal = user?.learningGoal?.toLowerCase() || '';
+    return goal.includes('لغة') || 
+           goal.includes('لغات') || 
+           goal.includes('language') || 
+           goal.includes('english') || 
+           goal.includes('german') || 
+           goal.includes('spanish') ||
+           goal.includes('french');
+  }, [user?.learningGoal]);
 
   const ICON_PRESETS = [
     "pi pi-flag-fill", 
@@ -499,6 +512,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [flashcardTask, setFlashcardTask] = useState<any>(null);
   const [taskDetailsVisible, setTaskDetailsVisible] = useState(false);
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<any>(null);
+  const [activeTaskActionId, setActiveTaskActionId] = useState<string | null>(null);
+  const [activeStationActionId, setActiveStationActionId] = useState<string | null>(null);
   const [reviewReflectionVisible, setReviewReflectionVisible] = useState(false);
   const [initialReflectionVisible, setInitialReflectionVisible] = useState(false);
   const [showStumbleForm, setShowStumbleForm] = useState(false);
@@ -634,17 +649,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     }
   };
 
-  const handleCompleteTask = (task: any) => {
-    if (task.activities) {
-      const checkActivities = (acts: any[]): boolean => {
-          return acts.every(a => a.isCompleted && (!a.children || checkActivities(a.children)));
-      };
-      if (!checkActivities(task.activities)) {
-          vibrate(HAPITCS.MAJOR_CLICK);
-          toastHot.error("يُرجى إكمال جميع الأنشطة التنفيذية لهذه المهمة قبل محاولة ختمها وتقييمها. ⚠️");
-          return;
-      }
-    }
+  const handleCompleteTask = async (task: any) => {
+    await completeTask(task);
     setReviewingTask(task);
     setInitialReflectionVisible(true);
   };
@@ -716,76 +722,90 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               </span>
             )}
           </div>
-          <div className="mr-auto flex items-center gap-1">
-            {!hasReflection && t.isCompleted && (
+          <div className="mr-auto relative flex items-center flex-row-reverse gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                vibrate(HAPITCS.GUIDANCE);
+                setActiveTaskActionId(activeTaskActionId === t.id ? null : t.id);
+              }}
+              className={`p-1.5 rounded-full transition-all duration-300 z-10 
+                ${activeTaskActionId === t.id 
+                  ? 'bg-rose-50 text-rose-600 rotate-45 border border-rose-100' 
+                  : 'bg-indigo-600 text-white shadow-md hover:scale-110 active:scale-90'}`}
+              title="خيارات المهمة"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+
+            <div className={`flex items-center gap-1.5 transition-all duration-300 ${activeTaskActionId === t.id ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
+              {!hasReflection && t.isCompleted && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    vibrate(HAPITCS.MAJOR_CLICK);
+                    setReviewingTask(t);
+                    setInitialReflectionVisible(true);
+                    setActiveTaskActionId(null);
+                  }}
+                  className="p-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-105 gap-1.5"
+                  title="قيم أداءك"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {t.isCompleted && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setReviewingTask(t);
+                      setActiveTaskActionId(null);
+                    }}
+                    className="p-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs"
+                    title="راجع"
+                  >
+                    <i className="pi pi-compass text-[11px]"></i>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFlashcardTask(t);
+                      setActiveTaskActionId(null);
+                    }}
+                    className="p-1.5 bg-sky-50 border border-sky-100 hover:bg-sky-100 text-sky-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs"
+                    title="كروت"
+                  >
+                    <i className="pi pi-clone text-[11px]"></i>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openTaskAnalytics(t);
+                      setActiveTaskActionId(null);
+                    }}
+                    className="p-1.5 bg-slate-50 border border-slate-200 text-indigo-600 hover:bg-indigo-50 rounded-lg flex items-center justify-center cursor-pointer shadow-3xs"
+                    title="تحليلات"
+                  >
+                    <i className="pi pi-chart-bar text-[11px]"></i>
+                  </button>
+                </>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   vibrate(HAPITCS.MAJOR_CLICK);
-                  setReviewingTask(t);
-                  setInitialReflectionVisible(true);
+                  setSelectedTaskForDetails(t);
+                  setTaskDetailsVisible(true);
+                  setActiveTaskActionId(null);
                 }}
-                className="p-1 px-2.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-105 gap-1.5"
-                title="قيم أداءك على هذه المهمة"
-                type="button"
+                className="p-1.5 bg-indigo-50/70 border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all duration-300 rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-110 active:scale-95"
+                title="التفاصيل"
               >
-                <Sparkles className="w-3 h-3" />
-                <span className="text-[10px] font-black">قيم أداءك</span>
+                <FileText className="w-3.5 h-3.5" />
               </button>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                vibrate(HAPITCS.MAJOR_CLICK);
-                setSelectedTaskForDetails(t);
-                setTaskDetailsVisible(true);
-              }}
-              className="p-1 px-1.5 bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-500 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-110"
-              title="تفاصيل المهمة والأنشطة"
-              type="button"
-            >
-              <Info className="w-3 h-3 font-black" />
-            </button>
-            {t.isCompleted && (
-              <>
-                <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setReviewingTask(t);
-                }}
-                className="p-1.5 px-2 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-105"
-                title="مراجعة الأنشطة"
-                type="button"
-              >
-                <i className="pi pi-compass text-[10px] font-black mr-1"></i>
-                <span className="text-[10px] font-bold">راجع</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFlashcardTask(t);
-                }}
-                className="p-1.5 px-2 bg-sky-50 border border-sky-100 hover:bg-sky-100 text-sky-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-105 gap-1"
-                title="كروت المراجعة"
-                type="button"
-              >
-                <i className="pi pi-clone text-[10px] font-black"></i>
-                <span className="text-[10px] font-bold">كروت</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openTaskAnalytics(t);
-                }}
-                className="p-1.5 text-indigo-600 hover:text-indigo-800 transition-colors rounded-lg hover:bg-slate-100 flex items-center justify-center cursor-pointer shadow-3xs"
-                title="عرض تحليلات المهمة"
-                type="button"
-              >
-                <i className="pi pi-chart-bar text-[10px] font-black"></i>
-              </button>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
       </div>
     );
   };
@@ -1040,8 +1060,20 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       `}</style>
 
       {/* Notifications */}
-      <div className="absolute top-8 left-6 z-40">
+      <div className="absolute top-8 left-6 z-40 flex items-center gap-3">
          <NotificationsPopover />
+         
+         {/* New Tree Button */}
+         <button
+           className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-2xl border-none shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all active:scale-95 cursor-pointer font-bold text-sm"
+           onClick={() => {
+             vibrate(HAPITCS.MAJOR_CLICK);
+             setLearningRepoVisible(true);
+           }}
+         >
+           <BookOpen className="w-4 h-4" />
+           <span className="hidden sm:inline">شجرة جديدة</span>
+         </button>
       </div>
 
       {/* Standalone Back Button */}
@@ -1154,89 +1186,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       </div>
                     )}
 
-                    {/* Station Node / Card Wrapper with Quick Access Buttons */}
+                    {/* Station Node / Card Wrapper with FAB Menu */}
                     <div className="relative w-full flex items-center justify-center">
-                      {isUnlocked && (
-                        <>
-                          {/* Right Side Buttons - Dynamic Routine & Resources */}
-                          <div className="absolute right-[-42px] sm:right-[-48px] top-1/2 -translate-y-1/2 flex flex-col gap-2.5 z-30">
-                            {/* Learning Routine */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                vibrate(HAPITCS.MAJOR_CLICK);
-                                setShowRoutinePopup(true);
-                              }}
-                              className="w-8 h-8 rounded-full bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-indigo-500 hover:text-indigo-600 flex items-center justify-center transition-all cursor-pointer shadow-sm hover:scale-110"
-                              title="روتين التعلم"
-                            >
-                              <i className="pi pi-calendar text-[9px] font-black" />
-                            </button>
-
-                            {/* Learning Resources */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                vibrate(HAPITCS.MAJOR_CLICK);
-                                setSelectedStation(st.id);
-                                setShowLinksPopup(true);
-                              }}
-                              className="w-8 h-8 rounded-full bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-blue-500 hover:text-blue-600 flex items-center justify-center transition-all cursor-pointer shadow-sm hover:scale-110"
-                              title="مصادر التعلم"
-                            >
-                              <i className="pi pi-book text-[9px] font-black" />
-                            </button>
-                          </div>
-
-                          {/* Left Side Buttons - Notes, Analytics & Obstacles */}
-                          <div className="absolute left-[-42px] sm:left-[-48px] top-1/2 -translate-y-1/2 flex flex-col gap-2.5 z-30">
-                            {/* Notes / الخواطر والتدوين */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                vibrate(HAPITCS.MAJOR_CLICK);
-                                setActiveNoteStationId(st.id);
-                                setShowNotesPopup(true);
-                              }}
-                              className="w-8 h-8 rounded-full bg-white hover:bg-amber-50 border border-slate-200 hover:border-amber-300 text-amber-500 hover:text-amber-600 flex items-center justify-center transition-all cursor-pointer shadow-sm hover:scale-110"
-                              title="الخواطر والتدوين"
-                            >
-                              <i className="pi pi-pencil text-[9px] font-black" />
-                            </button>
-
-                            {/* Reflection & Analytics / التقييم والتحليلات */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                vibrate(HAPITCS.MAJOR_CLICK);
-                                setReflectionForceStationId(st.id);
-                                setReflectionActiveTab(0);
-                                setReflectionSidebar(true);
-                              }}
-                              className="w-8 h-8 rounded-full bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-emerald-500 hover:text-emerald-600 flex items-center justify-center transition-all cursor-pointer shadow-sm hover:scale-110"
-                              title="التقييم والتحليلات"
-                            >
-                              <i className="pi pi-chart-bar text-[9px] font-black" />
-                            </button>
-
-                            {/* Obstacles & Challenges / عقبات وتعثرات */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                vibrate(HAPITCS.MAJOR_CLICK);
-                                setSelectedStation(st.id);
-                                setStumbleReason("");
-                                setShowStumbleForm(true);
-                              }}
-                              className="w-8 h-8 rounded-full bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-rose-500 hover:text-rose-600 flex items-center justify-center transition-all cursor-pointer shadow-sm hover:scale-110"
-                              title="عقبات وتعثرات"
-                            >
-                              <i className="pi pi-exclamation-triangle text-[9px] font-black" />
-                            </button>
-                          </div>
-                        </>
-                      )}
-
                       <motion.div
                         initial={{ scale: 1 }}
                         whileHover={isUnlocked ? { scale: 1.03, y: -8 } : {}}
@@ -1253,6 +1204,100 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                 : "bg-slate-50 border-slate-100 opacity-60 grayscale"}
                         `}
                       >
+                       {isUnlocked && (
+                         <div className="absolute top-2 left-3 z-40 flex items-center gap-2" dir="rtl">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                vibrate(HAPITCS.GUIDANCE);
+                                setActiveStationActionId(activeStationActionId === st.id ? null : st.id);
+                              }}
+                              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg cursor-pointer border-none
+                                ${activeStationActionId === st.id 
+                                  ? 'bg-rose-500 text-white rotate-45' 
+                                  : 'bg-indigo-600 text-white hover:scale-110 shadow-sm shadow-indigo-200'}`}
+                              title="خيارات المحطة"
+                            >
+                              <Plus className="w-5 h-5" />
+                            </button>
+
+                            <div className={`flex items-center gap-2 transition-all duration-300 ${activeStationActionId === st.id ? 'opacity-100 scale-100 translate-x-0' : 'opacity-0 scale-90 translate-x-4 pointer-events-none'}`}>
+                               <div className="flex gap-1.5 p-1.5 bg-white/95 backdrop-blur-md rounded-xl border border-indigo-50 shadow-xl">
+                                 {/* Learning Routine */}
+                                 <button
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     vibrate(HAPITCS.MAJOR_CLICK);
+                                     setShowRoutinePopup(true);
+                                     setActiveStationActionId(null);
+                                   }}
+                                   className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-3xs hover:bg-indigo-600 hover:text-white transition-all cursor-pointer border-none"
+                                   title="روتين التعلم"
+                                 >
+                                   <i className="pi pi-calendar text-[12px] font-black" />
+                                 </button>
+                                 {/* Learning Resources */}
+                                 <button
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     vibrate(HAPITCS.MAJOR_CLICK);
+                                     setSelectedStation(st.id);
+                                     setShowLinksPopup(true);
+                                     setActiveStationActionId(null);
+                                   }}
+                                   className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shadow-3xs hover:bg-blue-600 hover:text-white transition-all cursor-pointer border-none"
+                                   title="مصادر التعلم"
+                                 >
+                                   <i className="pi pi-book text-[12px] font-black" />
+                                 </button>
+                                 {/* Notes */}
+                                 <button
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     vibrate(HAPITCS.MAJOR_CLICK);
+                                     setActiveNoteStationId(st.id);
+                                     setShowNotesPopup(true);
+                                     setActiveStationActionId(null);
+                                   }}
+                                   className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shadow-3xs hover:bg-amber-600 hover:text-white transition-all cursor-pointer border-none"
+                                   title="التدوين"
+                                 >
+                                   <i className="pi pi-pencil text-[12px] font-black" />
+                                 </button>
+                                 {/* Reflection */}
+                                 <button
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     vibrate(HAPITCS.MAJOR_CLICK);
+                                     setReflectionForceStationId(st.id);
+                                     setReflectionActiveTab(0);
+                                     setReflectionSidebar(true);
+                                     setActiveStationActionId(null);
+                                   }}
+                                   className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-3xs hover:bg-emerald-600 hover:text-white transition-all cursor-pointer border-none"
+                                   title="التحليلات"
+                                 >
+                                   <i className="pi pi-chart-bar text-[12px] font-black" />
+                                 </button>
+                                 {/* Obstacles */}
+                                 <button
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     vibrate(HAPITCS.MAJOR_CLICK);
+                                     setSelectedStation(st.id);
+                                     setStumbleReason("");
+                                     setShowStumbleForm(true);
+                                     setActiveStationActionId(null);
+                                   }}
+                                   className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shadow-3xs hover:bg-rose-600 hover:text-white transition-all cursor-pointer border-none"
+                                   title="عقبات"
+                                 >
+                                   <i className="pi pi-exclamation-triangle text-[12px] font-black" />
+                                 </button>
+                               </div>
+                            </div>
+                         </div>
+                       )}
                          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border-2 transition-transform duration-700 ${isActive ? 'rotate-[5deg]' : ''}
                            ${isActive 
                              ? 'bg-blue-500/20 border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.3)]' 
@@ -1352,9 +1397,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 user={user} 
                 onSaveArrangement={handleSaveArrangement} 
                 toggleSubStationTask={toggleSubStationTask} 
-                onOpenEvaluation={(task) => { if (task?.isCompleted) return setReviewingTask(task); 
-                   setSelectedTaskForEvaluation(task); 
-                   setEvaluationSidebarVisible(true); 
+                onOpenEvaluation={(task) => {
+                   setSelectedTaskForDetails(task);
+                   setTaskDetailsVisible(true);
                 }}
                 onOpenReview={setReviewingTask}
                 onOpenFlashcards={setFlashcardTask}
@@ -1470,9 +1515,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           setSelectedTaskForDetails(null);
         }}
         taskId={selectedTaskForDetails?.id || null}
-        onCompleteTask={(taskId) => {
+        onCompleteTask={async (taskId) => {
            const t = tasks.find(x => x.id === taskId);
            if (t) {
+              await completeTask(t);
               setReviewingTask(t);
               setInitialReflectionVisible(true);
            }
@@ -1533,8 +1579,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 createdAt: new Date().toISOString()
               });
               
-              // Only mark as completed AFTER reflection is saved
-              await completeTask(currentTask);
+              // Only mark as completed if not already completed
+              if (!currentTask.isCompleted) {
+                 await completeTask(currentTask);
+              }
 
               toastHot.success("تم حفظ تقييم الإنجاز وختم المهمة بنجاح! ✨");
               setInitialReflectionVisible(false);
@@ -1592,7 +1640,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                  toast.current?.show({
                     severity: "success",
                     summary: "مراجعة مكتملة 🧠",
-                    detail: "تم تسجيل انعكاس المهمة بنجاح، ونلت 15 XP كمكافأة!",
+                    detail: "تم تسجيل انعكاس المهمة بنجاح وتحديث سجل التقييم!",
                     life: 3000,
                  });
               }
@@ -1605,6 +1653,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               toastHot.error("فشل حفظ التقييم");
            }
         }}
+      />
+
+      <LearningRepoModal 
+        visible={learningRepoVisible}
+        onHide={() => setLearningRepoVisible(false)}
+        tripId={user?.id || ''}
+        isLanguageJourney={isLanguageJourney}
       />
 
 

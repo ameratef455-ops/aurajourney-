@@ -255,8 +255,6 @@ export function CalendarTheme({
     setSelectedDay(new Date());
   };
 
-  const [activityTask, setActivityTask] = useState<any>(null);
-
   // Derive target station ID correctly if needed
 
   const targetStationId = selectedStationId;
@@ -474,9 +472,37 @@ export function CalendarTheme({
         onShow={() => vibrate(HAPITCS.MAJOR_CLICK)}
       >
         <div className="w-full flex-col bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-2xl border border-blue-100 mb-5 mt-2 gap-3 flex" dir="rtl">
-          <div className="text-right">
-            <h4 className="text-xs font-black text-blue-900 mb-0.5">جدولة المحطة</h4>
-            <p className="text-[10px] text-blue-700 leading-relaxed font-semibold">قم باختيار المواعيد المناسبة لكل مهمة لضمان الالتزام بجدولك الزمني.</p>
+          <div className="flex items-center justify-between">
+            <div className="text-right">
+              <h4 className="text-xs font-black text-blue-900 mb-0.5">جدولة المحطة</h4>
+              <p className="text-[10px] text-blue-700 leading-relaxed font-semibold">قم باختيار المواعيد المناسبة لكل مهمة لضمان الالتزام بجدولك الزمني.</p>
+            </div>
+            <div className="flex flex-col gap-1 items-end">
+              <label className="text-[9px] font-black text-indigo-400 uppercase">تاريخ موحد للمهام</label>
+              <Calendar 
+                onChange={(e) => {
+                  if (e.value instanceof Date) {
+                    const d = new Date(e.value);
+                    d.setHours(12, 0, 0, 0);
+                    const dateStr = d.toISOString().split('T')[0];
+                    const updated = { ...tempAssignments };
+                    [...modalTasksData.mains, ...modalTasksData.sides].forEach(t => {
+                      updated[t.id] = dateStr;
+                    });
+                    setTempAssignments(updated);
+                    vibrate(HAPITCS.SUCCESS);
+                  }
+                }}
+                placeholder="تحديد تاريخ للكل"
+                readOnlyInput
+                className="w-32 custom-calendar-mini"
+                inputClassName="!bg-white !border-indigo-200 !text-indigo-700 !text-[10px] !font-black !rounded-lg !p-1.5 !h-8"
+                showIcon
+                minDate={new Date()}
+                icon={() => <i className="pi pi-calendar-plus text-indigo-500 text-xs" />}
+                appendTo="self"
+              />
+            </div>
           </div>
         </div>
 
@@ -522,18 +548,20 @@ export function CalendarTheme({
                                   const d = new Date(e.value);
                                   d.setHours(12, 0, 0, 0);
                                   setTempAssignments(prev => ({ ...prev, [task.id]: d.toISOString().split('T')[0] }));
+                                  vibrate(HAPITCS.SUCCESS);
                                 } else {
                                   setTempAssignments(prev => ({ ...prev, [task.id]: "" }));
                                 }
                               }}
-                              dateFormat="dd MM"
+                              dateFormat="dd/mm/yy"
                               placeholder="إختر تاريخ"
-                              className="w-full custom-calendar-blue transition-all"
-                              inputClassName="!bg-slate-50 !border-slate-200 !text-slate-800 !text-xs !font-black !rounded-xl !p-2.5 !h-10 hover:!border-blue-300 focus:!border-blue-500 focus:!ring-2 focus:!ring-blue-100 shadow-inner"
+                              readOnlyInput
+                              className="w-full custom-calendar-mini transition-all"
+                              inputClassName="!bg-white !border-indigo-100 !text-indigo-700 !text-[10px] !font-black !rounded-lg !p-1.5 !h-8 shadow-sm hover:!border-indigo-300"
                               panelClassName="p-3 bg-white border border-slate-100 shadow-xl rounded-2xl font-sans"
                               minDate={new Date()}
                               showIcon
-                              icon={() => <i className="pi pi-calendar text-blue-500" />}
+                              icon={() => <i className="pi pi-calendar-plus text-indigo-500 text-xs" />}
                               appendTo="self"
                             />
                             {/* Blue gradient highlight on hover via CSS sibling */}
@@ -593,74 +621,6 @@ export function CalendarTheme({
              إلغاء
           </button>
         </div>
-      </Dialog>
-
-      <Dialog
-        visible={!!activityTask}
-        onHide={() => setActivityTask(null)}
-        header={
-          <div className="flex justify-between items-center w-full" dir="rtl">
-            <span className="text-xs font-black text-slate-800 flex items-center gap-2">
-              <i className="pi pi-bolt text-blue-500" />
-              أنشطة المهمة
-            </span>
-          </div>
-        }
-        className="w-[90vw] max-w-sm !rounded-[32px] overflow-hidden"
-        style={{ borderRadius: '32px' }}
-        maskClassName="backdrop-blur-sm bg-slate-900/40"
-        blockScroll
-      >
-        {activityTask && (
-          <div className="flex flex-col gap-5 p-4 rounded-2xl bg-slate-50/50 border border-slate-100" dir="rtl">
-            <h3 className="font-extrabold text-sm text-slate-800 text-center leading-relaxed">
-              {activityTask.title}
-            </h3>
-            
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  toggleTask(activityTask.id, activityTask.isCompleted, activityTask.type);
-                  // Update local modal state so it reacts immediately visually
-                  setActivityTask((prev: any) => ({ ...prev, isCompleted: !prev.isCompleted }));
-                }}
-                className={`py-3 rounded-xl font-bold text-[11px] transition-all flex justify-center items-center gap-2 ${
-                  activityTask.isCompleted 
-                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-                    : 'bg-blue-600 text-white shadow-md hover:bg-blue-700 border-none'
-                }`}
-              >
-                {activityTask.isCompleted ? (
-                  <><i className="pi pi-check" /> مكتملة</>
-                ) : (
-                  <><i className="pi pi-circle" /> خلصتها</>
-                )}
-              </button>
-
-              <button
-                onClick={() => {
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  onOpenEvaluation?.(activityTask);
-                  setActivityTask(null);
-                }}
-                className="py-3 rounded-xl font-bold text-[11px] transition-all flex justify-center items-center gap-2 bg-rose-50 text-rose-600 shadow-sm border border-rose-100 hover:bg-rose-100"
-              >
-                <i className="pi pi-calendar-plus" /> أجل المهمة
-              </button>
-
-              {activityTask.isCompleted && renderTaskThreeDotsMenu && (
-                <div className="flex justify-center mt-2 p-2 bg-indigo-50/50 rounded-xl border border-indigo-100">
-                  {renderTaskThreeDotsMenu(activityTask, {
-                    onReview: () => onOpenEvaluation?.(activityTask),
-                    onFlashcard: () => onOpenEvaluation?.(activityTask),
-                    onAnalytics: () => onOpenEvaluation?.(activityTask)
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </Dialog>
     </div>
   );

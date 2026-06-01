@@ -555,33 +555,48 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
     <Dialog
         visible={showExitConfirm}
         onHide={() => setShowExitConfirm(false)}
-        header={<div className="text-right font-black text-rose-600 pr-4">تأكيد الخروج ⚠️</div>}
-        footer={
-          <div className="flex gap-2 p-4 justify-end">
-            <Button 
-              label="تراجع" 
-              icon="pi pi-times" 
-              onClick={() => setShowExitConfirm(false)} 
-              className="p-button-text p-button-secondary text-xs font-bold" 
-            />
-            <Button 
-              label="نعم، اخرج" 
-              icon="pi pi-check" 
-              onClick={() => {
-                setShowExitConfirm(false);
-                onHide();
-              }} 
-              className="p-button-danger text-xs font-bold bg-rose-600 border-none" 
-            />
-          </div>
-        }
-        className="w-full max-w-sm"
+        showHeader={false}
+        className="w-full max-w-sm rounded-[24px] overflow-hidden border border-slate-100 shadow-2xl relative"
         modal
-      >
-        <p className="text-right text-sm font-medium text-slate-600 p-2 leading-relaxed">
-          هل أنت متأكد من خروجك من سجل التقييم؟ ستفقد أي بيانات لم تقم بحفظها في هذه الجلسة.
+        dismissableMask
+        contentClassName="p-0 bg-white"
+    >
+      <div className="p-7 text-center font-sans" dir="rtl">
+        {/* Warning Icon Container */}
+        <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-rose-50 text-rose-600 mb-4 border border-rose-100">
+          <i className="pi pi-exclamation-triangle text-2xl animate-pulse duration-1000"></i>
+        </div>
+        
+        {/* Title */}
+        <h3 className="text-base font-black text-slate-900 mb-2">
+          مغادرة نموذج التقييم؟ ⚠️
+        </h3>
+        
+        {/* Description */}
+        <p className="text-xs font-medium text-slate-500 leading-relaxed mb-6 px-1">
+          هل أنت متأكد من رغبتك في الخروج؟ ستفقد كافة الملاحظات والبيانات والدرجات التي حددتها في هذه الجلسة.
         </p>
-      </Dialog>
+        
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowExitConfirm(false)}
+            className="flex-1 py-3 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl shadow-xs border border-slate-200 transition-all active:scale-[0.98] cursor-pointer"
+          >
+            تراجع ومتابعة التقييم
+          </button>
+          <button
+            onClick={() => {
+              setShowExitConfirm(false);
+              onHide();
+            }}
+            className="flex-1 py-3 px-3 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-rose-200 hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
+          >
+            نعم، خروج وإلغاء
+          </button>
+        </div>
+      </div>
+    </Dialog>
 
       <style>{`
         .p-dialog .p-dialog-footer {
