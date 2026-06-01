@@ -10,7 +10,7 @@ import { Menu } from "primereact/menu";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast as toastHot } from "react-hot-toast";
 import { NotificationsPopover } from "./NotificationsPopover";
-import { Plus } from "lucide-react";
+import { Plus, User, LogOut, Settings as SettingsIcon, Share2, Download, X, Compass, Sparkles } from "lucide-react";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -18,36 +18,69 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const handleInstallPWA = () => {
     vibrate(HAPITCS.MAJOR_CLICK);
-    // In a real PWA this would trigger the beforeinstallprompt event's prompt() method
     alert("Install PWA requested. (Will prompt if PWA criteria are met)");
   };
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
+  const handleExportData = async (type: 'gamification' | 'journeys' | 'system') => {
+    try {
+      let data: any = {};
+      const filename = `via_${type}_export_${new Date().toISOString().slice(0,10)}.json`;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+      if (type === 'gamification') {
+        // Gamification includes EVERYTHING: journeys + settings + system
+        const settings = await db.userSettings.toArray();
+        const stations = await db.stations.toArray();
+        const tasks = await db.tasks.toArray();
+        const reflections = await db.reflections.toArray();
+        const stumbles = await db.stumbles.toArray();
+        data = { 
+          settings, 
+          stations, 
+          tasks, 
+          reflections, 
+          stumbles,
+          exportType: 'full_gamification_backup'
+        };
+      } else if (type === 'journeys') {
+        // Journeys includes stations, tasks, and setup wizard details
+        const stations = await db.stations.toArray();
+        const tasks = await db.tasks.toArray();
+        const settings = await db.userSettings.toArray();
+        
+        // Extract setup wizard details from settings
+        const wizardDetails = settings.map(s => ({
+          learningGoal: s.learningGoal,
+          psychology: s.psychology,
+          unlockedStationIds: s.unlockedStationIds,
+          subStations: s.subStations
+        }));
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-
-        vibrate(HAPITCS.COMPLETE);
-        alert("تم استيراد الرحلة بنجاح! يرجى إعادة تحميل الصفحة.");
-        window.location.reload();
-      } catch (err) {
-        console.error("Error parsing JSON:", err);
-        alert("حدث خطأ أثناء استيراد الملف. تأكد أنه ملف صحيح.");
+        data = { 
+          stations, 
+          tasks, 
+          wizardDetails,
+          exportType: 'detailed_journeys'
+        };
+      } else {
+        const reflections = await db.reflections.toArray();
+        const stumbles = await db.stumbles.toArray();
+        const notifications = await db.notifications.toArray();
+        data = { reflections, stumbles, notifications };
       }
-    };
-    reader.readAsText(file);
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toastHot.success(`تم تصدير ملف ${type} بنجاح!`);
+    } catch (err) {
+      toastHot.error("فشل تصدير البيانات");
+    }
   };
 
   return (
@@ -59,63 +92,95 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-white/60 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-md z-[100]"
           />
           <motion.div
-            initial={{ opacity: 0, y: 15, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-sm bg-white border border-gray-100 rounded-3xl p-8 shadow-2xl z-50 text-center"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 w-auto md:w-full md:max-w-4xl bg-slate-950 border border-white/10 rounded-[48px] shadow-[0_40px_120px_rgba(0,0,0,0.8)] overflow-hidden z-[101] text-right flex flex-col md:flex-row h-fit"
+            dir="rtl"
           >
-            <div className="w-16 h-16 border-2 border-blue-900 rounded-full flex items-center justify-center mx-auto mb-4 bg-blue-50/30">
-              <i className="pi pi-cog text-blue-900 text-2xl"></i>
-            </div>
-
-            <h3 className="text-2xl font-bold text-blue-950 mb-6">الإعدادات</h3>
-
-            <div className="flex flex-col gap-4">
-              <Button
-                label="تثبيت التطبيق (PWA)"
-                icon="pi pi-download"
-                onClick={handleInstallPWA}
-                className="p-button-outlined w-full justify-center rounded-xl p-3 text-blue-900 border-blue-200 hover:bg-blue-50"
-              />
-
-              <input
-                type="file"
-                accept=".json"
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-              />
-
-              <Button
-                label="مشاركة التطبيق 🔗"
-                icon="pi pi-share-alt"
-                onClick={() => {
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  const appUrl = window.location.origin;
-                  if (navigator.share) {
-                    navigator.share({
-                      title: "VIA",
-                      text: "انضم إلي في رحلتي التعليمية والتطبيقية على VIA! 🚀",
-                      url: appUrl,
-                    }).catch(console.error);
-                  } else {
-                    navigator.clipboard.writeText(appUrl);
-                    alert("تم نسخ رابط التطبيق إلى الحافظة! يمكنك الآن مشاركته مع أصدقائك. 🔗");
-                  }
-                }}
-                className="p-button-outlined w-full justify-center rounded-xl p-3 text-blue-900 border-blue-200 hover:bg-blue-50"
-              />
-            </div>
-
-            <button
+            <button 
               onClick={onClose}
-              className="w-full py-4 mt-6 bg-gray-50 text-blue-950 font-bold rounded-xl border border-gray-100 hover:border-blue-200 transition-colors"
+              className="absolute top-6 left-6 z-[110] w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center border border-white/10 transition-all cursor-pointer"
             >
-              إغلاق
+              <X className="w-5 h-5" />
             </button>
+
+            {/* Visual Branding Sidebar for Auth users (Desktop) */}
+            <div className="hidden md:flex md:w-1/3 bg-gradient-to-b from-indigo-600 to-blue-700 p-12 flex-col justify-between relative overflow-hidden text-white">
+              <div className="absolute inset-0 opacity-[0.1] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+              <div className="relative z-10">
+                <h3 className="text-3xl font-black mb-4">أهلاً بك!</h3>
+                <p className="text-sm font-medium text-indigo-100 leading-relaxed">
+                  نطمح دائماً لتزويدك بأفضل تجربة تعليمية. بياناتك محفوظة محلياً.
+                </p>
+              </div>
+              <div className="text-[10px] font-black tracking-widest opacity-50 relative z-10">
+                VIA CONNECTED
+              </div>
+            </div>
+
+            <div className="flex-1 p-8 md:p-12">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={handleInstallPWA}
+                    className="flex flex-col items-center gap-4 p-8 bg-white/5 border border-white/10 rounded-[40px] hover:bg-white/[0.08] hover:border-indigo-500/30 transition-all group"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-600/20 group-hover:scale-110 transition-transform">
+                      <Download className="w-6 h-6 text-white" />
+                    </div>
+                    <span className="text-xs font-black text-slate-300">تثبيت التطبيق</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      vibrate(HAPITCS.MAJOR_CLICK);
+                      const appUrl = window.location.origin;
+                      if (navigator.share) {
+                        navigator.share({
+                          title: "VIA",
+                          text: "انضم إلي في رحلتي التعليمية والتطبيقية على VIA! 🚀",
+                          url: appUrl,
+                        }).catch(console.error);
+                      } else {
+                        navigator.clipboard.writeText(appUrl);
+                        toastHot.success("تم نسخ رابط التطبيق! 🔗");
+                      }
+                    }}
+                    className="flex flex-col items-center gap-4 p-8 bg-white/5 border border-white/10 rounded-[40px] hover:bg-white/[0.08] hover:border-blue-500/30 transition-all group"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20 group-hover:scale-110 transition-transform">
+                      <Share2 className="w-6 h-6 text-white" />
+                    </div>
+                    <span className="text-xs font-black text-slate-300">مشاركة العمل</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <button
+                    onClick={() => handleExportData('journeys')}
+                    className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-2"
+                  >
+                    <Compass className="w-3 h-3" /> تصدير الرحلات
+                  </button>
+                  <button
+                    onClick={() => handleExportData('gamification')}
+                    className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="w-3 h-3" /> تصدير Gamification
+                  </button>
+                  <button
+                    onClick={() => handleExportData('system')}
+                    className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-2"
+                  >
+                    <SettingsIcon className="w-3 h-3" /> تصدير النظام
+                  </button>
+                </div>
+              </div>
+            </div>
           </motion.div>
         </>
       )}
@@ -675,9 +740,10 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
 
           <button
             onClick={handleSettings}
-            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full text-blue-900 hover:bg-blue-50 transition-colors border-none bg-transparent cursor-pointer"
+            className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100 cursor-pointer shadow-sm"
+            title="الملف الشخصي"
           >
-            <i className="pi pi-cog text-lg md:text-xl"></i>
+            <User className="w-5 h-5 md:w-6 md:h-6" />
           </button>
         </div>
       </header>

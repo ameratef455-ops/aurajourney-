@@ -11,7 +11,7 @@ import { Toast } from "primereact/toast";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from 'canvas-confetti';
-import { ListChecks, Target, Trophy, Clock, Plus, Trash2, ChevronRight, ChevronDown, CheckCircle2, Circle, Edit2, MoreVertical, Info, Briefcase } from "lucide-react";
+import { ListChecks, Target, Trophy, Clock, Plus, Trash2, ChevronRight, ChevronDown, CheckCircle2, Circle, Edit2, MoreVertical, Info, Briefcase, Sparkles } from "lucide-react";
 import { LAYERS } from "../constants/layers";
 import { db, TaskActivity } from "../db";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -20,6 +20,7 @@ import { ar } from "date-fns/locale";
 import { safeRandomUUID } from "../lib/uuid";
 import { TaskReflectionModal } from "./TaskReflectionModal";
 import { toast as toastHot } from "react-hot-toast";
+import { vibrate, HAPITCS } from "../lib/haptics";
 
 export interface EvaluationSidebarProps {
   visible: boolean;
@@ -32,6 +33,7 @@ export interface EvaluationSidebarProps {
   onRewardActivity?: (isCompleted: boolean) => void;
   onCompleteTask?: (task: any) => void;
   onCompletePracticalTask?: (stationId: string, subStationIndex: number, taskId: string) => void;
+  completeTaskAction?: (task: any) => Promise<void>;
   initialSelectedTask?: any;
 }
 
@@ -46,6 +48,7 @@ export function EvaluationSidebar({
   onRewardActivity,
   onCompleteTask,
   onCompletePracticalTask,
+  completeTaskAction,
   initialSelectedTask
 }: EvaluationSidebarProps) {
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -140,14 +143,14 @@ export function EvaluationSidebar({
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [newActivityTitle, setNewActivityTitle] = useState("");
   const [newActivityDuration, setNewActivityDuration] = useState<number | null>(30);
-  const [reflectionVisible, setReflectionVisible] = useState(false);
-  const [taskToReflect, setTaskToReflect] = useState<any>(null);
 
   useEffect(() => {
     if (visible && initialSelectedTask) {
       handleTaskClick(initialSelectedTask, initialSelectedTask._source || 'dexie');
     }
   }, [visible, initialSelectedTask]);
+
+  const reflections = useLiveQuery(() => db.reflections.toArray()) || [];
 
   const handleTaskClick = (task: any, source: 'dexie' | 'weekly' | 'practical') => {
     if (task.type === 'main') {
@@ -362,9 +365,12 @@ export function EvaluationSidebar({
         colors: ['#2563eb', '#1d4ed8', '#1e3a8a', '#10b981'],
         zIndex: 30000000
       });
-      setTaskToReflect(selectedTask);
-      setReflectionVisible(true);
-      // Automatically open the evaluation log as requested
+      
+      // Automatically trigger completion which will open reflection in Maps
+      if (onCompleteTask) {
+         onCompleteTask(selectedTask);
+      }
+
       toast.current?.show({
         severity: "success",
         summary: "عاش يا بطل! 🚀",
@@ -392,19 +398,80 @@ export function EvaluationSidebar({
     */
   };
 
+  const completedWithoutReflection = [...mainTasks, ...sideTasks, ...subTasks].filter(t => t.isCompleted && !reflections.some(r => r.taskId === t.id));
+  const [initialReflectionVisible, setInitialReflectionVisible] = useState(false);
+
+  const handleManualHide = () => {
+    if (completedWithoutReflection.length > 0) {
+      confirmPopup({
+        target: document.querySelector('.evaluation-close-btn') as HTMLElement,
+        message: `لديك ${completedWithoutReflection.length} مهام مكتملة لم يتم تقييمها بعد. هل تريد الخروج فعلاً؟`,
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: 'نعم، أخرج',
+        rejectLabel: 'سأقوم بالتقييم',
+        className: 'rtl-dialog font-sans text-xs',
+        accept: onHide,
+      });
+    } else {
+      onHide();
+    }
+  };
+
   return (
     <>
+      <TaskReflectionModal 
+        visible={initialReflectionVisible}
+        onHide={() => setInitialReflectionVisible(false)}
+        onSubmit={async (data) => {
+          if (selectedTask) {
+             try {
+                 const station = stations.find(s => s.id === selectedTask.stationId);
+                 await db.reflections.add({
+                    id: safeRandomUUID(),
+                    taskId: selectedTask.id || '',
+                    stationId: selectedTask.stationId || '',
+                    stationName: station?.name || 'غير محدد',
+                    taskTitle: selectedTask.title || '',
+                    type: 'initial',
+                    ...data,
+                    createdAt: new Date().toISOString()
+                 });
+                 
+                 // If the task wasn't formally completed yet, complete it now
+                 if (completeTaskAction && !selectedTask.isCompleted && selectedTask.type !== 'practical') {
+                     await completeTaskAction(selectedTask);
+                 } else if (selectedTask.isPractical && onCompletePracticalTask && !selectedTask.isCompleted) {
+                     onCompletePracticalTask(selectedTask.stationId, selectedTask.subStationIndex, selectedTask.id);
+                 }
+                 
+                 vibrate(HAPITCS.SUCCESS);
+                 toastHot.success("تم تسجيل التقييم وختم المهمة بنجاح! ✨");
+                 setInitialReflectionVisible(false);
+             } catch (err) {
+                 console.error(err);
+                 toastHot.error("فشل حفظ التقييم وختم المهمة");
+             }
+          }
+        }}
+        taskTitle={selectedTask?.title || ""}
+      />
       <ConfirmPopup />
       <Sidebar
         visible={visible && !initialSelectedTask}
-        onHide={onHide}
+        onHide={handleManualHide}
         position="bottom"
         className="w-full h-auto max-h-[90vh] md:w-[600px] md:mx-auto !bg-transparent p-0 border-none shadow-none"
         showCloseIcon={false}
         modal={true}
         baseZIndex={LAYERS.EVALUATION_LOG}
       >
-        <div className="flex flex-col h-[85vh] md:h-[70vh] mb-0 mx-2 md:mx-auto bg-slate-50/100 rounded-t-[2.5rem] md:rounded-[2.5rem] overflow-hidden border border-white/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] relative" dir="rtl">
+        <motion.div 
+          initial={{ opacity: 0, y: 20, scale: 0.99 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col h-[85vh] md:h-[70vh] mb-0 mx-2 md:mx-auto bg-slate-50/100 rounded-t-[2.5rem] md:rounded-[2.5rem] overflow-hidden border border-white/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] relative" 
+          dir="rtl"
+        >
           {/* Header */}
           <div className="p-6 bg-white border-b border-slate-100 flex items-center justify-between z-10 shrink-0">
             <div className="flex items-center gap-3">
@@ -416,8 +483,8 @@ export function EvaluationSidebar({
               </div>
             </div>
             <button 
-              onClick={onHide}
-              className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center transition-all border border-slate-200 active:scale-95 text-slate-400 group"
+              onClick={handleManualHide}
+              className="evaluation-close-btn w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center transition-all border border-slate-200 active:scale-95 text-slate-400 group"
             >
               <i className="pi pi-times text-sm group-hover:rotate-90 transition-transform duration-300"></i>
             </button>
@@ -439,6 +506,11 @@ export function EvaluationSidebar({
                         key={task.id} 
                         task={task} 
                         type="main" 
+                        hasReflection={reflections.some(r => r.taskId === task.id)}
+                        onRate={() => {
+                          setSelectedTask(task);
+                          setInitialReflectionVisible(true);
+                        }}
                         stationName={station?.name}
                         onClick={() => handleTaskClick(task, 'dexie')} 
                       />
@@ -460,6 +532,11 @@ export function EvaluationSidebar({
                         key={task.id} 
                         task={task} 
                         type="side" 
+                        hasReflection={reflections.some(r => r.taskId === task.id)}
+                        onRate={() => {
+                          setSelectedTask(task);
+                          setInitialReflectionVisible(true);
+                        }}
                         stationName={station?.name}
                         onClick={() => handleTaskClick(task, 'dexie')} 
                       />
@@ -482,6 +559,11 @@ export function EvaluationSidebar({
                         key={task.id} 
                         task={task} 
                         type="sub" 
+                        hasReflection={reflections.some(r => r.taskId === task.id)}
+                        onRate={() => {
+                          setSelectedTask(task);
+                          setInitialReflectionVisible(true);
+                        }}
                         stationName={station?.name}
                         parentTaskName={parentMainTask?.title}
                         onClick={() => handleTaskClick(task, 'dexie')} 
@@ -514,6 +596,11 @@ export function EvaluationSidebar({
                           key={`${stId}-${sIdx}-${task.id}`}
                           task={{ ...task, isPractical: true }}
                           type="main" // Reuse main styling
+                          hasReflection={reflections.some(r => r.taskId === task.id)}
+                          onRate={() => {
+                            setSelectedTask({ ...task, stationId: stId, subStationIndex: sIdx });
+                            setInitialReflectionVisible(true);
+                          }}
                           stationName={station?.name}
                           onClick={() => handleTaskClick({ ...task, stationId: stId, subStationIndex: sIdx }, 'practical')}
                         />
@@ -524,7 +611,7 @@ export function EvaluationSidebar({
               </TabPanel>
             </TabView>
           </div>
-        </div>
+        </motion.div>
 
         <style>{`
           .custom-evaluation-tabs .p-tabview-nav {
@@ -583,6 +670,41 @@ export function EvaluationSidebar({
           .custom-evaluation-tabs .TaskItemContainer:hover {
              background: #f1f5f9;
              border-color: #e2e8f0;
+          }
+
+          .p-confirm-popup {
+            background: #0c183e !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4) !important;
+            border-radius: 20px !important;
+          }
+          .p-confirm-popup .p-confirm-popup-content {
+            background: transparent !important;
+            color: white !important;
+            padding: 1.5rem !important;
+          }
+          .p-confirm-popup .p-confirm-popup-footer {
+            background: rgba(255, 255, 255, 0.05) !important;
+            padding: 0.75rem 1rem !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+          }
+          .p-confirm-popup .p-confirm-popup-message {
+            margin-right: 0.5rem !important;
+            font-family: 'sans-serif' !important;
+            font-size: 13px !important;
+            font-weight: 500 !important;
+            line-height: 1.6 !important;
+          }
+          .p-confirm-popup .p-confirm-popup-icon {
+            color: #fbbf24 !important;
+          }
+          .p-confirm-popup .p-button-text.p-button-secondary {
+            color: #94a3b8 !important;
+          }
+          .p-confirm-popup .p-button.p-button-danger {
+            background: #ef4444 !important;
+            border: none !important;
+            border-radius: 12px !important;
           }
         `}</style>
       </Sidebar>
@@ -721,51 +843,6 @@ export function EvaluationSidebar({
            </div>
         </div>
       </Dialog>
-
-      <TaskReflectionModal 
-        visible={reflectionVisible}
-        onHide={() => setReflectionVisible(false)}
-        taskTitle={taskToReflect?.title || ''}
-        onSubmit={async (data) => {
-          console.log('Task Reflection Data:', data);
-          try {
-            let stationName = 'غير محدد';
-            if (taskToReflect?.stationId) {
-              const station = await db.stations.get(taskToReflect.stationId);
-              if (station) stationName = station.name;
-            }
-
-            await db.reflections.add({
-              id: safeRandomUUID(),
-              taskId: taskToReflect?.id || '',
-              taskTitle: taskToReflect?.title || '',
-              stationId: taskToReflect?.stationId || '',
-              stationName: stationName,
-              focus: data.focus,
-              mastery: data.mastery,
-              strengths: data.strengths,
-              weaknesses: data.weaknesses,
-              learnings: data.learnings || '',
-              didPractical: !!data.didPractical,
-              practicalIssues: data.practicalIssues || '',
-              createdAt: new Date().toISOString(),
-              type: 'initial'
-            });
-
-             if (taskToReflect?._source === 'practical' && onRewardActivity) {
-              await onRewardActivity(true);
-            }
-
-            if (taskToReflect._source === 'practical' && onCompletePracticalTask) {
-              await onCompletePracticalTask(taskToReflect.stationId, taskToReflect.subStationIndex, taskToReflect.id);
-            } else if (onCompleteTask && taskToReflect) {
-               await onCompleteTask(taskToReflect);
-            }
-          } catch (err) {
-            console.error('Failed to save reflection:', err);
-          }
-        }}
-      />
 
       <Dialog
         visible={showRestDayDialog}
@@ -1120,13 +1197,17 @@ function TaskItem({
   type, 
   stationName, 
   parentTaskName, 
-  onClick 
+  onClick,
+  hasReflection,
+  onRate
 }: { 
   task: any, 
   type: 'main' | 'side' | 'weekly' | 'sub', 
   stationName?: string, 
   parentTaskName?: string,
-  onClick?: () => void 
+  onClick?: () => void,
+  hasReflection?: boolean,
+  onRate?: () => void
 }) {
   const op = useRef<OverlayPanel>(null);
   const colors = {
@@ -1207,6 +1288,18 @@ function TaskItem({
       </OverlayPanel>
 
       <div className="flex items-center gap-2 shrink-0">
+        {(!hasReflection && (task.isCompleted || task.completed)) && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onRate) onRate();
+            }}
+            className="p-1 px-3 bg-amber-500 hover:bg-amber-600 text-white transition-all rounded-xl flex items-center justify-center cursor-pointer shadow-lg shadow-amber-200 border-none hover:scale-105 gap-2"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-black">قيم أداءك</span>
+          </button>
+        )}
         {task.activities?.length > 0 && (
           <div className="bg-slate-100 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1">
             <ListChecks className="w-3 h-3 text-slate-400" />

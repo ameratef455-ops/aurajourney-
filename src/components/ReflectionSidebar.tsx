@@ -38,8 +38,11 @@ export function ReflectionSidebar({
   tasks = [],
   stations = [],
   activeStationId,
-  forceStationId
+  forceStationId,
+  user
 }: ReflectionSidebarProps) {
+  const isLanguageLearning = user?.journeyTitle?.includes("لغات") || user?.journeyTitle?.includes("Language");
+
   // Use dexie to fetch reflections
   const reflections = useLiveQuery(async () => {
     try {
@@ -99,6 +102,12 @@ export function ReflectionSidebar({
   const avgCommitment = totalTasksCount > 0 
     ? Math.round((completedTasksCount / totalTasksCount) * 100) 
     : 0;
+
+  const languageReflections = filteredReflections.filter(r => r.languageLearning);
+  const totalSentences = languageReflections.reduce((acc, r) => acc + (r.languageLearning?.sentences?.length || 0), 0);
+  const avgAccent = languageReflections.length > 0 
+    ? (languageReflections.reduce((acc, r) => acc + (r.languageLearning?.accentRating || 0), 0) / languageReflections.length).toFixed(1) 
+    : "0.0";
 
   const chartData = [
     { subject: 'الالتزام', score: avgCommitment, fullMark: 100 },
@@ -335,6 +344,71 @@ export function ReflectionSidebar({
                   </div>
                 </div>
               </div>
+
+              {/* Language Learning Analytics (Specific) */}
+              {isLanguageLearning && (
+                <>
+                  {/* Sentences Learned Metric Card */}
+                  <div className="bg-gradient-to-br from-blue-50/40 via-white to-blue-50/20 border border-blue-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-blue-200 hover:shadow-md transition-all">
+                    <div className="flex justify-between items-start">
+                      <div className="w-12 h-12 rounded-xl bg-blue-100/60 border border-blue-100 flex items-center justify-center text-blue-700">
+                        <Sparkles className="w-6 h-6" />
+                      </div>
+                      <div className="text-left font-mono">
+                        <span className="text-3xl font-black text-blue-950">{totalSentences}</span>
+                        <span className="text-sm font-extrabold text-blue-400"> جملة</span>
+                      </div>
+                    </div>
+                    <div className="mt-6 space-y-2">
+                      <h4 className="text-sm font-black text-blue-950 flex items-center gap-1.5">
+                        إجمالي الجمل المتعلمة
+                      </h4>
+                      <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                        مجموع العبارات والتعبيرات التي قمت بممارستها وتسجيلها في مذكراتك.
+                      </p>
+                      <div className="text-[10px] text-blue-500 font-black mt-2">
+                        ساعد التكرار والممارسة في ترسيخ هذه الجمل في ذاكرتك طويلة المدى.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Accent/Fluency Metric Card */}
+                  <div className="bg-gradient-to-br from-rose-50/40 via-white to-rose-50/20 border border-rose-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-rose-200 hover:shadow-md transition-all">
+                    <div className="flex justify-between items-start">
+                      <div className="w-12 h-12 rounded-xl bg-rose-100/60 border border-rose-100 flex items-center justify-center text-rose-700">
+                        <Activity className="w-6 h-6" />
+                      </div>
+                      <div className="text-left font-mono">
+                        <span className="text-3xl font-black text-rose-950">{avgAccent}</span>
+                        <span className="text-sm font-extrabold text-rose-400"> / 5</span>
+                      </div>
+                    </div>
+                    <div className="mt-6 space-y-2">
+                      <h4 className="text-sm font-black text-blue-950 flex items-center gap-1.5">
+                        متوسط جودة اللكنة والنطق
+                      </h4>
+                      <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                        مقياس تطور نطقك الصحيح ومخارج الحروف بناءً على تقييماتك الذاتية.
+                      </p>
+                      <div className="flex items-center gap-1 mt-3">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <div
+                            key={s}
+                            className={`h-2.5 rounded-full transition-all ${
+                              s <= Math.round(Number(avgAccent)) 
+                                ? "bg-rose-600 w-6" 
+                                : "bg-rose-100 w-2.5"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-rose-500 font-black mt-2">
+                        الهدف هو الوصول لتلقائية ونطق طبيعي يشبه أهل اللغة.
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
             </div>
 
