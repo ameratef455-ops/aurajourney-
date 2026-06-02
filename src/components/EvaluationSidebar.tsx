@@ -34,7 +34,7 @@ export interface EvaluationSidebarProps {
   onRewardActivity?: (isCompleted: boolean) => void;
   onCompleteTask?: (task: any) => void;
   onCompletePracticalTask?: (stationId: string, subStationIndex: number, taskId: string) => void;
-  completeTaskAction?: (task: any) => Promise<void>;
+  completeTaskAction?: (task: any, onComplete?: (taskId: string) => void) => Promise<any>;
   initialSelectedTask?: any;
 }
 

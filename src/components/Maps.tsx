@@ -17,7 +17,7 @@ import { Tree } from "primereact/tree";
 import { toast as toastHot } from "react-hot-toast";
 import { 
   Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy, History, TrendingUp, Calendar, Info, FileText,
-  Sparkles, Volume2, MessageSquare, Mic, Plus, Clock, Target
+  Sparkles, Volume2, MessageSquare, Mic, Plus, Clock, Target, Trees
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import confetti from "canvas-confetti";
@@ -33,6 +33,7 @@ import { TaskReflectionModal } from "./TaskReflectionModal";
 import { TaskDetailsModal } from "./TaskDetailsModal";
 import { RevertConfirmModal } from "./RevertConfirmModal";
 import { LearningRepoModal } from "./LearningRepoModal";
+import { ViaSessionModal } from "./ViaSessionModal";
 import { CalendarTheme } from "./themes/CalendarTheme";
 import { addDays, getDay, format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -260,6 +261,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [stationFormIcon, setStationFormIcon] = useState("pi pi-flag-fill");
   const [stationFormDate, setStationFormDate] = useState("");
   const [learningRepoVisible, setLearningRepoVisible] = useState(false);
+  const [showStationPropertiesDialog, setShowStationPropertiesDialog] = useState(false);
+  const [showViaSession, setShowViaSession] = useState(false);
+  const [activeViaTask, setActiveViaTask] = useState<any>(null);
+  const [motivationalPhrase, setMotivationalPhrase] = useState("كل يوم هو خطوة جديدة نحو التميز! 🚀");
+  const [isEditPhraseVisible, setIsEditPhraseVisible] = useState(false);
+  const [tempPhrase, setTempPhrase] = useState("");
 
   const isLanguageJourney = useMemo(() => {
     const goal = user?.learningGoal?.toLowerCase() || '';
@@ -375,6 +382,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [isStationFabOpen, setIsStationFabOpen] = useState(false);
   const [isOuterFabOpen, setIsOuterFabOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'journey' | 'calendar' | 'tasks'>('journey');
+  const [introActiveTab, setIntroActiveTab] = useState<'info' | 'calendar'>('info');
+  const [showJourneyIntroPopup, setShowJourneyIntroPopup] = useState(false);
+  const [isTopStationFabOpen, setIsTopStationFabOpen] = useState(false);
   const [hasInitializedIndex, setHasInitializedIndex] = useState(false);
   const [showUnfreezeConfirm, setShowUnfreezeConfirm] = useState(false);
   const [noteFilterPriority, setNoteFilterPriority] = useState('all');
@@ -559,11 +569,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [routineEditMode, setRoutineEditMode] = useState(false);
   const [editDailyDuration, setEditDailyDuration] = useState(0);
   const [editLearningDays, setEditLearningDays] = useState<number[]>([]);
+  const [editIncentiveTime, setEditIncentiveTime] = useState("");
+  const [editIncentiveDesc, setEditIncentiveDesc] = useState("");
 
   useEffect(() => {
     if (showRoutinePopup && user) {
       setEditDailyDuration(user.dailyDuration || 30);
       setEditLearningDays(user.learningDays || [0, 1, 2, 3, 4]);
+      setEditIncentiveTime(user.incentiveTime || "");
+      setEditIncentiveDesc(user.incentiveDesc || "");
       setRoutineEditMode(false);
     }
   }, [showRoutinePopup, user]);
@@ -650,12 +664,30 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   };
 
   const handleCompleteTask = async (task: any) => {
-    await completeTask(task);
+    const result = await completeTask(task);
+    if (!result || !result.success) {
+      if (result && result.reason === 'activities') {
+        setSelectedTaskForDetails(task);
+        setTaskDetailsVisible(true);
+      }
+      return;
+    }
     setReviewingTask(task);
     setInitialReflectionVisible(true);
   };
 
   const reflections = useLiveQuery(() => db.reflections.toArray()) || [];
+
+  const handleTaskClickForVia = (task: Task) => {
+    vibrate(HAPITCS.MAJOR_CLICK);
+    if (task.isCompleted) {
+      setSelectedTaskForDetails(task);
+      setTaskDetailsVisible(true);
+    } else {
+      setActiveViaTask(task);
+      setShowViaSession(true);
+    }
+  };
 
   const treeNodeTemplate = (node: any) => {
     const t = node.data;
@@ -670,9 +702,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           className="flex items-center gap-3 py-1.5 w-full font-sans group"
           onClick={(e) => {
               e.stopPropagation();
-              vibrate(HAPITCS.MAJOR_CLICK);
-              setSelectedTaskForDetails(t);
-              setTaskDetailsVisible(true);
+              handleTaskClickForVia(t);
           }}
       >
           <div
@@ -1062,33 +1092,23 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       {/* Notifications */}
       <div className="absolute top-8 left-6 z-40 flex items-center gap-3">
          <NotificationsPopover />
-         
-         {/* New Tree Button */}
-         <button
-           className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-2xl border-none shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all active:scale-95 cursor-pointer font-bold text-sm"
-           onClick={() => {
-             vibrate(HAPITCS.MAJOR_CLICK);
-             setLearningRepoVisible(true);
-           }}
-         >
-           <BookOpen className="w-4 h-4" />
-           <span className="hidden sm:inline">شجرة جديدة</span>
-         </button>
       </div>
 
-      {/* Standalone Back Button */}
-      {onBack && (
-        <button
-          className="absolute top-8 right-6 z-40 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-blue-600 w-11 h-11 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center transition-all active:scale-95 cursor-pointer"
-          onClick={() => {
-            vibrate(HAPITCS.MAJOR_CLICK);
-            onBack();
-          }}
-          title="الرجوع للمسارات"
-        >
-          <i className="pi pi-arrow-right text-sm"></i>
-        </button>
-      )}
+      {/* Top Right Floating Action Bar with Back Button */}
+      <div className="absolute top-8 right-6 z-40 flex items-center gap-3">
+        {onBack && (
+          <button
+            className="bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-blue-600 w-11 h-11 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
+            onClick={() => {
+              vibrate(HAPITCS.MAJOR_CLICK);
+              onBack();
+            }}
+            title="الرجوع للمسارات"
+          >
+            <i className="pi pi-arrow-right text-sm"></i>
+          </button>
+        )}
+      </div>
 
       {user?.isFrozen && (
         <div className="absolute top-26 right-6 z-30">
@@ -1149,288 +1169,154 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             </div>
           )}
 
-          {/* Journey Path Theme Wrapper */}
-          <div className="w-full max-w-md px-5 mx-auto flex flex-col items-center justify-start relative z-10 mb-8">
-          {displayTheme === 'cards' && (
-            <div className="w-full flex flex-col items-center gap-12 relative pb-20 pt-10">
+          {/* Journey Introduction Banner completely moved to the top bar action popup */}
 
-              {stations.map((st, i) => {
-                const isUnlocked = unlockedStations.includes(st.id);
-                const isActive = isUnlocked && st.id === activeStationId;
-                const isCompleted = isUnlocked && !isActive && stationEnergy[st.id] >= 100;
-                const isLocked = !isUnlocked;
-                const isNextLocked = isLocked && i === unlockedStations.length;
+          {/* Main Control Room Display */}
+          {(() => {
+            const effectiveStationId = selectedStation || activeStationId;
+            const effectiveStation = stations.find(s => s.id === effectiveStationId);
+            
+            if (!effectiveStation) return null;
 
-                return (
-                  <motion.div
-                    key={st.id}
-                    initial={{ opacity: 0, y: 40, scale: 0.95 }}
-                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                    viewport={{ once: true, margin: "-100px" }}
-                    transition={{ 
-                      duration: 0.8, 
-                      delay: i * 0.05,
-                      ease: [0.16, 1, 0.3, 1] 
-                    }}
-                    className="relative flex flex-col items-center w-full max-w-md"
-                  >
-                    {/* Connection Line */}
-                    {i < stations.length - 1 && (
-                      <div className="absolute top-24 bottom-[-48px] w-1.5 bg-slate-100 rounded-full overflow-hidden shadow-inner z-0">
-                        <motion.div 
-                          initial={{ height: 0 }}
-                          whileInView={{ height: '100%' }}
-                          transition={{ duration: 1, delay: 0.4 }}
-                          className={`w-full ${isUnlocked ? 'bg-gradient-to-b from-blue-500 to-indigo-500 shadow-[0_0_12px_rgba(59,130,246,0.6)]' : 'bg-slate-200'}`} 
-                        />
-                      </div>
-                    )}
+            return (
+              <div className="w-full flex flex-col w-full relative z-10 mt-4">
+                
+                {/* Control Room Header */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between w-full pb-6 border-b border-slate-100 mb-6 gap-4" dir="rtl">
+                  <div className="flex items-center gap-4 text-slate-800">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center border border-blue-100 shadow-inner">
+                       <Rocket className="w-7 h-7 text-blue-600" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-2xl font-black tracking-tight">{effectiveStation?.name}</span>
+                      <span className="text-xs text-blue-600 font-bold uppercase tracking-widest mt-1">أهلاً بك في رحلتك!!</span>
+                    </div>
+                  </div>
+                </div>
 
-                    {/* Station Node / Card Wrapper with FAB Menu */}
-                    <div className="relative w-full flex items-center justify-center">
-                      <motion.div
-                        initial={{ scale: 1 }}
-                        whileHover={isUnlocked ? { scale: 1.03, y: -8 } : {}}
-                        whileTap={isUnlocked ? { scale: 0.97 } : {}}
-                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                        onClick={() => handleStationClick(st.id, isUnlocked, i)}
-                        className={`relative z-10 w-full p-6 rounded-[32px] flex items-center gap-5 cursor-pointer transition-all duration-500 border-2
-                          ${isActive 
-                            ? "bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-900 border-blue-400 shadow-[0_20px_40px_rgba(30,58,138,0.3)]" 
-                            : isCompleted 
-                              ? "bg-white border-blue-100 shadow-xl shadow-blue-500/5 hover:border-blue-300" 
-                              : isUnlocked 
-                                ? "bg-white border-blue-50 shadow-xl shadow-blue-500/5 hover:border-blue-200" 
-                                : "bg-slate-50 border-slate-100 opacity-60 grayscale"}
-                        `}
-                      >
-                       {isUnlocked && (
-                         <div className="absolute top-2 left-3 z-40 flex items-center gap-2" dir="rtl">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                vibrate(HAPITCS.GUIDANCE);
-                                setActiveStationActionId(activeStationActionId === st.id ? null : st.id);
-                              }}
-                              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg cursor-pointer border-none
-                                ${activeStationActionId === st.id 
-                                  ? 'bg-rose-500 text-white rotate-45' 
-                                  : 'bg-indigo-600 text-white hover:scale-110 shadow-sm shadow-indigo-200'}`}
-                              title="خيارات المحطة"
-                            >
-                              <Plus className="w-5 h-5" />
-                            </button>
+                {/* Control Room Content Columns */}
+                <div className="flex flex-col md:flex-row gap-6 h-full items-start" dir="rtl">
+                  
+                  {/* Main Tasks Tree (Collapsible) */}
+                  <div className="flex-1 w-full bg-white border border-slate-200 rounded-3xl p-6 shadow-sm min-h-[400px]">
+                     <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                           <span className="w-1.5 h-6 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
+                           المهام الرئيسية والهيكل التنفيذي
+                        </h3>
+                     </div>
+                     
+                     <Tree 
+                        value={filteredMainTasksNodes} 
+                        className="bg-transparent border-none p-0 custom-tree-animation text-slate-800"
+                        nodeTemplate={treeNodeTemplate}
+                        expandedKeys={expandedKeys}
+                        onToggle={(e) => setExpandedKeys(e.value)}
+                        contentClassName="p-2 hover:bg-slate-50 rounded-xl transition-all"
+                     />
+                  </div>
 
-                            <div className={`flex items-center gap-2 transition-all duration-300 ${activeStationActionId === st.id ? 'opacity-100 scale-100 translate-x-0' : 'opacity-0 scale-90 translate-x-4 pointer-events-none'}`}>
-                               <div className="flex gap-1.5 p-1.5 bg-white/95 backdrop-blur-md rounded-xl border border-indigo-50 shadow-xl">
-                                 {/* Learning Routine */}
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     setShowRoutinePopup(true);
-                                     setActiveStationActionId(null);
-                                   }}
-                                   className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-3xs hover:bg-indigo-600 hover:text-white transition-all cursor-pointer border-none"
-                                   title="روتين التعلم"
-                                 >
-                                   <i className="pi pi-calendar text-[12px] font-black" />
-                                 </button>
-                                 {/* Learning Resources */}
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     setSelectedStation(st.id);
-                                     setShowLinksPopup(true);
-                                     setActiveStationActionId(null);
-                                   }}
-                                   className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shadow-3xs hover:bg-blue-600 hover:text-white transition-all cursor-pointer border-none"
-                                   title="مصادر التعلم"
-                                 >
-                                   <i className="pi pi-book text-[12px] font-black" />
-                                 </button>
-                                 {/* Notes */}
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     setActiveNoteStationId(st.id);
-                                     setShowNotesPopup(true);
-                                     setActiveStationActionId(null);
-                                   }}
-                                   className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shadow-3xs hover:bg-amber-600 hover:text-white transition-all cursor-pointer border-none"
-                                   title="التدوين"
-                                 >
-                                   <i className="pi pi-pencil text-[12px] font-black" />
-                                 </button>
-                                 {/* Reflection */}
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     setReflectionForceStationId(st.id);
-                                     setReflectionActiveTab(0);
-                                     setReflectionSidebar(true);
-                                     setActiveStationActionId(null);
-                                   }}
-                                   className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-3xs hover:bg-emerald-600 hover:text-white transition-all cursor-pointer border-none"
-                                   title="التحليلات"
-                                 >
-                                   <i className="pi pi-chart-bar text-[12px] font-black" />
-                                 </button>
-                                 {/* Obstacles */}
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     setSelectedStation(st.id);
-                                     setStumbleReason("");
-                                     setShowStumbleForm(true);
-                                     setActiveStationActionId(null);
-                                   }}
-                                   className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shadow-3xs hover:bg-rose-600 hover:text-white transition-all cursor-pointer border-none"
-                                   title="عقبات"
-                                 >
-                                   <i className="pi pi-exclamation-triangle text-[12px] font-black" />
-                                 </button>
-                               </div>
-                            </div>
+                  {/* Side panels (Side missions and Practical missions) */}
+                  <div className="w-full md:w-80 flex flex-col gap-6 shrink-0">
+                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-sm">
+                       <h3 className="text-sm font-black text-indigo-600 mb-5 flex items-center gap-2 uppercase tracking-wider">
+                          <i className="pi pi-star-fill text-xs" />
+                          المبادرات الجانبية
+                       </h3>
+                       
+                       {filteredSideTasks.length > 0 ? (
+                         <div className="space-y-3">
+                            {filteredSideTasks.map((t: any) => (
+                              <div 
+                                key={t.id}
+                                onClick={() => {
+                                  if (t.isCompleted) setReviewingTask(t);
+                                  else toggleTask(t.id, t.isCompleted, t.type);
+                                }}
+                                className={`p-4 rounded-2xl border transition-all cursor-pointer group
+                                  ${t.isCompleted 
+                                    ? 'bg-slate-100 border-slate-200 opacity-60' 
+                                    : 'bg-white border-slate-200 hover:border-indigo-500/40 hover:bg-slate-50 shadow-sm'}
+                                `}
+                              >
+                                 <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all
+                                       ${t.isCompleted ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-slate-100 border-slate-200 text-indigo-600'}
+                                    `}>
+                                       {t.isCompleted ? <i className="pi pi-check text-[10px]" /> : <i className="pi pi-star text-[10px]" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                       <p className={`text-xs font-bold truncate ${t.isCompleted ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                                          {t.title}
+                                       </p>
+                                       <p className="text-[10px] text-indigo-500 mt-0.5 font-black uppercase tracking-widest">SIDE MISSION</p>
+                                    </div>
+                                 </div>
+                              </div>
+                            ))}
+                         </div>
+                       ) : (
+                         <div className="flex flex-col items-center justify-center py-6 text-center opacity-40">
+                            <i className="pi pi-inbox text-2xl mb-2 text-indigo-300" />
+                            <p className="text-xs font-bold text-indigo-400">لا توجد مهام إضافية</p>
                          </div>
                        )}
-                         <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border-2 transition-transform duration-700 ${isActive ? 'rotate-[5deg]' : ''}
-                           ${isActive 
-                             ? 'bg-blue-500/20 border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.3)]' 
-                             : isCompleted 
-                               ? 'bg-blue-50 border-blue-100' 
-                               : 'bg-slate-50 border-slate-100'}
-                         `}>
-                           {isLocked ? (
-                             <i className={`pi pi-lock ${isNextLocked ? 'text-amber-500 animate-pulse' : 'text-slate-300'}`} />
-                           ) : (
-                             <i className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-2xl 
-                               ${isActive ? 'text-blue-300' : isCompleted ? 'text-blue-600' : 'text-blue-500'}`} 
-                             />
-                           )}
-                         </div>
+                     </div>
 
-                        <div className="flex-1 text-right overflow-hidden font-sans">
-                          <div className="flex items-center justify-between mb-1">
-                             <div className="flex items-center gap-2">
-                               <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-blue-400' : 'text-slate-400'}`}>
-                                 الخطة {i + 1}
-                               </span>
-                             </div>
-                             {isCompleted && <i className="pi pi-check-circle text-blue-600 text-xs text-sans font-black" />}
-                          </div>
-                          <h3 className={`text-sm font-black truncate mb-1.5 ${isActive ? 'text-white' : 'text-slate-900'}`}>{st.name}</h3>
-                          
-                          {/* Completed tasks list instead of progress percentages */}
-                          {isUnlocked && (
-                            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                              {(() => {
-                                const stationTasks = tasks.filter(t => t.stationId === st.id);
-                                const completedTasks = stationTasks.filter(t => t.isCompleted);
-                                if (completedTasks.length > 0) {
-                                  return (
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className={`text-[10px] font-bold ${isActive ? 'text-blue-200' : 'text-slate-500'}`}>المهام المنجزة:</span>
-                                      <div className="flex items-center flex-wrap gap-1">
-                                        {completedTasks.map((task) => (
-                                          <motion.div
-                                            key={task.id}
-                                            initial={{ scale: 0, rotate: -30 }}
-                                            animate={{ scale: 1, rotate: 0 }}
-                                            transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                                            className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 border border-blue-400 flex items-center justify-center shadow-[0_1px_3px_rgba(37,99,235,0.3)] animate-[bounce_0.5s_ease-out]"
-                                            title={task.title || "مهمة مكتملة"}
-                                          >
-                                            <i className="pi pi-check text-[10px] text-white font-black" />
-                                          </motion.div>
-                                        ))}
-                                      </div>
+                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-sm">
+                       <h3 className="text-sm font-black text-amber-500 mb-5 flex items-center gap-2 uppercase tracking-wider">
+                          <i className="pi pi-bolt text-xs" />
+                          المهام التطبيقية
+                       </h3>
+                       {filteredPracticalTasks && filteredPracticalTasks.length > 0 ? (
+                         <div className="space-y-4">
+                           {filteredPracticalTasks.map((sub: any, subIdx: number) => (
+                             <div key={`sub-${subIdx}`} className="space-y-2">
+                               <div className="text-xs text-amber-500/80 font-black tracking-widest uppercase">
+                                 المجموعة {subIdx + 1}
+                               </div>
+                               {sub.tasks?.map((t: any) => (
+                                 <div 
+                                   key={t.id}
+                                   onClick={() => {
+                                     if (!t.isCompleted) completePracticalTask(effectiveStationId, subIdx, t.id);
+                                   }}
+                                   className={`p-4 rounded-2xl border transition-all cursor-pointer group
+                                     ${t.isCompleted 
+                                       ? 'bg-amber-50/50 border-amber-200 opacity-60' 
+                                       : 'bg-white border-amber-200 hover:border-amber-400 hover:bg-amber-50 shadow-sm'}
+                                   `}
+                                 >
+                                    <div className="flex items-center gap-3">
+                                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all
+                                          ${t.isCompleted ? 'bg-amber-500 border-amber-400 text-white' : 'bg-amber-100 border-amber-200 text-amber-600'}
+                                       `}>
+                                          {t.isCompleted ? <i className="pi pi-check text-[10px]" /> : <i className="pi pi-bolt text-[10px]" />}
+                                       </div>
+                                       <div className="flex-1 min-w-0">
+                                          <p className={`text-xs font-bold truncate ${t.isCompleted ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                                             {t.title}
+                                          </p>
+                                          <p className="text-[10px] text-amber-500 mt-0.5 font-black uppercase tracking-widest">PRACTICAL MISSION</p>
+                                       </div>
                                     </div>
-                                  );
-                                }
-                                return (
-                                  <span className={`text-[10px] font-medium ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>لا توجد مهام مكتملة بعد 🎯</span>
-                                );
-                              })()}
-                            </div>
-                          )}
-                        </div>
-
-                        {isActive && (
-                          <div className="absolute -left-2 -top-2">
-                            <span className="relative flex h-3 w-3">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-                            </span>
-                          </div>
-                        )}
-                      </motion.div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-          </div>
-
-          {/* Integrated Calendar and Tasks */}
-          <div id="calendar-section" className="w-full mt-6">
-             <CalendarTheme 
-                stations={stations}
-                unlockedStations={unlockedStations}
-                activeStationId={activeStationId}
-                stationEnergy={stationEnergy}
-                onStationClick={handleStationClick}
-                learningDays={user.learningDays || []}
-                onAddTaskClick={(date, stationId) => {
-                   setCalendarSelectedDate(date);
-                   setCalendarSelectedStationId(stationId);
-                   setShowCalendarAddTask(true);
-                }}
-                tasks={tasks}
-                toggleTask={toggleTask}
-                onArrangeCalendar={handleArrangeCalendar} 
-                user={user} 
-                onSaveArrangement={handleSaveArrangement} 
-                toggleSubStationTask={toggleSubStationTask} 
-                onOpenEvaluation={(task) => {
-                   setSelectedTaskForDetails(task);
-                   setTaskDetailsVisible(true);
-                }}
-                onOpenReview={setReviewingTask}
-                onOpenFlashcards={setFlashcardTask}
-                onOpenAnalytics={setSelectedTaskForAnalytics}
-                onShowLinks={(stationId) => {
-                   setSelectedStation(stationId);
-                   setShowLinksPopup(true);
-                }}
-                onShowNotes={(stationId) => {
-                   setActiveNoteStationId(stationId);
-                   setShowNotesPopup(true);
-                }}
-                onShowReflection={(stationId) => {
-                   setReflectionForceStationId(stationId);
-                   setReflectionActiveTab(0);
-                   setReflectionSidebar(true);
-                }}
-                onShowStumble={(stationId) => {
-                   setSelectedStation(stationId);
-                   setStumbleReason("");
-                   setShowStumbleForm(true);
-                }}
-                onShowRoutine={() => {
-                   setShowRoutinePopup(true);
-                }}
-                renderTaskThreeDotsMenu={renderTaskThreeDotsMenu}
-                toast={toast}
-                selectedStation={selectedStation}
-                setSelectedStation={setSelectedStation}
-             />
-          </div>
+                                 </div>
+                               ))}
+                             </div>
+                           ))}
+                         </div>
+                       ) : (
+                         <div className="flex flex-col items-center justify-center py-6 text-center opacity-40">
+                            <i className="pi pi-box text-2xl mb-2 text-amber-400" />
+                            <p className="text-xs font-bold text-amber-400">لا توجد مهام تطبيقية</p>
+                         </div>
+                       )}
+                     </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -1451,6 +1337,45 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         onCompleteTask={handleCompleteTask}
         onCompletePracticalTask={completePracticalTask}
         completeTaskAction={completeTask}
+      />
+
+      <Dialog 
+        visible={isEditPhraseVisible} 
+        onHide={() => setIsEditPhraseVisible(false)}
+        header={<span className="font-black text-blue-950 font-sans">تحديث الجملة المحفزة ✨</span>}
+        className="w-[90vw] max-w-md font-sans"
+        closable
+        dismissableMask
+      >
+        <div className="space-y-4 pt-2 text-right" dir="rtl">
+            <textarea 
+              className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm text-blue-980"
+              value={tempPhrase}
+              onChange={(e) => setTempPhrase(e.target.value)}
+              placeholder="اكتب جملتك المحفزة هنا..."
+            />
+            <Button 
+                label="حفظ الجملة الجديدة" 
+                className="w-full bg-blue-600 border-none rounded-xl font-bold py-3 text-xs"
+                onClick={() => {
+                    setMotivationalPhrase(tempPhrase);
+                    setIsEditPhraseVisible(false);
+                    toastHot.success("تم تحديث الجملة المحفزة!");
+                }}
+            />
+        </div>
+      </Dialog>
+
+      <ViaSessionModal 
+        visible={showViaSession} 
+        onHide={() => setShowViaSession(false)}
+        taskTitle={activeViaTask?.title || ""}
+        onComplete={() => {
+          if (activeViaTask) {
+             setShowViaSession(false);
+             onOpenEvaluation(activeViaTask);
+          }
+        }}
       />
 
       {/* FAB 1 - Gamification Engine Details */}
@@ -1518,9 +1443,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         onCompleteTask={async (taskId) => {
            const t = tasks.find(x => x.id === taskId);
            if (t) {
-              await completeTask(t);
-              setReviewingTask(t);
-              setInitialReflectionVisible(true);
+             const result = await completeTask(t);
+             if (result && result.success) {
+               setReviewingTask(t);
+               setInitialReflectionVisible(true);
+               setTaskDetailsVisible(false);
+             }
            }
         }}
         onOpenReflection={(t) => {
@@ -2246,6 +2174,61 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 </div>
               </div>
               
+              {/* Incentive Section */}
+              <div className="bg-slate-50/80 p-4 rounded-3xl border border-slate-100 flex flex-col gap-3">
+                <label className="text-[11px] font-extrabold text-blue-950 flex items-center gap-2">
+                  <span>🎁 حافز التعلم والالتزام اليومي</span>
+                </label>
+                
+                {routineEditMode ? (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-slate-400 block pr-1">ساعة تلقي الحافز (مثال: 9:00 مساءً) 🕒</label>
+                      <input 
+                        type="text"
+                        value={editIncentiveTime}
+                        onChange={(e) => setEditIncentiveTime(e.target.value)}
+                        placeholder="الساعة (مثلاً: 09:00 م)"
+                        className="w-full border border-indigo-200 rounded-xl p-3 bg-white font-bold text-xs text-indigo-950 focus:outline-none focus:border-indigo-500"
+                        dir="rtl"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-slate-400 block pr-1">وصف الحافز أو المكافأة اليومية 🍫</label>
+                      <input 
+                        type="text"
+                        value={editIncentiveDesc}
+                        onChange={(e) => setEditIncentiveDesc(e.target.value)}
+                        placeholder="كوب قهوة مختصة، 30 دقيقة لعب..."
+                        className="w-full border border-indigo-200 rounded-xl p-3 bg-white font-bold text-xs text-indigo-950 focus:outline-none focus:border-indigo-500"
+                        dir="rtl"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(user.incentiveTime || user.incentiveDesc) ? (
+                      <div className="p-3 bg-white border border-slate-100 rounded-2xl">
+                        {user.incentiveTime && (
+                          <div className="flex items-center gap-1.5 mb-1 text-slate-500">
+                            <span className="text-xs">🕒</span>
+                            <span className="text-xs font-black font-mono text-indigo-950">{user.incentiveTime}</span>
+                          </div>
+                        )}
+                        {user.incentiveDesc && (
+                          <div className="flex items-start gap-1.5">
+                            <span className="text-xs">✨</span>
+                            <p className="text-xs font-bold text-slate-600 leading-snug">{user.incentiveDesc}</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-slate-400 font-bold">لم تضف تفاصيل للحافز اليومي بعد. اضغط على أيقونة القلم لتعديل الروتين!</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
               {routineEditMode ? (
                  <div className="flex gap-2 mt-2">
                    <Button 
@@ -2253,10 +2236,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                      onClick={async () => {
                         await db.userSettings.update(user.id, {
                           dailyDuration: editDailyDuration,
-                          learningDays: editLearningDays
+                          learningDays: editLearningDays,
+                          incentiveTime: editIncentiveTime,
+                          incentiveDesc: editIncentiveDesc
                         });
                         setRoutineEditMode(false);
-                        toastHot.success("تم تحديث الفترات بنجاح");
+                        toastHot.success("تم تحديث الروتين والحافز بنجاح");
                      }}
                      className="flex-1 bg-indigo-600 text-white rounded-2xl py-3 font-black text-xs border-none hover:bg-indigo-700 transition-all cursor-pointer"
                    />
@@ -3674,146 +3659,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       
       {/* Zoom Controls code block completely removed */}
 
-      {/* Main Map Side Actions (Compass & Rewards) - Only visible when NO station is selected to keep map clean? Or always visible? User said return them to station... */}
-      <AnimatePresence>
-        {!selectedStation && (
-          <>
-            <motion.div 
-              initial={{ x: -50, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -50, opacity: 0 }}
-              transition={{ duration: 0.5 }}
-              className="fixed bottom-10 left-8 z-40 pointer-events-auto"
-            >
-              <button
-                onClick={() => {
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  setShowCompassPopup(true);
-                }}
-                title="بوصلة الوضوح"
-                className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-700 text-white shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-sm border border-white/40 ring-2 ring-purple-500/20 cursor-pointer"
-              >
-                <i className="pi pi-compass text-lg"></i>
-              </button>
-            </motion.div>
+      {/* Main Map Side Actions (Compass & Rewards) - Integrated into persistent bottom buttons */}
 
-            <motion.div 
-              initial={{ x: 50, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 50, opacity: 0 }}
-              transition={{ duration: 0.5 }}
-              className="fixed bottom-10 right-8 z-40 pointer-events-auto"
-            >
-              <button
-                onClick={() => {
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  setGamificationSidebar(true);
-                }}
-                title="المحرك والجوائز"
-                className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-sm border border-white/40 ring-2 ring-orange-500/20 cursor-pointer"
-              >
-                <i className="pi pi-trophy text-lg"></i>
-              </button>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
-      {/* Luxurious Mission Control Dialog */}
-      <Dialog
-        visible={viewMode === 'tasks' && !!selectedStation}
-        onHide={() => {
-          setSelectedStation(null);
-          setViewMode('journey');
-        }}
-        header={
-          <div className="flex items-center gap-3 text-white pr-4" dir="rtl">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-400/20 shadow-inner">
-               <Rocket className="w-5 h-5 text-blue-300" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-black tracking-tight">{stations.find(s => s.id === selectedStation)?.name}</span>
-              <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">غرفة التحكم في العمليات</span>
-            </div>
-          </div>
-        }
-        className="w-[95vw] max-w-4xl font-sans rounded-[32px] overflow-hidden border-none shadow-[0_0_80px_rgba(30,58,138,0.5)] bg-slate-950"
-        contentClassName="no-scrollbar"
-        headerStyle={{ background: 'linear-gradient(to right, #020617, #0f172a)', borderBottom: '1px solid rgba(255,255,255,0.03)', padding: '24px' }}
-        contentStyle={{ background: 'linear-gradient(to bottom, #0f172a, #020617)', color: 'white', padding: '0' }}
-        dismissableMask
-        closable
-      >
-        <div className="flex flex-col md:flex-row min-h-[500px] h-[75vh]" dir="rtl">
-          {/* Main Tasks Tree (Collapsible) */}
-          <div className="flex-1 p-6 overflow-y-auto no-scrollbar border-l border-white/5">
-             <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-black text-white flex items-center gap-2">
-                   <span className="w-1.5 h-5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]"></span>
-                   المهام الرئيسية والهيكل التنفيذي
-                </h3>
-             </div>
-             
-             <Tree 
-                value={filteredMainTasksNodes} 
-                className="bg-transparent border-none p-0 custom-tree-animation"
-                nodeTemplate={treeNodeTemplate}
-                expandedKeys={expandedKeys}
-                onToggle={(e) => setExpandedKeys(e.value)}
-                filter
-                filterBy="label"
-                filterPlaceholder="ابحث في المهام..."
-                contentClassName="p-2 hover:bg-white/5 rounded-xl transition-all"
-             />
-          </div>
-
-          {/* Side Tasks Panel */}
-          <div className="w-full md:w-80 p-6 bg-black/30 backdrop-blur-md overflow-y-auto no-scrollbar">
-             <h3 className="text-sm font-black text-indigo-400 mb-6 flex items-center gap-2 uppercase tracking-wider">
-                <i className="pi pi-star-fill text-xs" />
-                المبادرات الجانبية
-             </h3>
-             
-             {filteredSideTasks.length > 0 ? (
-               <div className="space-y-3">
-                  {filteredSideTasks.map((t: any) => (
-                    <div 
-                      key={t.id}
-                      onClick={() => {
-                        if (t.isCompleted) setReviewingTask(t);
-                        else toggleTask(t.id, t.isCompleted, t.type);
-                      }}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer group
-                        ${t.isCompleted 
-                          ? 'bg-indigo-950/20 border-indigo-500/30 opacity-60' 
-                          : 'bg-white/5 border-white/10 hover:border-indigo-500/40 hover:bg-white/10 shadow-lg'}
-                      `}
-                    >
-                       <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all
-                             ${t.isCompleted ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-slate-900 border-white/10 text-indigo-400'}
-                          `}>
-                             {t.isCompleted ? <i className="pi pi-check text-[10px]" /> : <i className="pi pi-star text-[10px]" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                             <p className={`text-xs font-bold truncate ${t.isCompleted ? 'text-slate-400 line-through' : 'text-slate-100'}`}>
-                                {t.title}
-                             </p>
-                             <p className="text-[10px] text-indigo-400/60 mt-0.5 font-black uppercase tracking-widest">SIDE MISSION</p>
-                          </div>
-                       </div>
-                    </div>
-                  ))}
-               </div>
-             ) : (
-               <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
-                  <i className="pi pi-inbox text-2xl mb-2 text-indigo-300" />
-                  <p className="text-xs font-bold text-indigo-200">لا توجد مهام إضافية</p>
-               </div>
-             )}
-          </div>
-        </div>
-      </Dialog>
 
       {/* Unfreeze confirmation dialog */}
       <Dialog
@@ -4120,6 +3968,376 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             />
           </div>
         </div>
+      </Dialog>
+
+      {/* Journey Plan & Calendar/Tasks Popup */}
+      <Dialog
+        visible={showJourneyIntroPopup}
+        onHide={() => {
+          setShowJourneyIntroPopup(false);
+        }}
+        header={
+          <div className="flex items-center gap-2.5 text-indigo-950 font-black pr-4 text-sm font-sans" dir="rtl">
+            <i className="pi pi-map text-emerald-600 bg-emerald-50 p-1.5 rounded-lg border border-emerald-100"></i>
+            <span>خريطة الرحلة والتقويم اليومي 🗺️</span>
+          </div>
+        }
+        className="w-[98vw] max-w-4xl !rounded-[32px] overflow-hidden"
+        style={{ borderRadius: '32px' }}
+        maskClassName="backdrop-blur-sm bg-slate-900/40"
+        closable
+        dismissableMask
+      >
+        <div className="p-1 text-right font-sans" dir="rtl">
+          {user && (
+            <div className="flex flex-col gap-4">
+              <div className="w-full bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 border border-blue-500/35 rounded-3xl p-5 text-white/90 relative overflow-hidden transition-all duration-300">
+                {/* Decorative background glow */}
+                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full pointer-events-none" />
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300 shadow-inner">
+                    <span className="text-base">✨</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-blue-300/80">خريطة الرحلة والتقويم اليومي</p>
+                    <h2 className="text-sm font-black tracking-tight text-white mb-0">{user.learningGoal || "رحلتك التعليمية المخصصة"}</h2>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-205 rounded-2xl p-1.5 shadow-sm text-slate-800" dir="rtl">
+                <CalendarTheme 
+                  stations={stations}
+                  unlockedStations={unlockedStations}
+                  activeStationId={activeStationId}
+                  stationEnergy={stationEnergy}
+                  onStationClick={handleStationClick}
+                  learningDays={user.learningDays || []}
+                  onAddTaskClick={(date, stationId) => {
+                    setCalendarSelectedDate(date);
+                    setCalendarSelectedStationId(stationId);
+                    setShowCalendarAddTask(true);
+                  }}
+                  tasks={tasks}
+                  toggleTask={toggleTask}
+                  onArrangeCalendar={handleArrangeCalendar} 
+                  user={user} 
+                  onSaveArrangement={handleSaveArrangement} 
+                  toggleSubStationTask={toggleSubStationTask} 
+                  onOpenEvaluation={(task) => {
+                    setSelectedTaskForDetails(task);
+                    setTaskDetailsVisible(true);
+                  }}
+                  onOpenReview={setReviewingTask}
+                  onOpenFlashcards={setFlashcardTask}
+                  onOpenAnalytics={setSelectedTaskForAnalytics}
+                  onShowLinks={(stationId) => {
+                    setSelectedStation(stationId);
+                    setShowLinksPopup(true);
+                  }}
+                  onShowNotes={(stationId) => {
+                    setActiveNoteStationId(stationId);
+                    setShowNotesPopup(true);
+                  }}
+                  onShowReflection={(stationId) => {
+                    setReflectionForceStationId(stationId);
+                    setReflectionActiveTab(0);
+                    setReflectionSidebar(true);
+                  }}
+                  onShowStumble={(stationId) => {
+                    setSelectedStation(stationId);
+                    setStumbleReason("");
+                    setShowStumbleForm(true);
+                  }}
+                  onShowRoutine={() => {
+                    setShowRoutinePopup(true);
+                  }}
+                  renderTaskThreeDotsMenu={renderTaskThreeDotsMenu}
+                  toast={toast}
+                  selectedStation={selectedStation}
+                  setSelectedStation={setSelectedStation}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </Dialog>
+
+      {/* Floating Stable Bottom Center Action Dock containing the five FAB buttons */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-white/95 backdrop-blur-md px-5 py-3 rounded-[32px] border border-slate-200 shadow-[0_20px_50px_rgba(15,23,42,0.15)] max-w-[95vw] w-fit">
+        {/* FAB 1: خصائص المحطة */}
+        <button
+          onClick={() => {
+            vibrate(HAPITCS.MAJOR_CLICK);
+            setShowStationPropertiesDialog(true);
+          }}
+          className="flex flex-col items-center gap-1 focus:outline-none bg-transparent border-none cursor-pointer group active:scale-95 transition-all animate-pulse-slow"
+        >
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center shadow-sm shadow-indigo-500/25 group-hover:scale-110 transition-transform">
+            <Rocket className="w-5 h-5" />
+          </div>
+          <span className="text-[9px] font-black text-slate-800 font-sans">خصائص المحطة</span>
+        </button>
+
+        <div className="w-px h-6 bg-slate-200 shrink-0" />
+
+        {/* FAB 2: البوصلة */}
+        <button
+          onClick={() => {
+            vibrate(HAPITCS.MAJOR_CLICK);
+            setShowCompassPopup(true);
+          }}
+          className="flex flex-col items-center gap-1 focus:outline-none bg-transparent border-none cursor-pointer group active:scale-95 transition-all animate-pulse-slow"
+        >
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-700 text-white flex items-center justify-center shadow-sm shadow-purple-500/25 group-hover:scale-110 transition-transform">
+            <i className="pi pi-compass text-base" />
+          </div>
+          <span className="text-[9px] font-black text-slate-800 font-sans">البوصلة</span>
+        </button>
+
+        <div className="w-px h-6 bg-slate-200 shrink-0" />
+
+        {/* FAB 3: التقويم */}
+        <button
+          onClick={() => {
+            vibrate(HAPITCS.MAJOR_CLICK);
+            setShowJourneyIntroPopup(true);
+          }}
+          className="flex flex-col items-center gap-1 focus:outline-none bg-transparent border-none cursor-pointer group active:scale-95 transition-all animate-pulse-slow"
+        >
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-sm shadow-emerald-500/25 group-hover:scale-110 transition-transform">
+            <i className="pi pi-calendar text-base" />
+          </div>
+          <span className="text-[9px] font-black text-slate-800 font-sans">التقويم</span>
+        </button>
+
+        <div className="w-px h-6 bg-slate-200 shrink-0" />
+
+        {/* FAB 4: غابة المعرفة */}
+        <button
+          onClick={() => {
+            vibrate(HAPITCS.MAJOR_CLICK);
+            setLearningRepoVisible(true);
+          }}
+          className="flex flex-col items-center gap-1 focus:outline-none bg-transparent border-none cursor-pointer group active:scale-95 transition-all animate-pulse-slow"
+        >
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-sm shadow-cyan-500/25 group-hover:scale-110 transition-transform">
+            <Trees className="w-5 h-5 text-cyan-100" />
+          </div>
+          <span className="text-[9px] font-black text-slate-800 font-sans">غابة المعرفة</span>
+        </button>
+
+        <div className="w-px h-6 bg-slate-200 shrink-0" />
+
+        {/* FAB 5: الجوائز */}
+        <button
+          onClick={() => {
+            vibrate(HAPITCS.MAJOR_CLICK);
+            setGamificationSidebar(true);
+          }}
+          className="flex flex-col items-center gap-1 focus:outline-none bg-transparent border-none cursor-pointer group active:scale-95 transition-all animate-pulse-slow"
+        >
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-sm shadow-amber-500/25 group-hover:scale-110 transition-transform">
+            <i className="pi pi-trophy text-base" />
+          </div>
+          <span className="text-[9px] font-black text-slate-800 font-sans">الجوائز</span>
+        </button>
+      </div>
+
+      {/* Centered Station Properties Dialog */}
+      <Dialog
+        visible={showStationPropertiesDialog}
+        onHide={() => setShowStationPropertiesDialog(false)}
+        header={
+          <div className="flex items-center gap-2.5 text-indigo-950 font-black pr-4 text-xs font-sans" dir="rtl">
+            <i className="pi pi-sliders-h text-blue-600 bg-blue-50 p-1.5 rounded-lg border border-blue-100"></i>
+            <span>خصائص وخيارات المحطة ⚡</span>
+          </div>
+        }
+        className="w-[96vw] max-w-2xl !rounded-[32px] overflow-hidden"
+        style={{ borderRadius: '32px' }}
+        maskClassName="backdrop-blur-sm bg-slate-900/40"
+        closable
+        dismissableMask
+      >
+        {(() => {
+          const effectiveStationId = selectedStation || activeStationId;
+          const effectiveStation = stations?.find(s => s.id === effectiveStationId);
+          if (!effectiveStation) return null;
+
+          // Derived completion logic
+          const stationTasks = (tasks || []).filter(t => t.stationId === effectiveStationId);
+          const isAllActivitiesCompleted = stationTasks.length > 0 && stationTasks.every(t => t.isCompleted);
+          const sideTasks = stationTasks.filter(t => t.type === 'side');
+          
+          return (
+            <div className="p-0 flex flex-col gap-3 text-right font-sans" dir="rtl">
+              <TabView 
+                activeIndex={stationActiveTab} 
+                onTabChange={(e) => setStationActiveTab(e.index)} 
+                className="custom-spaced-tabs station-details-tabs"
+              >
+                {/* Tab 1: Welcome & Motivation */}
+                <TabPanel headerTemplate={createTabHeader("pi-sparkles", "البداية")}>
+                  <div className="flex flex-col gap-6 pt-2">
+                      <div className="bg-gradient-to-br from-indigo-50 to-blue-50/30 p-8 rounded-[32px] border border-blue-100 shadow-sm">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 rounded-2xl bg-white border border-blue-100 flex items-center justify-center text-blue-900 shadow-3xs">
+                              <Sparkles className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-xl font-black text-blue-950">أهلاً بك في رحلتك!! ✨</h3>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <p className="text-slate-600 font-bold leading-relaxed">
+                              كل خطوة تخطوها اليوم هي استثمار لنسختك المستقبلية. هل أنت مستعد للبدء؟
+                            </p>
+                            
+                            <div className="bg-white p-6 rounded-2xl border border-blue-100/50 shadow-3xs italic text-blue-900 font-bold relative overflow-hidden">
+                              <div className="absolute top-0 right-0 w-1 h-full bg-blue-600"></div>
+                              "{user?.motivationalPhrase || "النجاح هو مجموع المحاولات الصغيرة التي تتكرر يوماً بعد يوم."}"
+                              <button 
+                                onClick={() => {
+                                  const newPhrase = prompt("دخل جملتك التحفيزية الخاصة:", user?.motivationalPhrase || "");
+                                  if (newPhrase !== null) {
+                                    db.userSettings.update(user.id, { motivationalPhrase: newPhrase });
+                                  }
+                                }}
+                                className="absolute left-4 bottom-4 p-1.5 rounded-lg bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all border-none cursor-pointer"
+                              >
+                                <i className="pi pi-pencil text-[10px]"></i>
+                              </button>
+                            </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase mb-2">اسم المحطة الحالية</h4>
+                            <p className="text-sm font-black text-blue-950">{effectiveStation.name}</p>
+                        </div>
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase mb-2">تاريخ الهدف</h4>
+                            <p className="text-sm font-black text-blue-950">{effectiveStation.targetDate || "غير محدد"}</p>
+                        </div>
+                      </div>
+                  </div>
+                </TabPanel>
+
+                {/* Tab 2: Activities (Main Tasks) */}
+                <TabPanel headerTemplate={createTabHeader("pi-list", "الأنشطة")}>
+                  <div className="flex flex-col h-full mt-2">
+                    <div className="flex items-center justify-between mb-4 px-2">
+                      <h4 className="text-sm font-black text-blue-950">المسار المعرفي والمهام</h4>
+                      <span className="text-[10px] font-black bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full">
+                        {stationTasks.filter(t => t.type === 'main' && t.isCompleted).length} / {stationTasks.filter(t => t.type === 'main').length} مكتمل
+                      </span>
+                    </div>
+                    
+                    <div className="flex-1 min-h-[300px]">
+                      <Tree 
+                        value={mainTasksNodes.filter(n => (n as any).stationId === effectiveStationId)} 
+                        className="w-full border-none p-0 theme-tree" 
+                        nodeTemplate={nodeTemplate}
+                        emptyMessage="لا توجد أنشطة مسجلة لهذه المحطة"
+                      />
+                    </div>
+                  </div>
+                </TabPanel>
+
+                {/* Tab 3: Executive Activities (Practical/Side) */}
+                <TabPanel headerTemplate={createTabHeader("pi-bolt", "الأنشطة التنفيذية")}>
+                  <div className="flex flex-col h-full mt-2">
+                    <div className="flex items-center justify-between mb-4 px-2">
+                      <h4 className="text-sm font-black text-blue-950">التطبيق العملي والمهارات</h4>
+                      <span className="text-[10px] font-black bg-amber-50 text-amber-700 px-3 py-1 rounded-full">
+                        {sideTasks.filter(t => t.isCompleted).length} / {sideTasks.length} مكتمل
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-col gap-3">
+                      {sideTasks.map(task => (
+                        <div 
+                          key={task.id}
+                          onClick={() => {
+                            vibrate(HAPITCS.MAJOR_CLICK);
+                            onOpenEvaluation(task);
+                          }}
+                          className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group ${
+                            task.isCompleted 
+                            ? 'bg-emerald-50 border-emerald-100 opacity-60' 
+                            : 'bg-white border-slate-100 hover:border-amber-400 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+                                task.isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-50 text-amber-600 group-hover:scale-110'
+                              }`}>
+                                <i className={`pi ${task.isCompleted ? 'pi-check' : 'pi-sparkles'} text-xs`}></i>
+                              </div>
+                              <span className={`text-[11px] font-bold ${task.isCompleted ? 'text-emerald-700 line-through' : 'text-slate-700'}`}>
+                                {task.title}
+                              </span>
+                          </div>
+                          <i className="pi pi-chevron-left text-[9px] text-slate-300 group-hover:text-amber-500"></i>
+                        </div>
+                      ))}
+                      
+                      {sideTasks.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
+                            <i className="pi pi-bolt text-3xl mb-3 text-amber-300" />
+                            <p className="text-xs font-bold text-amber-400">لا توجد أنشطة تنفيذية جانبية</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </TabPanel>
+
+                {/* Tab 4: Knowledge Forest */}
+                <TabPanel headerTemplate={createTabHeader("pi-tree", "غابة المعرفة")}>
+                  <div className="flex flex-col h-full mt-2">
+                      <div className="bg-emerald-50/50 border border-emerald-100 p-6 rounded-[32px] mb-6 flex items-center justify-between">
+                        <div>
+                            <h4 className="text-sm font-black text-emerald-950 mb-1">موارد ومراجع التعلم 📚</h4>
+                            <p className="text-[10px] text-emerald-700 font-bold">هنا تجد الروابط والملاحظات التي قمت بتخزينها لهذه الخطة.</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                            <i className="pi pi-book text-xl"></i>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col items-center justify-center py-16 text-center opacity-40">
+                          <i className="pi pi-tree text-4xl mb-4 text-emerald-300" />
+                          <p className="text-xs font-bold text-emerald-400">غابة المعرفة - اضغط على الزر في Dock لاستكشاف كامل الغابة</p>
+                      </div>
+                  </div>
+                </TabPanel>
+
+                {/* Tab 5: Evaluation Log (Visible only after completion) */}
+                <TabPanel 
+                  headerTemplate={createTabHeader("pi-history", "سجل التقييم")}
+                  disabled={!isAllActivitiesCompleted}
+                >
+                    <div className="flex flex-col h-full mt-2">
+                      <div className="bg-indigo-900 border border-white/10 p-6 rounded-[32px] text-white mb-6 relative overflow-hidden">
+                          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/10 to-transparent"></div>
+                          <div className="relative z-10">
+                            <h4 className="text-sm font-black mb-1">سجل التتبع والوعي المستمر 📊</h4>
+                            <p className="text-[10px] opacity-70 font-bold">ملخص لانعكاساتك وتقييماتك للمهام المنجزة بنجاح.</p>
+                          </div>
+                      </div>
+                      
+                      <div className="flex flex-col items-center justify-center py-16 text-center opacity-40">
+                          <i className="pi pi-check-circle text-4xl mb-4 text-indigo-300" />
+                          <p className="text-xs font-bold text-indigo-400">سجل التقييم يفتح بالكامل بعد إكمال كافة الأنشطة</p>
+                      </div>
+                    </div>
+                </TabPanel>
+              </TabView>
+            </div>
+          );
+        })()}
       </Dialog>
     </motion.div>
 );

@@ -10,6 +10,8 @@ export interface WizardState {
   dailyDuration?: number;
   learningDays?: number[];
   theme?: 'cards' | 'calendar';
+  incentiveTime?: string;
+  incentiveDesc?: string;
 }
 
 export interface WizardStation {

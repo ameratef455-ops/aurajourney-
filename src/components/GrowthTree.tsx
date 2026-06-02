@@ -8,13 +8,15 @@ interface GrowthTreeProps {
 }
 
 export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = "" }) => {
-  // Calculate greenness based on XP and Keys
-  // XP increases saturation (up to 100)
-  // Keys increase lightness/vibrancy
+  // Calculate greenness and brightness based on XP and Keys
+  // 1 XP = 1% greenness (saturation)
+  const saturation = Math.min(100, Math.max(0, xp));
   
-  const saturation = Math.min(100, 20 + (xp / 10)); // Starts at 20%, goes up with XP
-  const lightness = Math.min(80, 30 + (keys * 2.5)); // Starts at 30%, goes up with keys
-  const leafColor = `hsl(142, ${saturation}%, ${lightness}%)`;
+  // 1 Key = 5% brightness
+  const brightness = 100 + (keys * 5);
+  
+  // Base color with variable saturation
+  const leafColor = `hsl(142, ${saturation}%, 45%)`;
   const glowAlpha = Math.min(0.6, (keys * 0.05));
   
   // Number of leaves increases with level
@@ -37,7 +39,7 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
       {/* Dynamic Background Glow */}
       <div 
         className="absolute inset-0 opacity-20 blur-[100px] pointer-events-none transition-colors duration-1000"
-        style={{ backgroundColor: leafColor }}
+        style={{ backgroundColor: leafColor, filter: `brightness(${brightness}%)` }}
       />
 
       {/* Floating Sparkles/Particles inside the card */}
@@ -52,6 +54,7 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
              top: `${p.y}%`,
              backgroundColor: leafColor,
              boxShadow: `0 0 10px ${leafColor}`,
+             filter: `brightness(${brightness}%)`
            }}
            animate={{
              y: [0, -150],
@@ -110,11 +113,11 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: i * 0.1, type: "spring" }}
-                  stroke={lightness > 60 ? 'rgba(255,255,255,0.2)' : 'transparent'}
+                  stroke={brightness > 130 ? 'rgba(255,255,255,0.2)' : 'transparent'}
                   strokeWidth="1"
                   className="transition-colors duration-1000"
                   style={{
-                    filter: `drop-shadow(0 0 ${keys > 5 ? 8 : 0}px ${leafColor})`
+                    filter: `brightness(${brightness}%) drop-shadow(0 0 ${keys > 5 ? 8 : 0}px ${leafColor})`
                   }}
                 />
               );
@@ -127,9 +130,12 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
               r={30 + Math.min(20, keys)} 
               fill={leafColor} 
               className="transition-colors duration-1000"
+              style={{
+                filter: `brightness(${brightness}%)`
+              }}
               animate={{ 
                 scale: [1, 1.05 + (keys * 0.01), 1],
-                filter: [`drop-shadow(0 0 10px ${leafColor}00)`, `drop-shadow(0 0 ${20 + keys * 2}px ${leafColor})`, `drop-shadow(0 0 10px ${leafColor}00)`]
+                filter: [`brightness(${brightness}%) drop-shadow(0 0 10px ${leafColor}00)`, `brightness(${brightness}%) drop-shadow(0 0 ${20 + keys * 2}px ${leafColor})`, `brightness(${brightness}%) drop-shadow(0 0 10px ${leafColor}00)`]
               }}
               transition={{ repeat: Infinity, duration: 4 - Math.min(2, keys * 0.1) }}
             />

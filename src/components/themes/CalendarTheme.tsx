@@ -500,13 +500,13 @@ export function CalendarTheme({
                 showIcon
                 minDate={new Date()}
                 icon={() => <i className="pi pi-calendar-plus text-indigo-500 text-xs" />}
-                appendTo="self"
+                appendTo={typeof document !== 'undefined' ? document.body : null}
               />
             </div>
           </div>
         </div>
 
-        <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1 no-scrollbar pb-4" dir="rtl">
+        <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1 no-scrollbar pb-48" dir="rtl">
            {['mains', 'sides'].map(cat => {
               const list = modalTasksData[cat as keyof typeof modalTasksData];
               if (!list || list.length === 0) return null;
@@ -562,7 +562,7 @@ export function CalendarTheme({
                               minDate={new Date()}
                               showIcon
                               icon={() => <i className="pi pi-calendar-plus text-indigo-500 text-xs" />}
-                              appendTo="self"
+                              appendTo={typeof document !== 'undefined' ? document.body : null}
                             />
                             {/* Blue gradient highlight on hover via CSS sibling */}
                             <style>{`

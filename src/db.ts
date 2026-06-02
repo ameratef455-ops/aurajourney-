@@ -62,6 +62,8 @@ export interface UserSettings {
   dailyDuration?: number;
   learningDays?: number[];
   theme?: 'cards' | 'calendar'; // Theme selection
+  incentiveTime?: string;
+  incentiveDesc?: string;
   gameData?: {
     fuel: number;
     xp: number;
@@ -130,9 +132,9 @@ export interface LearningRepository {
   name: string;
   createdAt: string;
   sentences?: { id: string; text: string; translation?: string; date: string; category?: string }[];
-  listeningTricks?: { id: string; title: string; videoUrl?: string; trick: string; date: string }[];
-  errorsGaps?: { id: string; error: string; correction: string; area: string; date: string }[];
-  dailyContexts?: { id: string; topic: string; paragraph: string; date: string }[];
+  listeningTricks?: { id: string; title: string; videoUrl?: string; trick: string; date: string; category?: string }[];
+  errorsGaps?: { id: string; error: string; correction: string; area: string; date: string; category?: string }[];
+  dailyContexts?: { id: string; topic: string; paragraph: string; date: string; category?: string }[];
 }
 
 export const db = new Dexie('AuraJourneyDatabase') as Dexie & {

@@ -54,7 +54,9 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
               stations: mappedStations,
               dailyDuration: trip.dailyDuration || 30,
               learningDays: trip.learningDays || [0, 1, 2, 3, 4],
-              theme: trip.theme || 'cards'
+              theme: trip.theme || 'cards',
+              incentiveTime: trip.incentiveTime || '',
+              incentiveDesc: trip.incentiveDesc || ''
             });
           }
         } catch (error) {
@@ -96,6 +98,8 @@ export function SetupWizard({ onComplete, onCancel, editingTripId }: SetupWizard
       dailyDuration: state.dailyDuration || 30,
       learningDays: state.learningDays || [0, 1, 2, 3, 4],
       theme: state.theme || 'cards',
+      incentiveTime: state.incentiveTime || '',
+      incentiveDesc: state.incentiveDesc || '',
       gameData,
       notes: existingTrip?.notes || {},
       timeCapsules: existingTrip?.timeCapsules || {}
@@ -957,6 +961,41 @@ const Step6 = ({ state, setState }: any) => {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* Incentive Section */}
+      <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 flex flex-col gap-4">
+        <label className="text-sm font-extrabold text-blue-950 flex items-center gap-2">
+          <span>🎁 حافز التعلم والالتزام اليومي</span>
+        </label>
+        <p className="text-[11px] font-medium text-slate-400 leading-relaxed font-sans">
+          أضف حافزاً ومكافأة لنفسك تلتزم بتلقيها بعد إنجاز هدفك اليومي مباشرةً (كوب قهوة، قطعة شوكولاتة، نصف ساعة ترفيه).
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-1">
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-black text-slate-550 pr-1">ساعة تلقي الحافز (مثلاً: 09:00 م) 🕒</label>
+            <input
+              type="text"
+              placeholder="الساعة (مثلاً: 09:00 م)"
+              value={state.incentiveTime || ''}
+              onChange={e => setState({ ...state, incentiveTime: e.target.value })}
+              className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 ring-blue-900/10 bg-white font-bold text-xs text-blue-950 transition-all text-right font-sans"
+              dir="rtl"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-black text-slate-550 pr-1">وصف الحافز أو المكافأة اليومية 🍫</label>
+            <input
+              type="text"
+              placeholder="كوب قهوة دافئ، 30 دقيقة لعب..."
+              value={state.incentiveDesc || ''}
+              onChange={e => setState({ ...state, incentiveDesc: e.target.value })}
+              className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 ring-blue-900/10 bg-white font-bold text-xs text-blue-950 transition-all text-right font-sans"
+              dir="rtl"
+            />
+          </div>
         </div>
       </div>
     </div>

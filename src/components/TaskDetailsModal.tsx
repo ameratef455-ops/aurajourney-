@@ -203,6 +203,41 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
     stepInputRef.current.value = "";
   };
 
+  const toggleActivityComplete = async (activityId: string) => {
+    if (task.isCompleted) return;
+    vibrate(HAPITCS.MAJOR_CLICK);
+    const currentActivities = task.activities || [];
+    let activityCompletedInThisTurn = false;
+
+    const updatedActivities = currentActivities.map(act => {
+      if (act.id === activityId) {
+        const newStatus = !act.isCompleted;
+        if (newStatus) activityCompletedInThisTurn = true;
+        // Optionally update steps too
+        const updatedSteps = (act.steps || []).map(s => ({ ...s, isCompleted: newStatus }));
+        return { ...act, isCompleted: newStatus, steps: updatedSteps };
+      }
+      return act;
+    });
+
+    const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
+    const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
+
+    await (db.tasks as any).update(taskId, {
+      activities: updatedActivities,
+      isCompleted: allActivitiesCompleted
+    });
+
+    if (taskJustCompleted) {
+      confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
+      toast.success("أنهيت جميع الأنشطة! حان وقت ختم المهمة وتقييمها 🏆✨");
+      if (onCompleteTask) onCompleteTask(taskId);
+    } else if (activityCompletedInThisTurn) {
+      confetti({ zIndex: 999999999, particleCount: 80, spread: 60, origin: { y: 0.7 } });
+      toast.success("أحسنت! أتممت هذا النشاط بنجاح 🔥");
+    }
+  };
+
   const toggleStep = async (activityId: string, stepId: string) => {
     if (task.isCompleted) return;
     vibrate(HAPITCS.MAJOR_CLICK);
@@ -234,6 +269,11 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
     const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
     const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
 
+    await (db.tasks as any).update(taskId, {
+      activities: updatedActivities,
+      isCompleted: allActivitiesCompleted
+    });
+
     if (taskJustCompleted) {
       confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
       toast.success("أنهيت جميع الأنشطة! حان وقت ختم المهمة وتقييمها 🏆✨");
@@ -244,11 +284,6 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
     } else if (stepCompletedInThisTurn) {
       confetti({ zIndex: 999999999, particleCount: 30, spread: 40, origin: { y: 0.8 }, scalar: 0.7 });
     }
-
-    await (db.tasks as any).update(taskId, {
-      activities: updatedActivities,
-      isCompleted: allActivitiesCompleted
-    });
   };
 
   const removeStep = async (activityId: string, stepId: string) => {
@@ -271,6 +306,11 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
     const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
     const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
 
+    await (db.tasks as any).update(taskId, {
+      activities: updatedActivities,
+      isCompleted: allActivitiesCompleted
+    });
+
     if (taskJustCompleted) {
       confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
       toast.success("أنهيت جميع الأنشطة! حان وقت ختم المهمة وتقييمها 🏆✨");
@@ -279,11 +319,6 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
       confetti({ zIndex: 999999999, particleCount: 80, spread: 60, origin: { y: 0.7 } });
       toast.success("أحسنت! أتممت هذا النشاط بنجاح 🔥");
     }
-
-    await (db.tasks as any).update(taskId, {
-      activities: updatedActivities,
-      isCompleted: allActivitiesCompleted
-    });
   };
 
   return (
@@ -441,6 +476,16 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                         </div>
                         <h3 className="text-4xl font-black text-slate-900 leading-tight tracking-tight">{act.title}</h3>
                       </div>
+                      <div className="flex items-center gap-3">
+                      {!task.isCompleted && (
+                        <button 
+                          onClick={() => toggleActivityComplete(act.id)}
+                          className={`w-12 h-12 rounded-2xl transition-all flex items-center justify-center ${act.isCompleted ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-slate-500' : 'bg-slate-50 text-slate-400 hover:bg-emerald-100 hover:text-emerald-600'}`}
+                          title={act.isCompleted ? "التراجع عن الإكمال" : "إكمال النشاط"}
+                        >
+                          <CheckCircle2 className="w-5 h-5" />
+                        </button>
+                      )}
                       {!task.isCompleted && (
                         <button 
                           onClick={() => handleDeleteActivity(act.id)}
@@ -450,6 +495,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                           <Trash2 className="w-5 h-5" />
                         </button>
                       )}
+                      </div>
                     </div>
 
                     <TabView className="custom-task-tabs">

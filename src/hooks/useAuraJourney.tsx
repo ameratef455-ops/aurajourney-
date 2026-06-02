@@ -560,14 +560,14 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   };
 
   const completeTask = async (taskToComplete: any, onComplete?: (taskId: string) => void) => {
-    if (!user) return;
+    if (!user) return { success: false, reason: 'unauthorized' };
     
     // Fetch latest task data from DB
     const dbTask = await db.tasks.get(taskToComplete.id);
-    if (!dbTask || dbTask.isCompleted) return;
+    if (!dbTask) return { success: false, reason: 'not_found' };
+    if ((dbTask as any).xpAwarded) return { success: false, reason: 'already_completed' };
     
-    // Merge DB task with taskToComplete (favoring UI's version of activities)
-    const task = { ...dbTask, ...taskToComplete };
+    const task = { ...taskToComplete, ...dbTask };
 
     if (user.isFrozen) {
       toast.current?.show({
@@ -576,7 +576,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
         detail: "الرحلة في وضع التجميد حالياً لحماية إحصائياتك والستريك. يرجى إلغاء التجميد أولاً.",
         life: 3000
       });
-      return;
+      return { success: false, reason: 'frozen' };
     }
 
     // Task level check for subtasks
@@ -593,7 +593,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
           detail: "يرجى إكمال المهام الفرعية للرئيسية أولاً.",
           life: 4000
         });
-        return;
+        return { success: false, reason: 'subtasks' };
       }
     }
 
@@ -612,19 +612,14 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
       if (!checkActivities(task.activities)) {
           vibrate(HAPITCS.MAJOR_CLICK);
-          toast.current?.show({
-            severity: "warn",
-            summary: "أكمل الأنشطة أولاً ⚠️",
-            detail: "يُرجى إكمال جميع الأنشطة التنفيذية لهذه المهمة قبل محاولة ختمها وتقييمها. تأكد من علامة الصح الخضراء.",
-            life: 4000
-          });
-          return;
+          // Return failure without showing a toast, because Maps.tsx will handle opening the modal
+          return { success: false, reason: 'activities' };
       }
     }
 
     vibrate(HAPITCS.COMPLETE);
     // Mark as completed in DB - Using any to avoid circularity type error in Dexie KeyPaths
-    await (db.tasks as any).update(task.id, { isCompleted: true });
+    await (db.tasks as any).update(task.id, { isCompleted: true, xpAwarded: true });
 
     if (onComplete) onComplete(task.id);
 
@@ -693,6 +688,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
           createdAt: new Date().toISOString()
        });
     }
+
+    return { success: true };
   };
 
   const rewardActivity = async (isCompleted: boolean) => {

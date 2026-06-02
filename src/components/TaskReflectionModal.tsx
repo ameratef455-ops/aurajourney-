@@ -589,6 +589,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
             onClick={() => {
               setShowExitConfirm(false);
               onHide();
+              toastHot.error("لم يتم حفظ تتبعك", { icon: "🧹" });
             }}
             className="flex-1 py-3 px-3 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-rose-200 hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
           >
