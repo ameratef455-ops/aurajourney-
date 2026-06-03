@@ -455,6 +455,7 @@ export function CalendarTheme({
 
       {/* Arrange Calendar Modal */}
       <Dialog
+        maximized
         visible={isArrangeModalOpen}
         onHide={() => setIsArrangeModalOpen(false)}
         header={
@@ -465,7 +466,7 @@ export function CalendarTheme({
             </span>
           </div>
         }
-        className="w-[96vw] max-w-xl !rounded-[32px] overflow-hidden"
+        className="font-sans !rounded-[32px] overflow-hidden"
         style={{ borderRadius: '32px' }}
         maskClassName="backdrop-blur-sm bg-slate-900/40"
         blockScroll

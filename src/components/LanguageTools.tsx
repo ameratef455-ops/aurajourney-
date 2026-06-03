@@ -1,35 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 
+declare global {
+  interface Window {
+    YG: any;
+    onYouglishAPIReady: () => void;
+  }
+}
+
 export function YouGlishWidget({ query, language = "english" }: { query: string; language?: string }) {
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = "https://youglish.com/public/emb/widget.js";
-    script.async = true;
-    document.body.appendChild(script);
-    
-    return () => {
-       if (document.body.contains(script)) {
-           document.body.removeChild(script);
-       }
-    };
+  const widgetContainerRef = React.useRef<HTMLDivElement>(null);
+  const widgetRef = React.useRef<any>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const initWidget = () => {
+         if (widgetContainerRef.current) {
+             widgetContainerRef.current.innerHTML = "<div id='yg-widget-0'></div>";
+         }
+         widgetRef.current = new window.YG.Widget("yg-widget-0", {
+            width: '100%',
+            components: 9, // search box & video
+         });
+         if (query) {
+             widgetRef.current.fetch(query, language);
+         }
+      };
+
+      if (!window.YG) {
+        window.onYouglishAPIReady = initWidget;
+        const script = document.createElement('script');
+        script.src = "https://youglish.com/public/emb/widget.js";
+        script.async = true;
+        document.body.appendChild(script);
+      } else {
+        initWidget();
+      }
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (widgetRef.current && window.YG && query) {
+        widgetRef.current.fetch(query, language);
+    }
   }, [query, language]);
 
   return (
-    <div key={`${query}-${language}`} className="w-full h-auto min-h-[400px]">
-       <a 
-          id="yg-widget-0" 
-          className="youglish-widget" 
-          data-query={query} 
-          data-lang={language} 
-          data-components="8415" 
-          data-bkg-color="theme_light" 
-          rel="nofollow" 
-          href="https://youglish.com"
-       >
-          Visit YouGlish.com
-       </a>
-    </div>
+    <div className="w-full h-auto min-h-[400px]" ref={widgetContainerRef}></div>
   );
 }
 

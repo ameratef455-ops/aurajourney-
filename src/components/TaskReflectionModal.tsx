@@ -20,7 +20,8 @@ import {
   Trash2, 
   ChevronRight,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Type
 } from 'lucide-react';
 import { LAYERS } from '../constants/layers';
 import { db } from '../db';
@@ -232,9 +233,11 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
 
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
-      const newSentences = [...sentences];
-      newSentences[idx].text = transcript;
-      setSentences(newSentences);
+      setSentences(prev => {
+        const newSentences = [...prev];
+        newSentences[idx].text = transcript;
+        return newSentences;
+      });
     };
 
     recognition.onerror = (event: any) => {
@@ -472,7 +475,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
                                 }}
                               />
                               <Button 
-                                icon={<Mic className={`w-3.5 h-3.5 ${isListening && listeningTargetIdx === idx ? 'animate-pulse text-rose-500' : ''}`} />} 
+                                icon={<Type className={`w-3.5 h-3.5 ${isListening && listeningTargetIdx === idx ? 'animate-pulse text-amber-500' : ''}`} />} 
                                 className="w-8 h-8 p-button-rounded p-button-text text-slate-400" 
                                 onClick={() => startListening(idx)}
                               />

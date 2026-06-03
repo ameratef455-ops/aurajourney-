@@ -327,6 +327,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
   return (
     <>
       <Dialog
+        maximized
         visible={visible}
       onHide={onHide}
       header={
@@ -478,6 +479,25 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                           )}
                         </div>
                         <h3 className="text-4xl font-black text-slate-900 leading-tight tracking-tight">{act.title}</h3>
+                        {act.description && (
+                          <p className="text-slate-600 text-sm leading-relaxed mt-4">
+                            {act.description}
+                          </p>
+                        )}
+                        {act.guidance && (
+                          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mt-4 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-1.5 h-full bg-indigo-500"></div>
+                            <div className="flex items-start gap-3">
+                              <i className="pi pi-compass text-indigo-500 text-lg mt-0.5 shrink-0" />
+                              <div>
+                                <h5 className="text-[11px] font-black text-indigo-900 uppercase tracking-widest mb-1 opacity-80">توجيه النشاط</h5>
+                                <p className="text-indigo-950/80 text-sm font-medium leading-relaxed">
+                                  {act.guidance}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-3">
                       {!task.isCompleted && (
@@ -689,6 +709,37 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                                  allowFullScreen
                                  className="w-full"
+                               ></iframe>
+                            );
+                         })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Google Drive Embedded */}
+                  {task.googleDriveUrl && (
+                    <div className="p-5 bg-slate-50 border border-slate-100/80 rounded-3xl space-y-3 shadow-3xs animate-fade-in">
+                      <div className="flex items-center gap-2 text-blue-700">
+                        <i className="pi pi-google border p-0.5 rounded text-[10px] shrink-0" />
+                        <h4 className="text-xs font-black">جوجل درايف داعم للمهمة:</h4>
+                      </div>
+                      <div className="rounded-2xl overflow-hidden border border-slate-200 h-[400px]">
+                         {(() => {
+                            let embedUrl = task.googleDriveUrl;
+                            if (embedUrl.includes('/view')) {
+                              embedUrl = embedUrl.replace(/\/view.*$/, '/preview');
+                            } else if (embedUrl.includes('/edit')) {
+                              embedUrl = embedUrl.replace(/\/edit.*$/, '/preview');
+                            }
+                            return (
+                               <iframe 
+                                 width="100%" 
+                                 height="100%" 
+                                 src={embedUrl}
+                                 title="Google Drive Document" 
+                                 frameBorder="0" 
+                                 allowFullScreen
+                                 className="w-full h-full"
                                ></iframe>
                             );
                          })()}

@@ -13,6 +13,7 @@ export interface TaskActivity {
   id: string;
   title: string;
   description?: string;
+  guidance?: string;
   duration?: number; // Expected duration in minutes
   isCompleted: boolean;
   steps?: { id: string; title: string, isCompleted: boolean }[];
@@ -31,6 +32,7 @@ export interface Task {
   description?: string;
   learningResources?: string;
   youtubeUrl?: string;
+  googleDriveUrl?: string;
   startMessage?: string;
   endMessage?: string;
 }

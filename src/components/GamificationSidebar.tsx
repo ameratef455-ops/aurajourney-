@@ -43,10 +43,11 @@ export function GamificationSidebar({
 
   return (
     <Dialog
+      maximized
       baseZIndex={LAYERS.GAMIFICATION_SIDEBAR}
       visible={gamificationSidebar}
       onHide={() => setGamificationSidebar(false)}
-      className="w-[98vw] max-w-4xl font-sans"
+      className="font-sans"
       style={{ borderRadius: '28px' }}
       maskClassName="backdrop-blur-md bg-blue-950/20"
       closable

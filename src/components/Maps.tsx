@@ -3241,6 +3241,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
       {/* Compass Popup Dialog */}
       <Dialog
+        maximized
         visible={showCompassPopup}
         onHide={() => setShowCompassPopup(false)}
         header={
@@ -3249,7 +3250,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             <span className="font-black text-blue-950 tracking-tight">البوصلة والكبسولة 🧭</span>
           </div>
         }
-        className="w-[98vw] max-w-4xl font-sans text-xl !rounded-[32px] overflow-hidden"
+        className="font-sans text-xl !rounded-[32px] overflow-hidden"
         style={{ borderRadius: '32px' }}
         closable
         dismissableMask
@@ -4340,6 +4341,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
       {/* Journey Plan & Calendar/Tasks Popup */}
       <Dialog
+        maximized
         visible={showJourneyIntroPopup}
         onHide={() => {
           setShowJourneyIntroPopup(false);
@@ -4350,7 +4352,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             <span>خريطة الرحلة والتقويم اليومي 🗺️</span>
           </div>
         }
-        className="w-[98vw] max-w-4xl !rounded-[32px] overflow-hidden"
+        className="font-sans !rounded-[32px] overflow-hidden"
         style={{ borderRadius: '32px' }}
         maskClassName="backdrop-blur-sm bg-slate-900/40"
         closable

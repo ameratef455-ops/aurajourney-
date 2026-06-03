@@ -340,7 +340,8 @@ const Step2 = ({ state, setState }: any) => (
        <div key={item.key} className="flex flex-col gap-3">
          <label className="text-sm font-bold text-gray-700">{item.label}</label>
          <textarea
-           className="w-full border border-slate-100 hover:border-blue-200 shadow-3xs rounded-2xl p-5 bg-gray-50/50 focus:bg-white outline-none focus:ring-4 ring-blue-900/5 transition-all resize-y min-h-[350px] h-[40vh] placeholder-gray-300 font-medium text-blue-950 text-base"
+           rows={4}
+           className="w-full border border-slate-100 hover:border-blue-200 shadow-3xs rounded-2xl p-4 bg-gray-50/50 focus:bg-white outline-none focus:ring-4 ring-blue-900/5 transition-all resize-y min-h-[120px] placeholder-gray-300 font-medium text-blue-950 text-sm"
            value={state.psychology[item.key]}
            onChange={e => setState({ ...state, psychology: { ...state.psychology, [item.key]: e.target.value }})}
          />
@@ -500,7 +501,8 @@ const Step4 = ({ state, setState }: any) => {
             </div>
             
             <textarea 
-              className="w-full p-5 bg-gray-50/50 border border-slate-100 hover:border-blue-200 focus:bg-white shadow-3xs rounded-xl outline-none text-base resize-y min-h-[350px] h-[35vh] focus:ring-4 ring-blue-950/5 transition-all text-blue-950 placeholder-gray-300 font-medium" 
+              rows={3}
+              className="w-full p-4 bg-gray-50/50 border border-slate-100 hover:border-blue-200 focus:bg-white shadow-3xs rounded-xl outline-none text-sm resize-y min-h-[100px] focus:ring-4 ring-blue-950/5 transition-all text-blue-950 placeholder-gray-300 font-medium" 
               placeholder="وصف قصير للخطة" 
               value={st.description} 
               onChange={e => updateStation(i, 'description', e.target.value)} 
@@ -734,8 +736,8 @@ const Step5 = ({ state, setState }: any) => {
             <span>✨ رسالة قبل بدأ المهمة</span>
           </span>
           <textarea 
-            rows={5}
-            className={`w-full p-4 border border-slate-100 rounded-xl outline-none focus:ring-2 ${ringClass} transition-all text-sm font-bold ${textColorClass} placeholder:text-gray-300 resize-y min-h-[160px] bg-white`} 
+            rows={3}
+            className={`w-full p-4 border border-slate-100 rounded-xl outline-none focus:ring-2 ${ringClass} transition-all text-sm font-bold ${textColorClass} placeholder:text-gray-300 resize-y min-h-[90px] bg-white`} 
             placeholder="تنبيه أو توجيه يظهر قبل البدء..." 
             value={t.startMessage || ''} 
             onChange={e => updateTaskField(selectedStation, absoluteIdx, 'startMessage', e.target.value)} 
@@ -746,8 +748,8 @@ const Step5 = ({ state, setState }: any) => {
             <span>🏆 رسالة نهاية بعد الإنجاز</span>
           </span>
           <textarea 
-            rows={5}
-            className={`w-full p-4 border border-slate-100 rounded-xl outline-none focus:ring-2 ${ringClass} transition-all text-sm font-bold ${textColorClass} placeholder:text-gray-300 resize-y min-h-[160px] bg-white`} 
+            rows={3}
+            className={`w-full p-4 border border-slate-100 rounded-xl outline-none focus:ring-2 ${ringClass} transition-all text-sm font-bold ${textColorClass} placeholder:text-gray-300 resize-y min-h-[90px] bg-white`} 
             placeholder="رسالة تهنئة عند الإتمام..." 
             value={t.endMessage || ''} 
             onChange={e => updateTaskField(selectedStation, absoluteIdx, 'endMessage', e.target.value)} 
@@ -762,7 +764,7 @@ const Step5 = ({ state, setState }: any) => {
   const sideTasks = currentStation.tasks.filter((t: any) => t.type === 'side');
 
   return (
-    <div className="flex flex-col h-full font-sans text-right" dir="rtl">
+    <div className="flex flex-col h-auto font-sans text-right" dir="rtl">
       <div className="mb-4 flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
           <h2 className="text-xl md:text-2xl font-black text-blue-950">توزيع المهام المنظم</h2>
@@ -797,7 +799,7 @@ const Step5 = ({ state, setState }: any) => {
         })}
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-10 flex flex-col gap-4 pl-1 pr-1">
+      <div className="flex flex-col gap-4 pl-1 pr-1 pb-10">
         <TabView className="custom-wizard-tabs">
           {/* Tab 1: Core & Sub Tasks */}
           <TabPanel 
@@ -1080,6 +1082,17 @@ const Step5 = ({ state, setState }: any) => {
                                 <span>إضافة مهمة فرعية ➕</span>
                               </button>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                vibrate(HAPITCS.GUIDANCE);
+                                addTask(selectedStation, 'side', taskItem.id);
+                              }}
+                              className="text-[10px] bg-amber-50 text-amber-700 hover:bg-amber-100 px-2.5 py-1.5 rounded-xl border border-amber-100/50 font-bold transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <Plus size={10} />
+                              <span>إضافة مهمة جانبية 🧠</span>
+                            </button>
                             <button
                               type="button"
                               onClick={() => {
@@ -1382,7 +1395,7 @@ const Step7 = ({ state, setState }: any) => {
   }
 
   const currentStation = state.stations[selectedStation];
-  const tasksToDetail = currentStation.tasks.filter((t: any) => t.type === 'main' || t.type === 'sub' || t.type === 'side');
+  const tasksToDetail = currentStation.tasks.filter((t: any) => t.type === 'main' || t.type === 'sub' || t.type === 'side' || t.type === 'practical');
 
   const updateTaskField = (taskAbsoluteIdx: number, field: string, value: any) => {
     const arr = [...state.stations];
@@ -1432,7 +1445,7 @@ const Step7 = ({ state, setState }: any) => {
   };
 
   return (
-    <div className="flex flex-col h-full font-sans text-right" dir="rtl">
+    <div className="flex flex-col h-auto font-sans text-right" dir="rtl">
       <div className="mb-6">
         <h2 className="text-2xl md:text-3xl font-black text-blue-950 mb-2">تفصيل المهام والتوجيه والمصادر 🗺️</h2>
         <p className="text-gray-500 text-sm font-medium">قم بتخصيص التوجيهات، الأنشطة التنفيذية ومصادر التعلم لتساهم في رفع جودة الاستيعاب والتنفيذ.</p>
@@ -1468,7 +1481,7 @@ const Step7 = ({ state, setState }: any) => {
       </div>
 
       {/* Tasks List */}
-      <div className="flex-1 overflow-y-auto pb-6 space-y-4">
+      <div className="pb-6 space-y-4">
         {tasksToDetail.length === 0 ? (
           <div className="text-center py-12 text-sm text-gray-400 font-semibold border border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
             لا توجد مهام رئيسية أو فرعية أو جانبية مضافة في هذه الخطة حالياً. يرجى العودة للخطوات السابقة وإضافة مهام أولاً.
@@ -1515,8 +1528,8 @@ const Step7 = ({ state, setState }: any) => {
                         <div className="space-y-2">
                           <label className="text-xs font-extrabold text-gray-700 block pr-1">الرسالة التوجيهية عند البدء 🗺️</label>
                           <textarea 
-                            rows={6}
-                            className="w-full p-4 border border-slate-200/80 rounded-xl outline-none focus:ring-2 ring-indigo-500/10 focus:bg-white text-sm font-bold text-slate-800 placeholder-gray-300 resize-y min-h-[250px] bg-white shadow-3xs" 
+                            rows={3}
+                            className="w-full p-4 border border-slate-200/80 rounded-xl outline-none focus:ring-2 ring-indigo-500/10 focus:bg-white text-sm font-bold text-slate-800 placeholder-gray-300 resize-y min-h-[100px] bg-white shadow-3xs" 
                             placeholder="اكتب التوجيه أو التنبيه الفخم الذي يساعدك قبل بدء هذه المهمة..." 
                             value={t.startMessage || ''} 
                             onChange={e => updateTaskField(absoluteIdx, 'startMessage', e.target.value)} 
@@ -1525,8 +1538,8 @@ const Step7 = ({ state, setState }: any) => {
                         <div className="space-y-2">
                           <label className="text-xs font-extrabold text-gray-700 block pr-1">الرسالة التحفيزية والتهنئة عند الإنجاز 🏆</label>
                           <textarea 
-                            rows={6}
-                            className="w-full p-4 border border-slate-200/80 rounded-xl outline-none focus:ring-2 ring-emerald-500/10 focus:bg-white text-sm font-bold text-slate-800 placeholder-gray-300 resize-y min-h-[250px] bg-white shadow-3xs" 
+                            rows={3}
+                            className="w-full p-4 border border-slate-200/80 rounded-xl outline-none focus:ring-2 ring-emerald-500/10 focus:bg-white text-sm font-bold text-slate-800 placeholder-gray-300 resize-y min-h-[100px] bg-white shadow-3xs" 
                             placeholder="اكتب رسالة تهنئة أو تذكير بالمكافأة تظهر لرفع معنوياتك بعد إتمام المهمة..." 
                             value={t.endMessage || ''} 
                             onChange={e => updateTaskField(absoluteIdx, 'endMessage', e.target.value)} 
@@ -1542,17 +1555,31 @@ const Step7 = ({ state, setState }: any) => {
                         <span>مصادر التعلم الفخمة والمخصصة</span>
                       </h4>
                       <div className="space-y-3">
-                        <div className="flex flex-col gap-2 p-2.5 bg-white border border-slate-200 rounded-xl shadow-3xs">
-                          <label className="text-[10px] font-extrabold text-slate-500 flex items-center gap-1 px-1">
-                             <i className="pi pi-youtube text-rose-500"></i>
-                             فيديو يوتيوب داعم للمهمة
-                          </label>
-                          <input 
-                            className="w-full p-3 border border-slate-200 bg-slate-50/20 rounded-lg outline-none focus:ring-2 ring-indigo-900/10 font-bold text-xs text-indigo-950 transition-all font-sans" 
-                            placeholder="الصق رابط فيديو يوتيوب هنا..." 
-                            value={t.youtubeUrl || ''} 
-                            onChange={e => updateTaskField(absoluteIdx, 'youtubeUrl', e.target.value)} 
-                          />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-2 p-2.5 bg-white border border-slate-200 rounded-xl shadow-3xs">
+                            <label className="text-[10px] font-extrabold text-slate-500 flex items-center gap-1 px-1">
+                               <i className="pi pi-youtube text-rose-500"></i>
+                               فيديو يوتيوب داعم للمهمة
+                            </label>
+                            <input 
+                              className="w-full p-3 border border-slate-200 bg-slate-50/20 rounded-lg outline-none focus:ring-2 ring-indigo-900/10 font-bold text-xs text-indigo-950 transition-all font-sans" 
+                              placeholder="الصق رابط فيديو يوتيوب هنا..." 
+                              value={t.youtubeUrl || ''} 
+                              onChange={e => updateTaskField(absoluteIdx, 'youtubeUrl', e.target.value)} 
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 p-2.5 bg-white border border-slate-200 rounded-xl shadow-3xs">
+                            <label className="text-[10px] font-extrabold text-slate-500 flex items-center gap-1 px-1">
+                               <i className="pi pi-google border p-0.5 rounded text-[10px] text-blue-500"></i>
+                               جوجل درايف داعم للمهمة 
+                            </label>
+                            <input 
+                              className="w-full p-3 border border-slate-200 bg-slate-50/20 rounded-lg outline-none focus:ring-2 ring-indigo-900/10 font-bold text-xs text-indigo-950 transition-all font-sans" 
+                              placeholder="مجلد/ملف جوجل درايف (للعرض المدمج)..." 
+                              value={t.googleDriveUrl || ''} 
+                              onChange={e => updateTaskField(absoluteIdx, 'googleDriveUrl', e.target.value)} 
+                            />
+                          </div>
                         </div>
 
                         {parseLearningResources(t.learningResources).map((res, rIdx, arr) => (
@@ -1631,29 +1658,113 @@ const Step7 = ({ state, setState }: any) => {
                           </div>
                         ) : (
                           t.activities.map((act: any, actIdx: number) => (
-                            <div key={act.id} className="flex gap-2 items-center p-3 bg-white border border-slate-200 rounded-2xl shadow-3xs">
-                              <input 
-                                className="w-8/12 p-3 border border-slate-200 bg-slate-50/20 rounded-xl outline-none focus:ring-2 ring-indigo-500/10 font-bold text-xs text-slate-800 transition-all font-sans" 
-                                placeholder="عنوان الخطوة التنفيذية (مثال: محاكاة الكود وتجربته يدوياً)" 
-                                value={act.title} 
-                                onChange={e => updateTaskActivityField(absoluteIdx, actIdx, 'title', e.target.value)} 
-                              />
-                              <div className="w-3/12 flex items-center gap-1.5 bg-slate-50/40 p-1 rounded-xl border border-slate-200 px-2.5">
+                            <div key={act.id} className="flex flex-col gap-2 p-3 bg-white border border-slate-200 rounded-2xl shadow-3xs">
+                              <div className="flex gap-2 items-center">
                                 <input 
-                                  type="number"
-                                  className="w-12 p-1.5 border border-slate-150 bg-white rounded-lg outline-none font-bold text-xs text-indigo-950 text-center font-sans" 
-                                  value={act.duration} 
-                                  onChange={e => updateTaskActivityField(absoluteIdx, actIdx, 'duration', parseInt(e.target.value) || 0)} 
+                                  className="flex-1 p-3 border border-slate-200 bg-slate-50/20 rounded-xl outline-none focus:ring-2 ring-indigo-500/10 font-bold text-xs text-slate-800 transition-all font-sans" 
+                                  placeholder="عنوان الخطوة التنفيذية (مثال: محاكاة الكود وتجربته يدوياً)" 
+                                  value={act.title} 
+                                  onChange={e => updateTaskActivityField(absoluteIdx, actIdx, 'title', e.target.value)} 
                                 />
-                                <span className="text-[10px] font-black text-slate-400 select-none">دقيقة</span>
+                                <div className="flex items-center gap-1.5 bg-slate-50/40 p-1 rounded-xl border border-slate-200 px-2.5">
+                                  <input 
+                                    type="number"
+                                    className="w-12 p-1.5 border border-slate-150 bg-white rounded-lg outline-none font-bold text-xs text-indigo-950 text-center font-sans" 
+                                    value={act.duration} 
+                                    onChange={e => updateTaskActivityField(absoluteIdx, actIdx, 'duration', parseInt(e.target.value) || 0)} 
+                                  />
+                                  <span className="text-[10px] font-black text-slate-400 select-none">دقيقة</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeTaskActivity(absoluteIdx, actIdx)}
+                                  className="p-3 text-rose-500 hover:bg-rose-50 rounded-xl hover:text-rose-700 transition-all cursor-pointer border border-slate-150 bg-white min-w-[40px] flex items-center justify-center"
+                                >
+                                  <i className="pi pi-trash text-xs"></i>
+                                </button>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => removeTaskActivity(absoluteIdx, actIdx)}
-                                className="p-3 text-rose-500 hover:bg-rose-50 rounded-xl hover:text-rose-700 transition-all cursor-pointer border border-slate-150 bg-white"
-                              >
-                                <i className="pi pi-trash text-xs"></i>
-                              </button>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                                <textarea
+                                  rows={2}
+                                  className="w-full p-3 border border-slate-150 bg-slate-50/20 rounded-xl outline-none focus:ring-2 ring-indigo-500/10 text-xs text-slate-700 transition-all font-sans resize-y"
+                                  placeholder="وصف إضافي للنشاط (ماذا ستفعل بالضبط؟)"
+                                  value={act.description || ''}
+                                  onChange={e => updateTaskActivityField(absoluteIdx, actIdx, 'description', e.target.value)}
+                                />
+                                <textarea
+                                  rows={2}
+                                  className="w-full p-3 border border-slate-150 bg-indigo-50/20 rounded-xl outline-none focus:ring-2 ring-indigo-500/20 text-xs text-indigo-900 font-medium transition-all font-sans resize-y"
+                                  placeholder="التوجيه (نصائح ذهبية لإنجاز هذا النشاط بفعالية)..."
+                                  value={act.guidance || ''}
+                                  onChange={e => updateTaskActivityField(absoluteIdx, actIdx, 'guidance', e.target.value)}
+                                />
+                              </div>
+
+                              {/* Nested Sub-activities */}
+                              <div className="mt-3 bg-slate-50 border border-slate-100 rounded-xl p-3">
+                                <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                                  <span className="text-[10px] font-black text-slate-500 flex items-center gap-1.5">
+                                    <i className="pi pi-sitemap text-indigo-400/80"></i>
+                                    <span>أنشطة متفرعة من هذا النشاط</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      vibrate(HAPITCS.GUIDANCE);
+                                      const arr = [...state.stations];
+                                      const task = arr[selectedStation].tasks[absoluteIdx];
+                                      if (!task.activities[actIdx].steps) {
+                                        task.activities[actIdx].steps = [];
+                                      }
+                                      task.activities[actIdx].steps.push({
+                                        id: safeRandomUUID(),
+                                        title: '',
+                                        isCompleted: false
+                                      });
+                                      setState({ ...state, stations: arr });
+                                    }}
+                                    className="text-[10px] bg-indigo-50/50 hover:bg-indigo-100 text-indigo-600 font-bold px-2 py-1 rounded-lg border border-indigo-100 transition-all flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Plus size={10} />
+                                    <span>خطوة فرعية</span>
+                                  </button>
+                                </div>
+                                {(!act.steps || act.steps.length === 0) ? (
+                                  <div className="text-center py-2 text-[10px] text-gray-400">
+                                    لا توجد خطوات متفرعة!
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {act.steps.map((child: any, childIdx: number) => (
+                                      <div key={child.id} className="flex flex-col gap-2 p-2 bg-white border border-slate-200 rounded-lg shadow-sm">
+                                        <div className="flex gap-2 items-center">
+                                          <input 
+                                            className="flex-1 p-2 border border-slate-200 bg-slate-50/30 rounded-lg outline-none font-bold text-xs text-slate-800" 
+                                            placeholder="الخطوة الفرعية..." 
+                                            value={child.title} 
+                                            onChange={e => {
+                                              const arr = [...state.stations];
+                                              arr[selectedStation].tasks[absoluteIdx].activities[actIdx].steps[childIdx].title = e.target.value;
+                                              setState({ ...state, stations: arr });
+                                            }} 
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const arr = [...state.stations];
+                                              arr[selectedStation].tasks[absoluteIdx].activities[actIdx].steps.splice(childIdx, 1);
+                                              setState({ ...state, stations: arr });
+                                            }}
+                                            className="p-1.5 text-rose-400 hover:text-rose-600 rounded bg-rose-50"
+                                          >
+                                            <i className="pi pi-times text-[10px]"></i>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           ))
                         )}
@@ -1714,7 +1825,7 @@ const Step8 = ({ state, setState }: any) => {
   };
 
   return (
-    <div className="flex flex-col h-full font-sans text-right" dir="rtl">
+    <div className="flex flex-col h-auto font-sans text-right" dir="rtl">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-2xl md:text-3xl font-black text-blue-950 mb-2">إضافة مهام تطبيقية رحبة 🧪</h2>
@@ -1760,7 +1871,7 @@ const Step8 = ({ state, setState }: any) => {
       </div>
 
       {/* Practical Tasks List */}
-      <div className="flex-1 overflow-y-auto pb-10 space-y-4">
+      <div className="pb-10 space-y-4">
         {practicalTasks.length === 0 ? (
           <div className="text-center py-16 text-sm text-gray-400 font-bold border border-dashed border-emerald-200 rounded-3xl bg-emerald-50/5 flex flex-col items-center justify-center gap-3">
             <span className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">🧪</span>
@@ -1792,23 +1903,38 @@ const Step8 = ({ state, setState }: any) => {
                 </div>
 
                 <textarea 
-                  className="w-full p-4 border border-emerald-200 rounded-xl outline-none text-sm focus:ring-2 ring-emerald-500/10 focus:bg-white text-slate-800 placeholder-gray-300 font-medium resize-y min-h-[200px] shadow-3xs bg-white" 
+                  rows={3}
+                  className="w-full p-4 border border-emerald-200 rounded-xl outline-none text-sm focus:ring-2 ring-emerald-500/10 focus:bg-white text-slate-800 placeholder-gray-300 font-medium resize-y min-h-[100px] shadow-3xs bg-white" 
                   placeholder="وصف تفصيلي للمهمة العملية والنتائج المتوقعة للتطبيق..." 
                   value={t.description || ''} 
                   onChange={e => updateTaskField(absoluteIdx, 'description', e.target.value)} 
                 />
 
-                <div className="flex flex-col gap-2 p-2.5 bg-white border border-slate-200 rounded-xl shadow-3xs">
-                  <label className="text-[10px] font-extrabold text-slate-500 flex items-center gap-1 px-1">
-                     <i className="pi pi-youtube text-rose-500"></i>
-                     فيديو يوتيوب داعم للمهمة العملية
-                  </label>
-                  <input 
-                    className="w-full p-3 border border-slate-200 bg-slate-50/20 rounded-lg outline-none focus:ring-2 ring-emerald-900/10 font-bold text-xs text-emerald-950 transition-all font-sans" 
-                    placeholder="الصق رابط فيديو يوتيوب هنا..." 
-                    value={t.youtubeUrl || ''} 
-                    onChange={e => updateTaskField(absoluteIdx, 'youtubeUrl', e.target.value)} 
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-2 p-2.5 bg-white border border-slate-200 rounded-xl shadow-3xs">
+                    <label className="text-[10px] font-extrabold text-slate-500 flex items-center gap-1 px-1">
+                       <i className="pi pi-youtube text-rose-500"></i>
+                       فيديو يوتيوب داعم للمهمة العملية
+                    </label>
+                    <input 
+                      className="w-full p-3 border border-slate-200 bg-slate-50/20 rounded-lg outline-none focus:ring-2 ring-emerald-900/10 font-bold text-xs text-emerald-950 transition-all font-sans" 
+                      placeholder="الصق رابط فيديو يوتيوب هنا..." 
+                      value={t.youtubeUrl || ''} 
+                      onChange={e => updateTaskField(absoluteIdx, 'youtubeUrl', e.target.value)} 
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 p-2.5 bg-white border border-slate-200 rounded-xl shadow-3xs">
+                    <label className="text-[10px] font-extrabold text-slate-500 flex items-center gap-1 px-1">
+                       <i className="pi pi-google border p-0.5 rounded text-[10px] text-emerald-500"></i>
+                       جوجل درايف داعم للمهمة العملية
+                    </label>
+                    <input 
+                      className="w-full p-3 border border-slate-200 bg-slate-50/20 rounded-lg outline-none focus:ring-2 ring-emerald-900/10 font-bold text-xs text-emerald-950 transition-all font-sans" 
+                      placeholder="مجلد/ملف جوجل درايف (للعرض المدمج)..." 
+                      value={t.googleDriveUrl || ''} 
+                      onChange={e => updateTaskField(absoluteIdx, 'googleDriveUrl', e.target.value)} 
+                    />
+                  </div>
                 </div>
 
                 {/* Additional metadata (resources and guidance) for practical tasks */}
@@ -1822,8 +1948,8 @@ const Step8 = ({ state, setState }: any) => {
                     <div className="space-y-1">
                       <label className="text-[10px] font-extrabold text-slate-650 pr-1 block">رسالة ترحيبية عند البدء 🗺️</label>
                       <textarea 
-                        rows={5}
-                        className="w-full p-4 border border-slate-150 rounded-xl outline-none focus:ring-2 ring-emerald-500/15 transition-all text-sm font-bold text-slate-700 placeholder:text-gray-300 resize-y min-h-[160px] bg-white font-sans" 
+                        rows={3}
+                        className="w-full p-4 border border-slate-150 rounded-xl outline-none focus:ring-2 ring-emerald-500/15 transition-all text-sm font-bold text-slate-700 placeholder:text-gray-300 resize-y min-h-[90px] bg-white font-sans" 
                         placeholder="توجيه معنوي أو نصيحة قبل البدء بالتطبيق العملي..." 
                         value={t.startMessage || ''} 
                         onChange={e => updateTaskField(absoluteIdx, 'startMessage', e.target.value)} 
@@ -1833,8 +1959,8 @@ const Step8 = ({ state, setState }: any) => {
                     <div className="space-y-1">
                       <label className="text-[10px] font-extrabold text-slate-650 pr-1 block">رسالة نهاية عند الإنجاز 🏆</label>
                       <textarea 
-                        rows={5}
-                        className="w-full p-4 border border-slate-150 rounded-xl outline-none focus:ring-2 ring-emerald-500/15 transition-all text-sm font-bold text-slate-700 placeholder:text-gray-300 resize-y min-h-[160px] bg-white font-sans" 
+                        rows={3}
+                        className="w-full p-4 border border-slate-150 rounded-xl outline-none focus:ring-2 ring-emerald-500/15 transition-all text-sm font-bold text-slate-700 placeholder:text-gray-300 resize-y min-h-[90px] bg-white font-sans" 
                         placeholder="أحسنت! فخور بك لإصدار وتطبيق الخطوة..." 
                         value={t.endMessage || ''} 
                         onChange={e => updateTaskField(absoluteIdx, 'endMessage', e.target.value)} 
