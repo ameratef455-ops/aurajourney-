@@ -475,6 +475,10 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     }
 
     await (db.tasks as any).update(taskId, updateData);
+    
+    // Delete reflection data when reverting task
+    await db.reflections.where("taskId").equals(taskId).delete();
+
     vibrate(HAPITCS.MAJOR_CLICK);
     
     let newXp = gData.xp;

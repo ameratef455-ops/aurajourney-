@@ -275,11 +275,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
       <Dialog 
         visible={visible} 
         onHide={() => {
-          if (strengths || weaknesses || learnings || sentences.length > 0) {
-            setShowExitConfirm(true);
-          } else {
-            onHide();
-          }
+          setShowExitConfirm(true);
         }}
       header={<div className="flex flex-col gap-1">
         <span className="text-xl font-black text-indigo-950">{isReview ? "تقييم بعد المراجعة 🔄" : "تقييم إنجاز المهمة ✨"}</span>

@@ -539,7 +539,17 @@ export function EvaluationSidebar({
       <ConfirmPopup />
       <Sidebar
         visible={visible && !initialSelectedTask}
-        onHide={handleManualHide}
+        onHide={() => {
+          confirmPopup({
+            target: document.querySelector('.evaluation-close-btn') as HTMLElement,
+            message: `هل أنت متأكد من الخروج من سجل التقييم؟`,
+            icon: 'pi pi-exclamation-triangle',
+            acceptLabel: 'نعم، أخرج',
+            rejectLabel: 'إلغاء',
+            className: 'rtl-dialog font-sans text-xs',
+            accept: onHide,
+          });
+        }}
         position="bottom"
         className="w-full h-auto max-h-[90vh] md:w-[600px] md:mx-auto !bg-transparent p-0 border-none shadow-none"
         showCloseIcon={false}
@@ -1359,7 +1369,7 @@ function TaskItem({
             className="p-1 px-3 bg-amber-500 hover:bg-amber-600 text-white transition-all rounded-xl flex items-center justify-center cursor-pointer shadow-lg shadow-amber-200 border-none hover:scale-105 gap-2"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-black">قيم أداءك</span>
+            <span className="text-[10px] font-black">قيم المهمة ✨</span>
           </button>
         )}
         {task.activities?.length > 0 && (

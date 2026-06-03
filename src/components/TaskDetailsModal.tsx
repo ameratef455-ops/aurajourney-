@@ -225,6 +225,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
 
     const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
     const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
+    const taskUndone = !allActivitiesCompleted && task.isCompleted;
 
     await (db.tasks as any).update(taskId, {
       activities: updatedActivities,
@@ -235,6 +236,10 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
       confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
       toast.success("أنهيت جميع الأنشطة! حان وقت ختم المهمة وتقييمها 🏆✨");
       if (onCompleteTask) onCompleteTask(taskId);
+      if (onOpenReflection) onOpenReflection(task);
+    } else if (taskUndone) {
+      await db.reflections.where("taskId").equals(taskId).delete();
+      toast("تم التراجع عن إكمال المهمة وتصفير سجل التقييم.", { icon: "🧹" });
     } else if (activityCompletedInThisTurn) {
       confetti({ zIndex: 999999999, particleCount: 80, spread: 60, origin: { y: 0.7 } });
       toast.success("أحسنت! أتممت هذا النشاط بنجاح 🔥");
@@ -271,6 +276,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
     // Check if ALL activities in the updated set are completed
     const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
     const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
+    const taskUndone = !allActivitiesCompleted && task.isCompleted;
 
     await (db.tasks as any).update(taskId, {
       activities: updatedActivities,
@@ -281,6 +287,10 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
       confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
       toast.success("أنهيت جميع الأنشطة! حان وقت ختم المهمة وتقييمها 🏆✨");
       if (onCompleteTask) onCompleteTask(taskId);
+      if (onOpenReflection) onOpenReflection(task);
+    } else if (taskUndone) {
+      await db.reflections.where("taskId").equals(taskId).delete();
+      toast("تم التراجع عن إكمال المهمة وتصفير سجل التقييم.", { icon: "🧹" });
     } else if (activityCompletedInThisTurn) {
       confetti({ zIndex: 999999999, particleCount: 80, spread: 60, origin: { y: 0.7 } });
       toast.success("أحسنت! أتممت هذا النشاط بنجاح 🔥");
@@ -308,6 +318,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
 
     const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
     const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
+    const taskUndone = !allActivitiesCompleted && task.isCompleted;
 
     await (db.tasks as any).update(taskId, {
       activities: updatedActivities,
@@ -318,6 +329,10 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
       confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
       toast.success("أنهيت جميع الأنشطة! حان وقت ختم المهمة وتقييمها 🏆✨");
       if (onCompleteTask) onCompleteTask(taskId);
+      if (onOpenReflection) onOpenReflection(task);
+    } else if (taskUndone) {
+      await db.reflections.where("taskId").equals(taskId).delete();
+      toast("تم التراجع عن إكمال المهمة وتصفير سجل التقييم.", { icon: "🧹" });
     } else if (activityCompletedInThisTurn) {
       confetti({ zIndex: 999999999, particleCount: 80, spread: 60, origin: { y: 0.7 } });
       toast.success("أحسنت! أتممت هذا النشاط بنجاح 🔥");
@@ -361,12 +376,11 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                 onClick={() => {
                   vibrate(HAPITCS.MAJOR_CLICK);
                   if (onOpenReflection) onOpenReflection(task);
-                  onHide();
                 }}
-                className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-amber-200 border-none transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-2xl text-[11px] font-black shadow-xl shadow-amber-200 border-none transition-all active:scale-95 flex items-center gap-2 cursor-pointer animate-bounce mt-2"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>قيم أداءك على هذه المهمة</span>
+                <span>قيم المهمة الآن ✨</span>
               </button>
             )}
           </div>

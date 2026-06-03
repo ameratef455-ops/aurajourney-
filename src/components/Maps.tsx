@@ -782,10 +782,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     setInitialReflectionVisible(true);
                     setActiveTaskActionId(null);
                   }}
-                  className="p-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-105 gap-1.5"
-                  title="قيم أداءك"
+                  className="p-1.5 bg-amber-500 border border-amber-600 text-white transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-md hover:scale-110 gap-1.5 px-3 animate-pulse"
+                  title="قيم المهمة"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-black">قيم المهمة</span>
                 </button>
               )}
               {t.isCompleted && (
