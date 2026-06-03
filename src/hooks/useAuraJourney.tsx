@@ -644,6 +644,10 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
       if (task.type === "main") xpToAdd = 30;
       else if (task.type === "sub") xpToAdd = 15;
+      else if (task.type === "practical") {
+         xpToAdd = 25;
+         keysToAdd = 1;
+      }
       else if (task.type === "side") {
          xpToAdd = 20;
          keysToAdd = 1;
@@ -660,7 +664,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       
       const updatedGameData = processWorkdayAndStreak(baseGameData);
       
-      if (task.type === 'sub' || task.type === 'side') {
+      if (task.type === 'sub' || task.type === 'side' || task.type === 'practical') {
          updatedGameData.tasksCompletedSinceReview = (updatedGameData.tasksCompletedSinceReview || 0) + 1;
          if (updatedGameData.tasksCompletedSinceReview === 2) {
             shouldShowReviewNotification = true;
@@ -673,8 +677,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     // Notify user to rewards
     toast.current?.show({
       severity: "success",
-      summary: task.type === 'main' ? "إنجاز رائع! ⚡" : task.type === 'sub' ? "خطوة بخطوة! 🧩" : "مهارة استثنائية! ⭐",
-      detail: task.type === 'main' ? `أكملت مهمة أساسية بنجاح! +30 XP` : task.type === 'sub' ? `أكملت مهمة فرعية! +15 XP` : `أنجزت مهارة بونص! +20 XP ومفتاح إضافي.`,
+      summary: task.type === 'main' ? "إنجاز رائع! ⚡" : task.type === 'practical' ? "تطبيق عملي ناجح! 🧪" : task.type === 'sub' ? "خطوة بخطوة! 🧩" : "مهارة استثنائية! ⭐",
+      detail: task.type === 'main' ? `أكملت مهمة أساسية بنجاح! +30 XP` : task.type === 'practical' ? `أكملت تطبيقًا عمليًا! +25 XP ومفتاح إضافي.` : task.type === 'sub' ? `أكملت مهمة فرعية! +15 XP` : `أنجزت مهارة بونص! +20 XP ومفتاح إضافي.`,
       life: 3000,
     });
 

@@ -23,12 +23,16 @@ export interface Task {
   id: string;
   stationId: string;
   title: string;
-  type: 'main' | 'sub' | 'side';
+  type: 'main' | 'sub' | 'side' | 'practical';
   parentId?: string; // If sub, points to main
   isCompleted: boolean;
   activities?: TaskActivity[];
   dueDate?: string;
   description?: string;
+  learningResources?: string;
+  youtubeUrl?: string;
+  startMessage?: string;
+  endMessage?: string;
 }
 
 export interface SubStationTask {

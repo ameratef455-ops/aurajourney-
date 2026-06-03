@@ -26,7 +26,53 @@ export interface WizardStation {
 export interface WizardTask {
   id: string;
   title: string;
-  type: 'main' | 'sub' | 'side';
+  type: 'main' | 'sub' | 'side' | 'practical';
   parentId?: string;
   description?: string;
+  learningResources?: string;
+  startMessage?: string;
+  endMessage?: string;
+  activities?: any[];
+}
+
+export interface LearningResourceItem {
+  id: string;
+  name: string;
+  url: string;
+}
+
+export function parseLearningResources(raw?: string): LearningResourceItem[] {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item: any) => ({
+          id: item.id || Math.random().toString(36).substring(7),
+          name: item.name || '',
+          url: item.url || ''
+        }));
+      }
+    } catch (e) {
+      // fallback
+    }
+  }
+  
+  // Backward compatibility with raw URL strings
+  const items: LearningResourceItem[] = [];
+  const list = trimmed.split(/[\s,،\n]+/).filter(Boolean);
+  for (const item of list) {
+    const isUrl = item.startsWith('http://') || item.startsWith('https://');
+    items.push({
+      id: Math.random().toString(36).substring(7),
+      name: isUrl ? '' : item,
+      url: isUrl ? item : ''
+    });
+  }
+  return items;
+}
+
+export function serializeLearningResources(items: LearningResourceItem[]): string {
+  return JSON.stringify(items.map(({ name, url }) => ({ name: name.trim(), url: url.trim() })));
 }

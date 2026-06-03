@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { TaskActivity, db, Task } from '../db';
+import { LanguageTools } from './LanguageTools';
+import { parseLearningResources } from '../types';
 import { safeRandomUUID } from '../lib/uuid';
 import { LAYERS } from '../constants/layers';
 import { vibrate, HAPITCS } from '../lib/haptics';
@@ -50,6 +52,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
 
   const settings = useLiveQuery(() => db.userSettings.toArray());
   const user = settings?.[0];
+  const isLanguageLearning = user?.learningGoal?.includes('لغ');
 
   if (!task || !taskId) return null;
 
@@ -594,15 +597,130 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                 );
               })()
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center max-w-sm mx-auto">
-                <div className="w-32 h-32 bg-slate-50 rounded-[48px] flex items-center justify-center text-indigo-200 mb-10 relative">
-                   <div className="absolute inset-0 bg-indigo-100/30 rounded-[48px] animate-ping" />
-                   <Sparkles className="w-14 h-14 relative z-10" />
+              <div className="h-full flex flex-col justify-between max-w-2xl mx-auto py-4 font-sans animate-fade-in" dir="rtl">
+                <div className="space-y-6">
+                  {/* Task Header & Title Info */}
+                  <div className="p-6 bg-slate-50 border border-slate-100/80 rounded-3xl space-y-2 mt-4 text-right">
+                    <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md">مضمون المهمة</span>
+                    <h3 className="text-2xl font-black text-blue-950">{task.title}</h3>
+                    {task.description && (
+                      <p className="text-xs text-slate-600 font-medium leading-relaxed">{task.description}</p>
+                    )}
+                  </div>
+
+                  {/* 1. Pre-Task Start Message (رسالة قبل بدء المهمة) */}
+                  {task.startMessage && (
+                    <div className="p-5 bg-gradient-to-br from-indigo-50 to-indigo-100/30 border border-indigo-100/50 rounded-3xl space-y-2 text-right shadow-3xs animate-fade-in">
+                      <div className="flex items-center gap-2 text-indigo-800">
+                        <Sparkles className="w-4 h-4 animate-pulse shrink-0" />
+                        <h4 className="text-xs font-black">📢 رسالة انطلاق وتوجيه قبل البدء:</h4>
+                      </div>
+                      <p className="text-xs font-bold text-indigo-950 bg-white/95 p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap shadow-3xs">
+                        {task.startMessage}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 2. Learning Resources (مصادر التعلم المخصصة للمهمة) */}
+                  {task.learningResources && parseLearningResources(task.learningResources).length > 0 ? (
+                    <div className="p-5 bg-gradient-to-br from-blue-50 to-blue-100/30 border border-blue-100/50 rounded-3xl space-y-3 text-right shadow-3xs animate-fade-in">
+                      <div className="flex items-center gap-2 text-blue-900">
+                        <i className="pi pi-book text-xs shrink-0" />
+                        <h4 className="text-xs font-black">📚 مصادر ومراجع التعلم المقترحة:</h4>
+                      </div>
+                      <div className="flex flex-wrap gap-2.5">
+                        {(() => {
+                          const items = parseLearningResources(task.learningResources);
+                          return items.map((item) => {
+                            const isUrl = item.url.startsWith('http://') || item.url.startsWith('https://');
+                            const displayName = item.name.trim() || item.url;
+                            return (
+                              <a 
+                                key={item.id}
+                                href={isUrl ? item.url : undefined}
+                                target={isUrl ? "_blank" : undefined}
+                                rel="noopener noreferrer"
+                                className={`text-[11px] font-bold px-3 py-2 rounded-xl border flex items-center gap-1.5 transition-all
+                                  ${isUrl 
+                                    ? 'bg-white border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 hover:scale-105 active:scale-95 shadow-3xs' 
+                                    : 'bg-white border-slate-200 text-slate-700'
+                                  }`}
+                              >
+                                <i className={`pi ${isUrl ? 'pi-external-link' : 'pi-bookmark'} text-[10px]`}></i>
+                                <span>{displayName}</span>
+                              </a>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* YouTube Embedded Video for the Task */}
+                  {task.youtubeUrl && (
+                    <div className="p-5 bg-slate-50 border border-slate-100/80 rounded-3xl space-y-3 shadow-3xs animate-fade-in">
+                      <div className="flex items-center gap-2 text-rose-700">
+                        <i className="pi pi-youtube text-lg shrink-0" />
+                        <h4 className="text-xs font-black">فيديو داعم للمهمة:</h4>
+                      </div>
+                      <div className="rounded-2xl overflow-hidden border border-slate-200">
+                         {(() => {
+                            let videoId = '';
+                            try {
+                               const urlObj = new URL(task.youtubeUrl);
+                               if (urlObj.hostname.includes('youtube.com')) {
+                                   videoId = urlObj.searchParams.get('v') || '';
+                               } else if (urlObj.hostname.includes('youtu.be')) {
+                                   videoId = urlObj.pathname.slice(1);
+                               }
+                            } catch { 
+                               // fail silently on bad url, we will just use the string if it's already an ID
+                               videoId = task.youtubeUrl.length === 11 ? task.youtubeUrl : '';
+                            }
+                            const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : task.youtubeUrl;
+                            
+                            return (
+                               <iframe 
+                                 width="100%" 
+                                 height="250" 
+                                 src={embedUrl}
+                                 title="YouTube video player" 
+                                 frameBorder="0" 
+                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                 allowFullScreen
+                                 className="w-full"
+                               ></iframe>
+                            );
+                         })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Language Tools for Foreign Language Learning Journeys */}
+                  {isLanguageLearning && (
+                     <LanguageTools />
+                  )}
+
+                  {/* 3. Post-Task Completed Message (رسالة نهاية بعد انتهاء المهمة) */}
+                  {task.endMessage && task.isCompleted && (
+                    <div className="p-5 bg-gradient-to-br from-emerald-50 to-emerald-100/30 border border-emerald-100/50 rounded-3xl space-y-2 text-right shadow-3xs animate-fade-in">
+                      <div className="flex items-center gap-2 text-emerald-800">
+                        <i className="pi pi-verified text-xs shrink-0" />
+                        <h4 className="text-xs font-black">🏆 رسالة الإنجاز والدعم بعد الختام:</h4>
+                      </div>
+                      <p className="text-xs font-black text-emerald-950 bg-white/95 p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap shadow-3xs">
+                        {task.endMessage}
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">هندسة الأنشطة</h3>
-                <p className="text-base font-bold text-slate-500 leading-relaxed">
-                  حول كل مهمة كبيرة لتسلسل من الأنشطة والخطوات الفرعية لتصل لمستوى احتراف فائق في رحلتك.
-                </p>
+
+                {/* Bottom Guide hint */}
+                <div className="text-center p-5 border border-dashed border-slate-200/60 rounded-2xl bg-slate-50/20 mt-auto">
+                  <p className="text-[10px] text-slate-450 font-bold leading-relaxed">
+                    💡 اختر أحد الأنشطة العملية من الجدول الجانبي للبدء في تقسيمها، إدارتها، وتدوين إنجازاتك.
+                  </p>
+                </div>
               </div>
             )}
           </div>

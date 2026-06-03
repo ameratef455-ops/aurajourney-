@@ -47,10 +47,11 @@ export function TaskReviewModal({ visible, onHide, task, onFinishReview, onUndo 
              <span className="text-xl font-black text-indigo-950">مراجعة المهام والأنشطة 🔎</span>
              <span className={`text-[10px] px-2 py-0.5 rounded border border-transparent font-black ${
                task.type === 'main' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
+               task.type === 'practical' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
                task.type === 'side' ? 'bg-amber-100 text-amber-800 border-amber-200' :
                'bg-purple-100 text-purple-800 border-purple-200'
              }`}>
-               {task.type === 'main' ? 'مهمة رئيسية' : task.type === 'side' ? 'مهمة جانبية' : 'مهمة فرعية'}
+               {task.type === 'main' ? 'مهمة رئيسية' : task.type === 'practical' ? 'مهمة تطبيقية' : task.type === 'side' ? 'مهمة جانبية' : 'مهمة فرعية'}
              </span>
           </div>
           <span className="text-xs text-indigo-500 font-medium">{task.title}</span>

@@ -30,6 +30,7 @@ export interface EvaluationSidebarProps {
   mainTasks: any[];
   sideTasks: any[];
   subTasks: any[];
+  practicalTasks?: any[];
   practicalSubStations?: Record<string, any[]>;
   onRewardActivity?: (isCompleted: boolean) => void;
   onCompleteTask?: (task: any) => void;
@@ -45,6 +46,7 @@ export function EvaluationSidebar({
   mainTasks,
   sideTasks,
   subTasks = [],
+  practicalTasks = [],
   practicalSubStations = {},
   onRewardActivity,
   onCompleteTask,
@@ -658,6 +660,34 @@ export function EvaluationSidebar({
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-4 pt-4"
                 >
+                  {/* Part 1: Standalone custom practical tasks */}
+                  {practicalTasks.length > 0 && (
+                    <div className="space-y-3 mb-6 bg-emerald-50/10 p-3 rounded-2xl border border-emerald-900/5">
+                      <h4 className="text-xs font-black text-emerald-800 px-1 border-b border-emerald-900/10 pb-2 mb-2 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-emerald-600" />
+                        <span>المهام التطبيقية المحددة بالمسار (+25 XP)</span>
+                      </h4>
+                      {practicalTasks.map((task) => {
+                        const station = stations.find(s => s.id === task.stationId);
+                        return (
+                          <TaskItem 
+                            key={task.id} 
+                            task={task} 
+                            type="side" 
+                            hasReflection={reflections.some(r => r.taskId === task.id)}
+                            onRate={() => {
+                              setSelectedTask(task);
+                              setInitialReflectionVisible(true);
+                            }}
+                            stationName={station?.name}
+                            onClick={() => handleTaskClick(task, 'dexie')} 
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Part 2: Substation tasks */}
                   {Object.entries(practicalSubStations).flatMap(([stId, subs]) => 
                     subs.flatMap((sub, sIdx) => 
                       sub.tasks.map((task: any) => ({
@@ -667,25 +697,34 @@ export function EvaluationSidebar({
                         type: 'practical'
                       }))
                     )
-                  ).length > 0 ? Object.entries(practicalSubStations).flatMap(([stId, subs]) => 
-                    subs.flatMap((sub, sIdx) => {
-                      const station = stations.find(s => s.id === stId);
-                      return sub.tasks.map((task: any) => (
-                        <TaskItem 
-                          key={`${stId}-${sIdx}-${task.id}`}
-                          task={{ ...task, isPractical: true }}
-                          type="main" // Reuse main styling
-                          hasReflection={reflections.some(r => r.taskId === task.id)}
-                          onRate={() => {
-                            setSelectedTask({ ...task, stationId: stId, subStationIndex: sIdx });
-                            setInitialReflectionVisible(true);
-                          }}
-                          stationName={station?.name}
-                          onClick={() => handleTaskClick({ ...task, stationId: stId, subStationIndex: sIdx }, 'practical')}
-                        />
-                      ));
-                    })
-                  ) : <EmptyState message="لا توجد مهام تطبيقية حالياً" />}
+                  ).length > 0 ? (
+                    <div className="space-y-3">
+                      {practicalTasks.length > 0 && (
+                        <h4 className="text-xs font-black text-blue-900 px-1 border-b border-blue-900/10 pb-2 mb-2">
+                          البرامج والأنشطة التطبيقية للمحطات
+                        </h4>
+                      )}
+                      {Object.entries(practicalSubStations).flatMap(([stId, subs]) => 
+                        subs.flatMap((sub, sIdx) => {
+                          const station = stations.find(s => s.id === stId);
+                          return sub.tasks.map((task: any) => (
+                            <TaskItem 
+                              key={`${stId}-${sIdx}-${task.id}`}
+                              task={{ ...task, isPractical: true }}
+                              type="main" 
+                              hasReflection={reflections.some(r => r.taskId === task.id)}
+                              onRate={() => {
+                                setSelectedTask({ ...task, stationId: stId, subStationIndex: sIdx });
+                                setInitialReflectionVisible(true);
+                              }}
+                              stationName={station?.name}
+                              onClick={() => handleTaskClick({ ...task, stationId: stId, subStationIndex: sIdx }, 'practical')}
+                            />
+                          ));
+                        })
+                      )}
+                    </div>
+                  ) : (practicalTasks.length === 0 ? <EmptyState message="لا توجد مهام تطبيقية حالياً" /> : null)}
                 </motion.div>
               </TabPanel>
             </TabView>

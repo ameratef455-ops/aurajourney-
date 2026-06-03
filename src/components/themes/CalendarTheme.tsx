@@ -159,7 +159,7 @@ export function CalendarTheme({
     const dbTasksInStation = (tasks || []).filter(t => t.stationId === selectedStationId);
     const mains = dbTasksInStation.filter(t => t.type === 'main');
     const subs = dbTasksInStation.filter(t => t.type === 'sub');
-    const sides = dbTasksInStation.filter(t => t.type === 'side');
+    const sides = dbTasksInStation.filter(t => t.type === 'side' || t.type === 'practical');
     
     return { mains, subs, sides };
   }, [tasks, selectedStationId]);
@@ -262,7 +262,7 @@ export function CalendarTheme({
   const stTasks = tasks?.filter(t => t.stationId === targetStationId) || [];
   const mainTasks = stTasks.filter(t => t.type === 'main');
   const completedMain = mainTasks.filter(t => t.isCompleted).length;
-  const sideTasks = stTasks.filter(t => t.type === 'side');
+  const sideTasks = stTasks.filter(t => t.type === 'side' || t.type === 'practical');
   const completedSide = sideTasks.filter(t => t.isCompleted).length;
 
   return (
