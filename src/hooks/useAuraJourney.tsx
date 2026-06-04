@@ -439,6 +439,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     type: string,
   ) => {
     if (user?.isFrozen) {
+      vibrate(HAPITCS.ERROR);
       toast.current?.show({
         severity: "warn",
         summary: "الرحلة مجمدة ❄️",
@@ -590,7 +591,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       const hasUncompleted = subTasks.some(t => !t.isCompleted);
 
       if (hasUncompleted) {
-        vibrate(HAPITCS.MAJOR_CLICK);
+        vibrate(HAPITCS.ERROR);
         toast.current?.show({
           severity: "warn",
           summary: "أنجز الفرعيات أولاً ⚠️",
@@ -615,13 +616,13 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       };
 
       if (!checkActivities(task.activities)) {
-          vibrate(HAPITCS.MAJOR_CLICK);
+          vibrate(HAPITCS.ERROR);
           // Return failure without showing a toast, because Maps.tsx will handle opening the modal
           return { success: false, reason: 'activities' };
       }
     }
 
-    vibrate(HAPITCS.COMPLETE);
+    vibrate(HAPITCS.SUCCESS);
     // Mark as completed in DB - Using any to avoid circularity type error in Dexie KeyPaths
     await (db.tasks as any).update(task.id, { isCompleted: true, xpAwarded: true });
 
@@ -652,6 +653,10 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
          xpToAdd = 25;
          keysToAdd = 1;
       }
+      else if (task.type === "project") {
+         xpToAdd = 25;
+         keysToAdd = 1;
+      }
       else if (task.type === "side") {
          xpToAdd = 20;
          keysToAdd = 1;
@@ -668,7 +673,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       
       const updatedGameData = processWorkdayAndStreak(baseGameData);
       
-      if (task.type === 'sub' || task.type === 'side' || task.type === 'practical') {
+      if (task.type === 'sub' || task.type === 'side' || task.type === 'practical' || task.type === 'project') {
          updatedGameData.tasksCompletedSinceReview = (updatedGameData.tasksCompletedSinceReview || 0) + 1;
          if (updatedGameData.tasksCompletedSinceReview === 2) {
             shouldShowReviewNotification = true;
@@ -681,8 +686,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     // Notify user to rewards
     toast.current?.show({
       severity: "success",
-      summary: task.type === 'main' ? "إنجاز رائع! ⚡" : task.type === 'practical' ? "تطبيق عملي ناجح! 🧪" : task.type === 'sub' ? "خطوة بخطوة! 🧩" : "مهارة استثنائية! ⭐",
-      detail: task.type === 'main' ? `أكملت مهمة أساسية بنجاح! +30 XP` : task.type === 'practical' ? `أكملت تطبيقًا عمليًا! +25 XP ومفتاح إضافي.` : task.type === 'sub' ? `أكملت مهمة فرعية! +15 XP` : `أنجزت مهارة بونص! +20 XP ومفتاح إضافي.`,
+      summary: task.type === 'main' ? "إنجاز رائع! ⚡" : task.type === 'practical' ? "تطبيق عملي ناجح! 🧪" : task.type === 'sub' ? "خطوة بخطوة! 🧩" : task.type === 'project' ? "مشروع الخطة ناجح! 📁" : "مهارة استثنائية! ⭐",
+      detail: task.type === 'main' ? `أكملت مهمة أساسية بنجاح! +30 XP` : task.type === 'practical' ? `أكملت تطبيقًا عمليًا! +25 XP ومفتاح إضافي.` : task.type === 'sub' ? `أكملت مهمة فرعية! +15 XP` : task.type === 'project' ? `أكملت مشروع الخطة بنجاح! +25 XP ومفتاح إضافي.` : `أنجزت مهارة بونص! +20 XP ومفتاح إضافي.`,
       life: 3000,
     });
 
@@ -700,24 +705,29 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     return { success: true };
   };
 
-  const rewardActivity = async (isCompleted: boolean) => {
+  const rewardActivity = async (isCompleted: boolean, activity?: any) => {
     if (!user) return;
     vibrate(isCompleted ? HAPITCS.COMPLETE : HAPITCS.MAJOR_CLICK);
     
-    // Each activity (practical task) gives 25 XP and 15% bonus
-    if (isCompleted && user) {
-      await db.userSettings.where('id').equals(user.id).modify(u => {
-         if (u.gameData) {
-            u.gameData.xp = (u.gameData.xp || 0) + 25;
-         }
-      });
+    // User requested: 10XP should only be calculated by main activities, not executive activities
+    // Executive activities (sub-bullets) should not give XP
+    if (isCompleted && user && activity && activity._isRoot) {
+      const xpToAdd = 10;
       
-      toast.current?.show({
-        severity: "success",
-        summary: "تطبيق ناجح! 🛠️",
-        detail: "أنجزت مهمة تطبيقية بنجاح! نلت +25 XP وزادت طاقة الخطة بـ 15%.",
-        life: 3000,
-      });
+      if (xpToAdd > 0) {
+        await db.userSettings.where('id').equals(user.id).modify(u => {
+           if (u.gameData) {
+              u.gameData.xp = (u.gameData.xp || 0) + xpToAdd;
+           }
+        });
+        
+        toast.current?.show({
+          severity: "success",
+          summary: "إنجاز نشاط! ⚡",
+          detail: `أنجزت نشاطاً بنجاح! نلت +${xpToAdd} XP وزادت طاقة الخطة بـ 15%.`,
+          life: 3000,
+        });
+      }
     }
   };
 

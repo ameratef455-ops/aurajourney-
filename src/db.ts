@@ -5,6 +5,7 @@ export interface Station {
   name: string;
   icon: string;
   description: string;
+  generalNotes?: string;
   targetDate: string;
   order: number;
 }
@@ -24,7 +25,7 @@ export interface Task {
   id: string;
   stationId: string;
   title: string;
-  type: 'main' | 'sub' | 'side' | 'practical';
+  type: 'main' | 'sub' | 'side' | 'practical' | 'project';
   parentId?: string; // If sub, points to main
   isCompleted: boolean;
   activities?: TaskActivity[];
@@ -33,6 +34,7 @@ export interface Task {
   learningResources?: string;
   youtubeUrl?: string;
   googleDriveUrl?: string;
+  youglishKeyword?: string;
   startMessage?: string;
   endMessage?: string;
 }

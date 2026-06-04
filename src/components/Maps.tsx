@@ -11,13 +11,15 @@ import { TabView, TabPanel } from "primereact/tabview";
 import { Toast } from "primereact/toast";
 import { Dialog } from "primereact/dialog";
 import { confirmPopup, ConfirmPopup } from "primereact/confirmpopup";
+import { confirmDialog, ConfirmDialog } from "primereact/confirmdialog";
 import { SpeedDial } from "primereact/speeddial";
 import { DataView } from "primereact/dataview";
 import { Tree } from "primereact/tree";
+import { Dropdown } from 'primereact/dropdown';
 import { toast as toastHot } from "react-hot-toast";
 import { 
   Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy, History, TrendingUp, Calendar, Info, FileText,
-  Sparkles, Volume2, MessageSquare, Mic, Plus, Clock, Target, Trees
+  Sparkles, Volume2, MessageSquare, Mic, Plus, Clock, Target, Trees, Play, ChevronRight
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import confetti from "canvas-confetti";
@@ -31,6 +33,7 @@ from "./FlashcardsModal";
 import { TaskReviewModal } from "./TaskReviewModal";
 import { TaskReflectionModal } from "./TaskReflectionModal";
 import { TaskDetailsModal } from "./TaskDetailsModal";
+import { VisSession } from "./VisSession";
 import { RevertConfirmModal } from "./RevertConfirmModal";
 import { LearningRepoModal } from "./LearningRepoModal";
 import { CalendarTheme } from "./themes/CalendarTheme";
@@ -260,6 +263,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [stationFormIcon, setStationFormIcon] = useState("pi pi-flag-fill");
   const [stationFormDate, setStationFormDate] = useState("");
   const [learningRepoVisible, setLearningRepoVisible] = useState(false);
+  const [tasksPendingReflection, setTasksPendingReflection] = useState<string[]>([]);
 
   const isLanguageJourney = useMemo(() => {
     const goal = user?.learningGoal?.toLowerCase() || '';
@@ -381,6 +385,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [hasInitializedIndex, setHasInitializedIndex] = useState(false);
   const [showUnfreezeConfirm, setShowUnfreezeConfirm] = useState(false);
   const [noteFilterPriority, setNoteFilterPriority] = useState('all');
+
+  const [visSessionVisible, setVisSessionVisible] = useState(false);
+  const [selectedTaskForVis, setSelectedTaskForVis] = useState<any | null>(null);
+  const [visPreStartTask, setVisPreStartTask] = useState<any | null>(null);
 
   const [activeTaskTab, setActiveTaskTab] = useState<'motd' | 'execution'>('motd');
   const [allMotds, setAllMotds] = useState<Record<string, string>>(() => {
@@ -541,6 +549,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [initialReflectionVisible, setInitialReflectionVisible] = useState(false);
   const [showStumbleForm, setShowStumbleForm] = useState(false);
   const [stumbleReason, setStumbleReason] = useState("");
+  const [showAddNoteForm, setShowAddNoteForm] = useState(false);
   const [reflectionForceStationId, setReflectionForceStationId] = useState<string | null>(null);
   const [newResourceName, setNewResourceName] = useState("");
   const [newResourceUrl, setNewResourceUrl] = useState("");
@@ -573,6 +582,25 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     } catch (err) {
       console.error(err);
       toastHot.error("فشل حفظ التعديلات");
+    }
+  };
+
+  const addJournalNote = async () => {
+    try {
+      if (editingNoteIndex !== null && editingStationId) {
+        await updateJournalNote(editingStationId);
+      } else {
+        await saveJournalNote();
+      }
+      setShowAddNoteForm(false);
+    } catch (err) {
+      console.error("Journal Error:", err);
+      toast.current?.show({
+        severity: "error",
+        summary: "خطأ في الحفظ",
+        detail: "حدث خطأ أثناء محاولة حفظ تدوينتك.",
+        life: 3000
+      });
     }
   };
 
@@ -680,13 +708,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     const result = await completeTask(task);
     if (!result || !result.success) {
       if (result && result.reason === 'activities') {
-        setSelectedTaskForDetails(task);
-        setTaskDetailsVisible(true);
+        setVisPreStartTask(task);
       }
       return;
     }
     setReviewingTask(task);
     setInitialReflectionVisible(true);
+    // Remove from pending if it was there
+    setTasksPendingReflection(prev => prev.filter(id => id !== task.id));
   };
 
   const reflections = useLiveQuery(() => db.reflections.toArray()) || [];
@@ -705,8 +734,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           onClick={(e) => {
               e.stopPropagation();
               vibrate(HAPITCS.MAJOR_CLICK);
-              setSelectedTaskForDetails(t);
-              setTaskDetailsVisible(true);
+              setVisPreStartTask(t);
           }}
       >
           <div
@@ -830,14 +858,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 onClick={(e) => {
                   e.stopPropagation();
                   vibrate(HAPITCS.MAJOR_CLICK);
-                  setSelectedTaskForDetails(t);
-                  setTaskDetailsVisible(true);
+                  setVisPreStartTask(t);
                   setActiveTaskActionId(null);
                 }}
                 className="p-1.5 bg-indigo-50/70 border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all duration-300 rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-110 active:scale-95"
-                title="التفاصيل"
+                title="VIS Session"
               >
-                <FileText className="w-3.5 h-3.5" />
+                <Play className="w-3.5 h-3.5 fill-current" />
               </button>
             </div>
           </div>
@@ -1013,6 +1040,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       transition={{ duration: 0.45, ease: "easeOut" }}
       className="w-full h-full bg-white relative overflow-hidden flex flex-col font-sans"
     >
+      <ConfirmPopup />
+      <ConfirmDialog />
 
       {/* Styles for dashed moving road path and floating map */}
       <style>{`
@@ -1213,189 +1242,175 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       </div>
                     )}
 
-                    {/* Station Node / Card Wrapper with FAB Menu */}
+                    {/* Station Node / Card Wrapper with direct Action Toolbar */}
                     <div className="relative w-full flex items-center justify-center">
                       <motion.div
                         initial={{ scale: 1 }}
-                        whileHover={isUnlocked ? { scale: 1.03, y: -8 } : {}}
-                        whileTap={isUnlocked ? { scale: 0.97 } : {}}
-                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        whileHover={isUnlocked ? { scale: 1.02 } : {}}
+                        transition={{ type: "spring", stiffness: 450, damping: 30 }}
                         onClick={() => handleStationClick(st.id, isUnlocked, i)}
-                        className={`relative z-10 w-full p-6 rounded-[32px] flex items-center gap-5 cursor-pointer transition-all duration-500 border-2
+                        className={`relative z-10 w-full p-5 pb-4 rounded-[28px] flex flex-col gap-4 cursor-pointer transition-all duration-300 border-2
                           ${isActive 
-                            ? "bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-900 border-blue-400 shadow-[0_20px_40px_rgba(30,58,138,0.3)]" 
+                            ? "bg-slate-900 border-blue-500 shadow-[0_15px_30px_rgba(23,37,84,0.4)]" 
                             : isCompleted 
-                              ? "bg-white border-blue-100 shadow-xl shadow-blue-500/5 hover:border-blue-300" 
+                              ? "bg-white border-blue-105 shadow-[0_10px_25px_rgba(37,99,235,0.04)] hover:border-blue-300" 
                               : isUnlocked 
-                                ? "bg-white border-blue-50 shadow-xl shadow-blue-500/5 hover:border-blue-200" 
+                                ? "bg-white border-slate-100 shadow-[0_10px_25px_rgba(37,99,235,0.03)] hover:border-slate-200" 
                                 : "bg-slate-50 border-slate-100 opacity-60 grayscale"}
                         `}
                       >
-                       {isUnlocked && (
-                         <div className="absolute bottom-2.5 left-3.5 z-40 flex items-center gap-2" dir="rtl">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                vibrate(HAPITCS.GUIDANCE);
-                                setActiveStationActionId(activeStationActionId === st.id ? null : st.id);
-                              }}
-                              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg cursor-pointer border-none
-                                ${activeStationActionId === st.id 
-                                  ? 'bg-rose-500 text-white rotate-45' 
-                                  : 'bg-indigo-600 text-white hover:scale-110 shadow-sm shadow-indigo-200'}`}
-                              title="خيارات المحطة"
-                            >
-                              <Plus className="w-5 h-5" />
-                            </button>
-
-                            <div className={`flex items-center gap-2 transition-all duration-300 ${activeStationActionId === st.id ? 'opacity-100 scale-100 translate-x-0' : 'opacity-0 scale-90 translate-x-4 pointer-events-none'}`}>
-                               <div className="flex gap-1.5 p-1.5 bg-white/95 backdrop-blur-md rounded-xl border border-indigo-50 shadow-xl">
-                                 {/* Learning Routine */}
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     setShowRoutinePopup(true);
-                                     setActiveStationActionId(null);
-                                   }}
-                                   className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-3xs hover:bg-indigo-600 hover:text-white transition-all cursor-pointer border-none"
-                                   title="روتين التعلم"
-                                 >
-                                   <i className="pi pi-calendar text-[12px] font-black" />
-                                 </button>
-                                 {/* Learning Resources */}
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     setSelectedStation(st.id);
-                                     setShowLinksPopup(true);
-                                     setActiveStationActionId(null);
-                                   }}
-                                   className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shadow-3xs hover:bg-blue-600 hover:text-white transition-all cursor-pointer border-none"
-                                   title="مصادر التعلم"
-                                 >
-                                   <i className="pi pi-book text-[12px] font-black" />
-                                 </button>
-                                 {/* Notes */}
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     setActiveNoteStationId(st.id);
-                                     setShowNotesPopup(true);
-                                     setActiveStationActionId(null);
-                                   }}
-                                   className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shadow-3xs hover:bg-amber-600 hover:text-white transition-all cursor-pointer border-none"
-                                   title="التدوين"
-                                 >
-                                   <i className="pi pi-pencil text-[12px] font-black" />
-                                 </button>
-                                 {/* Reflection */}
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     setReflectionForceStationId(st.id);
-                                     setReflectionActiveTab(0);
-                                     setReflectionSidebar(true);
-                                     setActiveStationActionId(null);
-                                   }}
-                                   className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-3xs hover:bg-emerald-600 hover:text-white transition-all cursor-pointer border-none"
-                                   title="التحليلات"
-                                 >
-                                   <i className="pi pi-chart-bar text-[12px] font-black" />
-                                 </button>
-                                 {/* Obstacles */}
-                                 <button
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     setSelectedStation(st.id);
-                                     setStumbleReason("");
-                                     setShowStumbleForm(true);
-                                     setActiveStationActionId(null);
-                                   }}
-                                   className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shadow-3xs hover:bg-rose-600 hover:text-white transition-all cursor-pointer border-none"
-                                   title="عقبات"
-                                 >
-                                   <i className="pi pi-exclamation-triangle text-[12px] font-black" />
-                                 </button>
-                               </div>
-                            </div>
-                         </div>
-                       )}
-                         <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border-2 transition-transform duration-700 ${isActive ? 'rotate-[5deg]' : ''}
+                       {/* Card Header Content */}
+                       <div className="flex items-center gap-4 w-full">
+                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-transform duration-500 ${isActive ? 'rotate-[5deg]' : ''}
                            ${isActive 
-                             ? 'bg-blue-500/20 border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.3)]' 
+                             ? 'bg-blue-500/10 border-blue-400 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.15)]' 
                              : isCompleted 
-                               ? 'bg-blue-50 border-blue-100' 
+                               ? 'bg-blue-50/50 border-blue-100' 
                                : 'bg-slate-50 border-slate-100'}
                          `}>
                            {isLocked ? (
                              <i className={`pi pi-lock ${isNextLocked ? 'text-amber-500 animate-pulse' : 'text-slate-300'}`} />
                            ) : (
-                             <i className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-2xl 
+                             <i className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-xl 
                                ${isActive ? 'text-blue-300' : isCompleted ? 'text-blue-600' : 'text-blue-500'}`} 
                              />
                            )}
                          </div>
 
-                        <div className="flex-1 text-right overflow-hidden font-sans">
-                          <div className="flex items-center justify-between mb-1">
-                             <div className="flex items-center gap-2">
-                               <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-blue-400' : 'text-slate-400'}`}>
-                                 الخطة {i + 1}
-                               </span>
-                             </div>
-                             {isCompleted && <i className="pi pi-check-circle text-blue-600 text-xs text-sans font-black" />}
-                          </div>
-                          <h3 className={`text-sm font-black truncate mb-1.5 ${isActive ? 'text-white' : 'text-slate-900'}`}>{st.name}</h3>
-                          
-                          {/* Completed tasks list instead of progress percentages */}
-                          {isUnlocked && (
-                            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                              {(() => {
-                                const stationTasks = tasks.filter(t => t.stationId === st.id);
-                                const completedTasks = stationTasks.filter(t => t.isCompleted);
-                                if (completedTasks.length > 0) {
-                                  return (
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className={`text-[10px] font-bold ${isActive ? 'text-blue-200' : 'text-slate-500'}`}>المهام المنجزة:</span>
-                                      <div className="flex items-center flex-wrap gap-1">
-                                        {completedTasks.map((task) => (
-                                          <motion.div
-                                            key={task.id}
-                                            initial={{ scale: 0, rotate: -30 }}
-                                            animate={{ scale: 1, rotate: 0 }}
-                                            transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                                            className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 border border-blue-400 flex items-center justify-center shadow-[0_1px_3px_rgba(37,99,235,0.3)] animate-[bounce_0.5s_ease-out]"
-                                            title={task.title || "مهمة مكتملة"}
-                                          >
-                                            <i className="pi pi-check text-[10px] text-white font-black" />
-                                          </motion.div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <span className={`text-[10px] font-medium ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>لا توجد مهام مكتملة بعد 🎯</span>
-                                );
-                              })()}
-                            </div>
-                          )}
-                        </div>
+                         <div className="flex-1 text-right overflow-hidden font-sans">
+                           <div className="flex items-center justify-between mb-0.5">
+                             <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-blue-400' : 'text-slate-400'}`}>
+                               الخطة ${i + 1}
+                             </span>
+                             {isCompleted && <i className="pi pi-check-circle text-blue-600 text-xs font-black" />}
+                           </div>
+                           <h3 className={`text-sm font-black truncate ${isActive ? 'text-white' : 'text-slate-900'}`}>${st.name}</h3>
+                         </div>
+                       </div>
 
-                        {isActive && (
-                          <div className="absolute -left-2 -top-2">
-                            <span className="relative flex h-3 w-3">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-                            </span>
-                          </div>
-                        )}
-                      </motion.div>
+                       {/* Integrated direct Action Grid, only for unlocked plans */}
+                       {isUnlocked && (
+                         <div className="pt-3 border-t border-slate-100/10 grid grid-cols-3 gap-1.5 w-full" dir="rtl">
+                           {/* 1. الخطة */}
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               vibrate(HAPITCS.MAJOR_CLICK);
+                               setSelectedStation(st.id);
+                               setShowJourneyIntroPopup(true);
+                             }}
+                             className={`py-2 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border text-[10px] font-black
+                               ${isActive 
+                                 ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/25" 
+                                 : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-110"}`}
+                             title="الخطة والتقويم"
+                           >
+                             <i className="pi pi-map text-[11px]" />
+                             <span className="leading-none mt-0.5 font-bold">الخطة</span>
+                           </button>
+
+                           {/* 2. الروتين */}
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               vibrate(HAPITCS.MAJOR_CLICK);
+                               setShowRoutinePopup(true);
+                             }}
+                             className={`py-2 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border text-[10px] font-black
+                               ${isActive 
+                                 ? "bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border-indigo-500/25" 
+                                 : "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-110"}`}
+                             title="روتين التعلم"
+                           >
+                             <i className="pi pi-calendar text-[11px]" />
+                             <span className="leading-none mt-0.5 font-bold">الروتين</span>
+                           </button>
+
+                           {/* 3. المصادر */}
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               vibrate(HAPITCS.MAJOR_CLICK);
+                               setSelectedStation(st.id);
+                               setShowLinksPopup(true);
+                             }}
+                             className={`py-2 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border text-[10px] font-black
+                               ${isActive 
+                                 ? "bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border-blue-500/25" 
+                                 : "bg-blue-50 hover:bg-blue-105 text-blue-600 border-blue-100"}`}
+                             title="مصادر التعلم"
+                           >
+                             <i className="pi pi-book text-[11px]" />
+                             <span className="leading-none mt-0.5 font-bold">المصادر</span>
+                           </button>
+
+                           {/* 4. الملاحظات */}
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               vibrate(HAPITCS.MAJOR_CLICK);
+                               setActiveNoteStationId(st.id);
+                               setShowNotesPopup(true);
+                             }}
+                             className={`py-2 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border text-[10px] font-black
+                               ${isActive 
+                                 ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/25" 
+                                 : "bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-110"}`}
+                             title="التدوين والملاحظات"
+                           >
+                             <i className="pi pi-pencil text-[11px]" />
+                             <span className="leading-none mt-0.5 font-bold">التدوين</span>
+                           </button>
+
+                           {/* 5. التحليلات */}
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               vibrate(HAPITCS.MAJOR_CLICK);
+                               setReflectionForceStationId(st.id);
+                               setReflectionActiveTab(0);
+                               setReflectionSidebar(true);
+                             }}
+                             className={`py-2 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border text-[10px] font-black
+                               ${isActive 
+                                 ? "bg-sky-500/10 hover:bg-sky-500/20 text-sky-305 border-sky-500/25" 
+                                 : "bg-sky-50 hover:bg-sky-100 text-sky-700 border-sky-110"}`}
+                             title="التحليلات والمتابعة"
+                           >
+                             <i className="pi pi-chart-bar text-[11px]" />
+                             <span className="leading-none mt-0.5 font-bold">التحليلات</span>
+                           </button>
+
+                           {/* 6. العقبات */}
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               vibrate(HAPITCS.MAJOR_CLICK);
+                               setSelectedStation(st.id);
+                               setStumbleReason("");
+                               setShowStumbleForm(true);
+                             }}
+                             className={`py-2 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border text-[10px] font-black
+                               ${isActive 
+                                 ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/25" 
+                                 : "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-110"}`}
+                             title="رصد عقبة أو تعثر"
+                           >
+                             <i className="pi pi-exclamation-triangle text-[11px]" />
+                             <span className="leading-none mt-0.5 font-bold">العقبات</span>
+                           </button>
+                         </div>
+                       )}
+
+                       {isActive && (
+                         <div className="absolute -left-2 -top-2">
+                           <span className="relative flex h-3 w-3">
+                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                             <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                           </span>
+                         </div>
+                       )}
+                     </motion.div>
                     </div>
                   </motion.div>
                 );
@@ -1424,6 +1439,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         onCompleteTask={handleCompleteTask}
         onCompletePracticalTask={completePracticalTask}
         completeTaskAction={completeTask}
+        onOpenVisSession={(task) => {
+          vibrate(HAPITCS.MAJOR_CLICK);
+          setVisPreStartTask(task);
+        }}
       />
 
       {/* FAB 1 - Gamification Engine Details */}
@@ -1505,6 +1524,107 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         }}
       />
 
+      <VisSession 
+        visible={visSessionVisible}
+        onHide={() => {
+          setVisSessionVisible(false);
+          setSelectedTaskForVis(null);
+        }}
+        task={selectedTaskForVis}
+        onCompleteTask={async (taskId) => {
+          const t = tasks.find(x => x.id === taskId);
+          if (t) {
+            await completeTask(t);
+          }
+        }}
+        onOpenReflection={(t) => {
+          setReviewingTask(t);
+          setInitialReflectionVisible(true);
+        }}
+      />
+
+      {/* VIS Pre-start Overlay */}
+      <AnimatePresence>
+        {visPreStartTask && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[2000] flex items-center justify-center p-6 bg-[#0c183e]/95 backdrop-blur-xl"
+            onClick={() => setVisPreStartTask(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-md w-full bg-[#162555] border border-white/10 rounded-[40px] p-10 text-center shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
+              
+              <div className="w-20 h-20 rounded-[30px] bg-indigo-600/20 flex items-center justify-center text-indigo-400 mx-auto mb-8 border border-indigo-500/30">
+                <Play className="w-10 h-10 fill-indigo-400" />
+              </div>
+
+              <h2 className="text-2xl font-black text-white mb-3">هل أنت مستعد للبدء؟ 🚀</h2>
+              <p className="text-gray-400 font-medium mb-10 leading-relaxed">
+                سيتم فتح جلسة <span className="text-indigo-400 font-black">VIS SESSION</span> المخصصة لهذه المهمة لضمان أعلى مستويات التركيز والإنجاز.
+              </p>
+
+              <div className="space-y-3">
+                <button 
+                  onClick={() => {
+                    vibrate(HAPITCS.MAJOR_CLICK);
+                    setSelectedTaskForVis(visPreStartTask);
+                    setVisSessionVisible(true);
+                    setVisPreStartTask(null);
+                  }}
+                  className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[24px] font-black text-lg transition-all shadow-xl shadow-indigo-600/30 active:scale-95"
+                >
+                  بدأ VIS SESSION
+                </button>
+                <button 
+                  onClick={() => setVisPreStartTask(null)}
+                  className="w-full py-4 text-gray-500 hover:text-white font-bold text-sm transition-all"
+                >
+                  إلغاء والعودة للخريطة
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Pending Evaluations */}
+      <AnimatePresence>
+        {tasksPendingReflection.length > 0 && (
+          <div className="fixed bottom-24 right-6 z-[1000] flex flex-col gap-3 items-end">
+            {tasksPendingReflection.map(taskId => {
+              const t = tasks.find(x => x.id === taskId);
+              if (!t) return null;
+              return (
+                <motion.button
+                  key={taskId}
+                  initial={{ opacity: 0, x: 20, scale: 0.8 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
+                  onClick={() => {
+                    vibrate(HAPITCS.MAJOR_CLICK);
+                    setReviewingTask(t);
+                    setInitialReflectionVisible(true);
+                  }}
+                  className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-full font-black text-xs shadow-xl shadow-amber-500/20 flex items-center gap-2 border-2 border-white/20 transition-all active:scale-95 group overflow-hidden relative"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                  <Sparkles className="w-4 h-4 animate-pulse" />
+                  <span>قيم المهمة: {t.title}</span>
+                  <ChevronRight className="w-4 h-4 rotate-180 group-hover:-translate-x-1 transition-transform" />
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
+      </AnimatePresence>
+
       <RevertConfirmModal
         visible={revertingTask !== null}
         onHide={() => setRevertingTask(null)}
@@ -1523,6 +1643,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         visible={initialReflectionVisible}
         onHide={() => {
            setInitialReflectionVisible(false);
+           // If we are hiding without submission, add to pending if not already there
+           if (reviewingTask && !reflections.some(r => r.taskId === reviewingTask.id)) {
+              setTasksPendingReflection(prev => {
+                if (prev.includes(reviewingTask.id)) return prev;
+                return [...prev, reviewingTask.id];
+              });
+           }
            setReviewingTask(null);
         }}
         taskTitle={reviewingTask?.title || ""}
@@ -1554,6 +1681,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 type: 'initial',
                 createdAt: new Date().toISOString()
               });
+              
+              setTasksPendingReflection(prev => prev.filter(id => id !== currentTask.id));
               
               // Only mark as completed if not already completed
               if (!currentTask.isCompleted) {
@@ -1607,6 +1736,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 createdAt: new Date().toISOString()
               });
 
+              setTasksPendingReflection(prev => prev.filter(id => id !== currentTask.id));
+              
               if (user && user.gameData) {
                  await db.userSettings.where('id').equals(user.id).modify(u => {
                     if (u.gameData) {
@@ -2378,7 +2509,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             <span>دفتر اليوميات ✍️</span>
           </div>
         }
-        className="w-[98vw] max-w-4xl font-sans text-xl"
+        className="w-screen h-screen font-sans m-0 p-0 rounded-none border-none"
+        style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0 }}
+        maximized
         closable
         dismissableMask
       >
@@ -2392,64 +2525,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               className="space-y-6 pt-4 text-right font-sans" 
               dir="rtl"
             >
-              <div className="space-y-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                    اختر الخطة لكتابة يومياتك:
-                  </label>
-                  <select
-                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm text-blue-950 focus:ring-2 ring-blue-900/10"
-                    value={activeNoteStationId}
-                    onChange={(e) => setActiveNoteStationId(e.target.value)}
-                  >
-                    <option value="" disabled>اختر خطة...</option>
-                    {stations
-                      .filter((s) => unlockedStations.includes(s.id))
-                      .map((st) => (
-                        <option key={st.id} value={st.id}>
-                           {st.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                    افكارك، تأملاتك، وصعوباتك اليوم:
-                  </label>
-                  <textarea
-                    id="notes-textarea-popup"
-                    className="w-full h-44 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-4 ring-blue-900/5 font-medium text-blue-980 font-sans text-sm resize-y min-h-[160px] transition-all placeholder:text-gray-300"
-                    placeholder="اكتب أفكارك اليومية هنا لتذكر العقبات وتوثيق تطور عقليتك..."
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                  />
-                </div>
-
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1 flex flex-col gap-2">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">الأهمية:</label>
-                    <select 
-                      className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm text-blue-950 focus:ring-2 ring-blue-900/10"
-                      value={notePriority}
-                      onChange={(e) => setNotePriority(e.target.value as any)}
-                    >
-                      <option value="low">منخفضة ⚪</option>
-                      <option value="medium">متوسطة 🟡</option>
-                      <option value="high">عالية 🔥</option>
-                    </select>
-                  </div>
-                </div>
-
-                  <Button
-                    label={editingNoteIndex !== null ? "تحديث التغييرات ✨" : "تثبيت الملاحظات فى السجل ✍️"}
-                    icon={editingNoteIndex !== null ? "pi pi-sync" : "pi pi-save"}
-                    className={`w-full ${editingNoteIndex !== null ? "bg-emerald-600 shadow-emerald-900/20" : "bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-900 shadow-blue-900/20"} text-white rounded-2xl py-4 font-black shadow-xl border-none hover:scale-[1.01] active:scale-[0.98] transition-all cursor-pointer text-sm`}
-                    onClick={saveJournalNote}
-                  />
-              </div>
-
-              <div className="mt-8 border-t border-slate-100 pt-6">
+              <div className="h-full flex flex-col px-4 md:px-8 py-6 pb-20 relative font-sans text-right" dir="rtl">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
                   <h3 className="text-base font-black text-blue-950 flex items-center gap-2">
                     <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span>
@@ -2471,7 +2547,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   </div>
                 </div>
                 
-                <div className="max-h-[350px] overflow-y-auto pr-1 no-scrollbar overflow-x-hidden">
+                <div className="flex-1 overflow-y-auto px-4 md:px-8 pb-24 no-scrollbar">
                   <DataView 
                     value={Object.entries(user?.notes || {}).flatMap(([stId, notesArray]: [string, any]) => {
                       const arr = Array.isArray(notesArray) ? notesArray : [notesArray];
@@ -2492,73 +2568,192 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       return matchesPriority && matchesStation;
                     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())}
                     layout="grid"
+                    emptyMessage="دفتر يومياتك فارغ الآن. قم بإضافة ملاحظات وتأملات لتوثيق مسيرتك!"
                     itemTemplate={(item) => {
                       const stationIndex = stations.findIndex(s => s.id === item.stationId) + 1;
                       const dateObj = new Date(item.date);
                       const day = dateObj.getDate();
                       const month = dateObj.toLocaleDateString('ar-EG', { month: 'short' });
                       const year = dateObj.getFullYear();
+                      
+                      const priorityColor = item.priority === 'high' ? 'text-rose-400' : item.priority === 'low' ? 'text-slate-400' : 'text-amber-400';
+                      const priorityLabel = item.priority === 'high' ? 'عالية 🔥' : item.priority === 'low' ? 'منخفضة ⚪' : 'متوسطة 🟡';
 
                       return (
-                        <div className="p-3 w-full sm:w-1/2">
-                          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden h-full flex flex-col group hover:border-blue-300 transition-all shadow-sm">
-                            <div className="bg-rose-500 text-white px-4 py-2 flex items-center justify-between border-b-4 border-rose-700">
-                              <span className="font-extrabold text-[10px] uppercase tracking-tighter">سجل اليوميات</span>
+                        <div className="p-3 w-full sm:w-1/2 lg:w-1/3">
+                          <div className="bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 border border-blue-900/50 rounded-3xl overflow-hidden h-full flex flex-col group hover:border-blue-700 transition-all shadow-[0_10px_20px_rgba(30,58,138,0.2)]">
+                            <div className="px-5 py-4 flex items-center justify-between border-b mx-4 border-white/10">
+                              <div className="flex flex-col text-right">
+                                 <span className="text-[14px] font-black text-rose-300 leading-none">{day} {month}</span>
+                                 <span className="text-[9px] font-bold text-blue-300/60 uppercase">{year}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                 <span className={`text-[10px] font-bold px-2 py-1 rounded-lg bg-white/5 ${priorityColor}`}>{priorityLabel}</span>
+                              </div>
                             </div>
                             
-                            <div className="bg-slate-50 px-4 py-2 flex items-center justify-between border-b border-slate-100">
-                              <div className="flex flex-col">
-                                 <span className="text-[14px] font-black text-rose-600 leading-none">{day}</span>
-                                 <span className="text-[8px] font-bold text-slate-400 uppercase">{month} {year}</span>
+                            <div className="p-5 flex-1 flex flex-col pt-4">
+                              <p className="text-xs text-white/90 leading-relaxed font-medium whitespace-pre-wrap flex-1 min-h-[60px]">{item.text}</p>
+                              
+                              <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/5">
+                                <span className="text-[10px] text-blue-300/70 font-bold max-w-[120px] truncate"><i className="pi pi-bookmark text-[8px] ml-1"></i> {item.stationName} <span className="opacity-50">({stationIndex})</span></span>
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={() => { 
+                                      setEditingNoteIndex(item.index);
+                                      setEditingStationId(item.stationId);
+                                      setActiveNoteStationId(item.stationId); 
+                                      setNoteText(item.text); 
+                                      setNotePriority(item.priority || 'medium');
+                                      setShowAddNoteForm(true);
+                                    }}
+                                    className="w-8 h-8 flex items-center justify-center rounded-xl transition-all bg-white/5 text-blue-300 hover:bg-emerald-500/20 hover:text-emerald-300 border-none cursor-pointer"
+                                  >
+                                    <i className="pi pi-pencil text-[12px]"></i>
+                                  </button>
+                                  <button 
+                                    onClick={(e) => {
+                                      vibrate(HAPITCS.MAJOR_CLICK);
+                                      confirmPopup({
+                                        target: e.currentTarget as HTMLElement,
+                                        message: 'هل أنت متأكد من حذف هذه الملاحظة؟ لا يمكن التراجع',
+                                        icon: 'pi pi-exclamation-triangle',
+                                        acceptLabel: 'حذف',
+                                        rejectLabel: 'إلغاء',
+                                        className: 'font-sans text-xs',
+                                        acceptClassName: 'bg-rose-500 border-none',
+                                        accept: () => deleteJournalNote(item.stationId, item.index)
+                                      });
+                                    }}
+                                    className="w-8 h-8 flex items-center justify-center rounded-xl transition-all bg-white/5 text-rose-300 hover:bg-rose-500/20 hover:text-rose-400 border-none cursor-pointer"
+                                  >
+                                    <i className="pi pi-trash text-[12px]"></i>
+                                  </button>
+                                </div>
                               </div>
-                              <div className="flex gap-1.5">
-                                <button 
-                                  onClick={() => { 
-                                    setEditingNoteIndex(item.index);
-                                    setEditingStationId(item.stationId);
-                                    setActiveNoteStationId(item.stationId); 
-                                    setNoteText(item.text); 
-                                    document.getElementById('notes-textarea-popup')?.focus();
-                                  }}
-                                  className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all shadow-xs ${
-                                    editingNoteIndex === item.index && editingStationId === item.stationId 
-                                      ? 'bg-emerald-500 text-white border-emerald-500' 
-                                      : 'bg-white border border-slate-200 text-blue-600 hover:bg-blue-50'
-                                  }`}
-                                >
-                                  <i className="pi pi-pencil text-[12px]"></i>
-                                </button>
-                                <button 
-                                  onClick={(e) => {
-                                    vibrate(HAPITCS.MAJOR_CLICK);
-                                    confirmPopup({
-                                      target: e.currentTarget as HTMLElement,
-                                      message: 'هل أنت متأكد من حذف هذه الملاحظة؟ لا يمكن التراجع عن هذا الإجراء.',
-                                      icon: 'pi pi-exclamation-triangle',
-                                      acceptLabel: 'حذف',
-                                      rejectLabel: 'إلغاء',
-                                      className: 'font-sans text-xs',
-                                      acceptClassName: 'bg-rose-500 border-none',
-                                      accept: () => deleteJournalNote(item.stationId, item.index)
-                                    });
-                                  }}
-                                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-rose-600 hover:bg-rose-50 transition-colors shadow-xs"
-                                >
-                                  <i className="pi pi-trash text-[12px]"></i>
-                                </button>
-                              </div>
-                            </div>
-                            <div className="p-5 flex-1 bg-gradient-to-b from-white to-slate-50/30">
-                              <p className="text-xs text-slate-600 leading-relaxed italic bg-white/50 p-2 rounded-xl border border-slate-100/50">
-                                "{item.text}"
-                              </p>
                             </div>
                           </div>
                         </div>
                       );
                     }}
-                    emptyMessage="لا يوجد أية تدوينات مسجلة بعد."
                   />
+                </div>
+
+                {/* Add Note Button at the bottom center */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
+                  <button
+                    onClick={() => {
+                      vibrate(HAPITCS.MAJOR_CLICK);
+                      setEditingNoteIndex(null);
+                      setEditingStationId(null);
+                      setNoteText("");
+                      setNotePriority('medium');
+                      setShowAddNoteForm(true);
+                    }}
+                    className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-800 shadow-[0_10px_30px_rgba(37,99,235,0.4)] text-white hover:scale-105 active:scale-95 transition-all outline-none border border-blue-400/30 cursor-pointer"
+                  >
+                     <i className="pi pi-plus text-lg font-black"></i>
+                     <span className="font-black text-sm">إضافة تدوينة جديدة</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Dialog>
+
+      {/* Add/Edit Note Dialog */}
+      <Dialog
+        visible={showAddNoteForm}
+        onHide={() => setShowAddNoteForm(false)}
+        header={
+          <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
+            <div className="p-2 bg-blue-50 rounded-xl border border-blue-100 shadow-inner">
+              <i className={`pi ${editingNoteIndex !== null ? 'pi-pencil' : 'pi-plus'} text-blue-600`}></i>
+            </div>
+            <span className="font-black tracking-tight">
+              {editingNoteIndex !== null ? 'تعديل التدوينة' : 'إضافة تدوينة جديدة للرحلة'}
+            </span>
+          </div>
+        }
+        className="w-[95vw] max-w-lg font-sans"
+        style={{ borderRadius: '24px' }}
+        maskClassName="backdrop-blur-xl bg-blue-950/20"
+        closable
+        dismissableMask
+      >
+        <AnimatePresence>
+          {showAddNoteForm && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
+              transition={{ type: "spring", damping: 20, stiffness: 350 }}
+              className="space-y-6 pt-2 text-right font-sans" 
+              dir="rtl"
+            >
+              <div className="flex flex-col gap-5">
+                {/* Station Selection if not active station */}
+                {!activeNoteStationId && !editingStationId && (
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-1">الخطة التابعة لها:</label>
+                    <select
+                      className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-[20px] font-bold outline-none focus:bg-white focus:border-blue-100 transition-all text-blue-950 text-sm cursor-pointer appearance-none"
+                      onChange={(e) => setEditingStationId(e.target.value)}
+                      value={editingStationId || ""}
+                    >
+                      <option value="">-- اختر المسار أو الخطة --</option>
+                      {stations.map(st => (
+                        <option key={st.id} value={st.id}>{st.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Priority Selection (Improved Droplist) */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-1">مستوى الأولوية:</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'high', label: 'عالية 🔥', color: 'rose' },
+                      { id: 'medium', label: 'متوسطة 🟡', color: 'amber' },
+                      { id: 'low', label: 'منخفضة ⚪', color: 'slate' }
+                    ].map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          setNotePriority(p.id as any);
+                        }}
+                        className={`p-3 rounded-2xl border-2 font-black text-[10px] transition-all flex flex-col items-center gap-1.5 cursor-pointer
+                          ${notePriority === p.id 
+                            ? `bg-${p.color}-50 border-${p.color}-500 text-${p.color}-700 shadow-md scale-105` 
+                            : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                      >
+                         <span>{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-1">محتوى التدوينة:</label>
+                  <textarea
+                    className="w-full p-5 bg-slate-50 border-2 border-transparent rounded-[24px] font-bold outline-none focus:bg-white focus:border-blue-100 transition-all text-blue-950 text-sm resize-none min-h-[160px] shadow-inner"
+                    placeholder="ماذا يجول في خاطرك الآن بخصوص رحلة التعلم؟"
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={addJournalNote}
+                    disabled={!noteText.trim() || (!editingStationId && !activeNoteStationId)}
+                    className="w-full p-5 rounded-[24px] bg-gradient-to-br from-blue-600 via-indigo-700 to-indigo-900 text-white font-black text-base shadow-xl shadow-blue-500/20 hover:brightness-110 active:scale-95 transition-all outline-none border-none cursor-pointer disabled:grayscale disabled:opacity-50"
+                  >
+                    🚀 {editingNoteIndex !== null ? 'حفظ التغييرات الآن' : 'إضافة الخاطرة للسجل'}
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -3578,29 +3773,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   </div>
                 </div>
 
-                {/* Practical Tasks Input & List */}
+                {/* Practical Tasks List */}
                 <div className="flex flex-col gap-2.5 pt-3 border-t border-slate-250/20">
                   <label className="text-[10px] font-black text-indigo-950/60 uppercase tracking-widest pr-1">
-                    📝 إضافة مهمة تطبيقية (المهام الحالية: {subStationTasks.length}):
+                    📝 المهام التطبيقية المحددة للمحطة (المهام الحالية: {subStationTasks.length}):
                   </label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      placeholder="اكتب مهمة تطبيقية جديدة هنا..."
-                      className="flex-1 p-3 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold text-blue-950 focus:border-indigo-400 transition-all font-sans placeholder:text-slate-300"
-                      value={newSubTaskTitle}
-                      onChange={(e) => setNewSubTaskTitle(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSubStationTask())}
-                    />
-                    <button 
-                      type="button"
-                      onClick={addSubStationTask}
-                      disabled={!newSubTaskTitle.trim()}
-                      className="px-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 active:scale-95 transition-all text-xs border-none cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      إضافة
-                    </button>
-                  </div>
                 </div>
 
                 {subStationTasks.length > 0 ? (
@@ -3712,50 +3889,43 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       <AnimatePresence>
         {!selectedStation && (
           <motion.div 
-            initial={{ y: 50, opacity: 0 }}
+            initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 50, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 pointer-events-auto flex items-center gap-3.5 bg-slate-900/85 backdrop-blur-xl px-6 py-2.5 rounded-[24px] border border-white/10 shadow-[0_15px_50px_rgba(0,0,0,0.6)] justify-center"
+            exit={{ y: 20, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 450, damping: 30 }}
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 pointer-events-auto flex items-center gap-3.5 bg-gradient-to-r from-blue-950 to-indigo-900 border border-indigo-800 shadow-[0_20px_50px_rgba(30,58,138,0.5)] px-6 py-2.5 rounded-[28px] justify-center"
           >
+            <div className="w-[1px] h-6 bg-white/20 self-center" />
+
             {/* Plan & Path (الخطة والتقويم) */}
             {user && (
               <button
-                className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-850 text-white shadow-md flex items-center justify-center hover:scale-110 active:scale-95 transition-all border border-white/35 ring-2 ring-emerald-500/10 cursor-pointer"
+                className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer"
                 onClick={() => {
                   vibrate(HAPITCS.MAJOR_CLICK);
                   setShowJourneyIntroPopup(true);
                 }}
                 title="الخطة والتقويم"
               >
-                <i className="pi pi-map text-emerald-250 text-base"></i>
+                <i className="pi pi-map text-lg font-bold"></i>
               </button>
             )}
 
             {/* Knowledge Forest (غابة المعرفة) */}
             {(() => {
-              const treeKeys = user?.gameData?.keys || 0;
-              let bgClass = "bg-gradient-to-br from-blue-600 to-indigo-850 hover:from-blue-500 hover:to-indigo-750";
-              let glowClass = treeKeys > 0 
-                ? "shadow-[0_0_20px_rgba(59,130,246,0.5)] animate-pulse border-2 border-blue-400" 
-                : "shadow-md border border-white/35 ring-2 ring-blue-500/10";
-
               return (
                 <button
-                  className={`w-12 h-12 rounded-2xl ${bgClass} ${glowClass} text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer`}
+                  className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer"
                   onClick={() => {
                     vibrate(HAPITCS.MAJOR_CLICK);
                     setLearningRepoVisible(true);
                   }}
                   title="غابة المعرفة"
                 >
-                  <Trees className="w-5 h-5 text-blue-200" />
+                  <Trees className="w-5 h-5 text-white" />
                 </button>
               );
             })()}
-
-            {/* Separator line */}
-            <div className="w-[1px] h-6 bg-white/15 self-center" />
 
             {/* Compass (بوصلة الوضوح) */}
             <button
@@ -3764,7 +3934,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 setShowCompassPopup(true);
               }}
               title="بوصلة الوضوح"
-              className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-700 text-white shadow-md flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-sm border border-white/35 ring-2 ring-purple-500/10 cursor-pointer"
+              className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-sm cursor-pointer"
             >
               <i className="pi pi-compass text-lg"></i>
             </button>
@@ -3776,7 +3946,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 setGamificationSidebar(true);
               }}
               title="المحرك والجوائز"
-              className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-sm border border-white/35 ring-2 ring-orange-500/10 cursor-pointer"
+              className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-sm cursor-pointer"
             >
               <i className="pi pi-trophy text-lg"></i>
             </button>
@@ -3793,13 +3963,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         }}
         header={
           <div className="flex items-center justify-between w-full pr-4 pb-2" dir="rtl">
-            <div className="flex items-center gap-3 text-white">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-400/20 shadow-inner">
-                 <Rocket className="w-5 h-5 text-blue-300" />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shadow-inner">
+                 <Rocket className="w-5 h-5 text-blue-600" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-black tracking-tight">{stations.find(s => s.id === selectedStation)?.name}</span>
-                <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">غرفة التحكم في العمليات والمهام التنفيذية</span>
+                <span className="text-xl font-black tracking-tight text-slate-800">{stations.find(s => s.id === selectedStation)?.name}</span>
+                <span className="text-[10px] text-blue-600 font-bold uppercase tracking-widest">غرفة التحكم في العمليات والمهام التنفيذية</span>
               </div>
             </div>
             
@@ -3809,103 +3979,16 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               if (!activeSt) return null;
               return (
                 <div className="relative z-50 ml-6" dir="rtl">
-                  <button
-                    onClick={() => {
-                      vibrate(HAPITCS.MAJOR_CLICK);
-                      setIsTopStationFabOpen(!isTopStationFabOpen);
-                    }}
-                    className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-md flex items-center gap-2 border-none transition-all cursor-pointer active:scale-95"
-                    title={`خيارات ${activeSt.name}`}
-                  >
-                    <Plus className={`w-4 h-4 transition-transform duration-300 ${isTopStationFabOpen ? 'rotate-45' : ''}`} />
-                    <span>خيارات المحطة ⚡</span>
-                  </button>
-
-                  <AnimatePresence>
-                    {isTopStationFabOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute top-full mt-2 left-0 w-52 bg-slate-900 border border-indigo-500/30 rounded-2xl shadow-xl p-2 z-[9999] flex flex-col gap-1 text-right text-white shadow-[0_10px_40px_rgba(30,58,138,0.4)]"
-                      >
-                        <button
-                          onClick={() => {
-                            vibrate(HAPITCS.MAJOR_CLICK);
-                            setShowRoutinePopup(true);
-                            setIsTopStationFabOpen(false);
-                          }}
-                          className="w-full px-3 py-2 rounded-xl hover:bg-white/10 text-right font-black text-[11px] flex items-center gap-2.5 bg-transparent border-none text-white cursor-pointer"
-                        >
-                          <span className="text-xs">🕒</span>
-                          <span>روتين التعلم والخطة</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            vibrate(HAPITCS.MAJOR_CLICK);
-                            setShowLinksPopup(true);
-                            setIsTopStationFabOpen(false);
-                          }}
-                          className="w-full px-3 py-2 rounded-xl hover:bg-white/10 text-right font-black text-[11px] flex items-center gap-2.5 bg-transparent border-none text-white cursor-pointer"
-                        >
-                          <span className="text-xs">📚</span>
-                          <span>مصادر التعلم</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            vibrate(HAPITCS.MAJOR_CLICK);
-                            setActiveNoteStationId(selectedStation);
-                            setShowNotesPopup(true);
-                            setIsTopStationFabOpen(false);
-                          }}
-                          className="w-full px-3 py-2 rounded-xl hover:bg-white/10 text-right font-black text-[11px] flex items-center gap-2.5 bg-transparent border-none text-white cursor-pointer"
-                        >
-                          <span className="text-xs">✍️</span>
-                          <span>تدوين الملاحظات والفوائد</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            vibrate(HAPITCS.MAJOR_CLICK);
-                            setReflectionForceStationId(selectedStation);
-                            setReflectionActiveTab(0);
-                            setReflectionSidebar(true);
-                            setIsTopStationFabOpen(false);
-                          }}
-                          className="w-full px-3 py-2 rounded-xl hover:bg-white/10 text-right font-black text-[11px] flex items-center gap-2.5 bg-transparent border-none text-white cursor-pointer"
-                        >
-                          <span className="text-xs">📊</span>
-                          <span>التحليلات والمتابعة</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            vibrate(HAPITCS.MAJOR_CLICK);
-                            setSelectedStation(selectedStation);
-                            setStumbleReason("");
-                            setShowStumbleForm(true);
-                            setIsTopStationFabOpen(false);
-                          }}
-                          className="w-full px-3 py-2 rounded-xl hover:bg-rose-950/60 hover:text-rose-200 text-rose-300 text-right font-black text-[11px] flex items-center gap-2.5 bg-transparent border-none cursor-pointer"
-                        >
-                          <span className="text-xs">⚠️</span>
-                          <span>رصد عقبة أو تعثر</span>
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
               );
             })()}
           </div>
         }
-        className="w-screen h-screen font-sans rounded-none border-none bg-slate-950 p-0 m-0 max-w-none max-h-none"
+        className="w-screen h-screen font-sans rounded-none border-none bg-white p-0 m-0 max-w-none max-h-none"
         style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0 }}
         contentClassName="no-scrollbar"
-        headerStyle={{ background: 'linear-gradient(to right, #020617, #0f172a)', borderBottom: '1px solid rgba(255,255,255,0.03)', padding: '24px' }}
-        contentStyle={{ background: 'linear-gradient(to bottom, #0f172a, #020617)', color: 'white', padding: '0' }}
+        headerStyle={{ background: '#ffffff', borderBottom: '1px solid #f1f5f9', padding: '24px' }}
+        contentStyle={{ background: '#ffffff', color: '#0f172a', padding: '0' }}
         dismissableMask
         closable
         maximized
@@ -3914,9 +3997,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           <div className="flex-1 overflow-hidden">
             <div className="flex flex-col md:flex-row h-full w-full animate-fade-in" dir="rtl">
                 {/* Main Tasks Tree (Collapsible) */}
-                <div className="flex-1 p-6 overflow-y-auto no-scrollbar border-l border-white/5">
+                <div className="flex-1 p-6 overflow-y-auto no-scrollbar border-l border-slate-100">
                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-black text-white flex items-center gap-2">
+                      <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
                          <span className="w-1.5 h-5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]"></span>
                          المهام الرئيسية والهيكل التنفيذي
                       </h3>
@@ -4353,206 +4436,70 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             <span>خريطة الرحلة والتقويم اليومي 🗺️</span>
           </div>
         }
-        className="font-sans !rounded-[32px] overflow-hidden"
-        style={{ borderRadius: '32px' }}
+        className="w-screen h-screen font-sans border-none bg-white p-0 m-0 max-w-none max-h-none !rounded-none"
+        style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0 }}
         maskClassName="backdrop-blur-sm bg-slate-900/40"
         closable
         dismissableMask
       >
-        <div className="p-1 text-right font-sans" dir="rtl">
+        <div className="p-0 text-right font-sans" dir="rtl">
           {user && (
-            <div className="w-full bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 border border-blue-500/35 rounded-3xl p-5 text-white/90 relative overflow-hidden transition-all duration-300">
-              {/* Decorative background glow */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full pointer-events-none" />
-              
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
-                    <span className="text-base">✨</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] font-black uppercase tracking-wider text-blue-300/80">مقدمة الرحلة والتعلم الموجه</p>
-                    <h2 className="text-sm font-black tracking-tight text-white mb-0">{user.learningGoal || "رحلتك التعليمية المخصصة"}</h2>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    vibrate(HAPITCS.MAJOR_CLICK);
-                    setShowRoutinePopup(true);
-                  }}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center border-none transition-colors cursor-pointer"
-                  title="تعديل الروتين والحافز"
-                >
-                  <i className="pi pi-pencil text-[10px]" />
-                </button>
-              </div>
-
-              {/* Tabs selector */}
-              <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl mb-4 text-xs font-black" dir="rtl">
-                <button
-                  onClick={() => {
-                    vibrate(HAPITCS.MAJOR_CLICK);
-                    setIntroActiveTab('info');
-                  }}
-                  className={`flex-1 py-1.5 px-3 rounded-xl transition-all border-none cursor-pointer flex items-center justify-center gap-1.5 text-[10px] ${
-                    introActiveTab === 'info'
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'bg-transparent text-slate-350 hover:text-white'
-                  }`}
-                >
-                  <span>✨</span>
-                  <span>الخطة والحافز</span>
-                </button>
-                <button
-                  onClick={() => {
-                    vibrate(HAPITCS.MAJOR_CLICK);
-                    setIntroActiveTab('calendar');
-                  }}
-                  className={`flex-1 py-1.5 px-3 rounded-xl transition-all border-none cursor-pointer flex items-center justify-center gap-1.5 text-[10px] ${
-                    introActiveTab === 'calendar'
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'bg-transparent text-slate-350 hover:text-white'
-                  }`}
-                >
-                  <span>📅</span>
-                  <span>التقويم والمهام</span>
-                </button>
-              </div>
-
-              {/* Tab content selection */}
-              {introActiveTab === 'calendar' ? (
-                <div className="mt-3 bg-white border border-slate-205 rounded-2xl p-1.5 shadow-sm text-slate-800" dir="rtl">
-                  <CalendarTheme 
-                    stations={stations}
-                    unlockedStations={unlockedStations}
-                    activeStationId={activeStationId}
-                    stationEnergy={stationEnergy}
-                    onStationClick={handleStationClick}
-                    learningDays={user.learningDays || []}
-                    onAddTaskClick={(date, stationId) => {
-                      setCalendarSelectedDate(date);
-                      setCalendarSelectedStationId(stationId);
-                      setShowCalendarAddTask(true);
-                    }}
-                    tasks={tasks}
-                    toggleTask={toggleTask}
-                    onArrangeCalendar={handleArrangeCalendar} 
-                    user={user} 
-                    onSaveArrangement={handleSaveArrangement} 
-                    toggleSubStationTask={toggleSubStationTask} 
-                    onOpenEvaluation={(task) => {
-                      setSelectedTaskForDetails(task);
-                      setTaskDetailsVisible(true);
-                    }}
-                    onOpenReview={setReviewingTask}
-                    onOpenFlashcards={setFlashcardTask}
-                    onOpenAnalytics={setSelectedTaskForAnalytics}
-                    onShowLinks={(stationId) => {
-                      setSelectedStation(stationId);
-                      setShowLinksPopup(true);
-                    }}
-                    onShowNotes={(stationId) => {
-                      setActiveNoteStationId(stationId);
-                      setShowNotesPopup(true);
-                    }}
-                    onShowReflection={(stationId) => {
-                      setReflectionForceStationId(stationId);
-                      setReflectionActiveTab(0);
-                      setReflectionSidebar(true);
-                    }}
-                    onShowStumble={(stationId) => {
-                      setSelectedStation(stationId);
-                      setStumbleReason("");
-                      setShowStumbleForm(true);
-                    }}
-                    onShowRoutine={() => {
-                      setShowRoutinePopup(true);
-                    }}
-                    renderTaskThreeDotsMenu={renderTaskThreeDotsMenu}
-                    toast={toast}
-                    selectedStation={selectedStation}
-                    setSelectedStation={setSelectedStation}
-                  />
-                </div>
-              ) : (
-                <>
-                  {/* Routine metadata grid */}
-                  <div className="grid grid-cols-2 gap-2.5 mt-3 text-right">
-                    {/* Daily Commitment */}
-                    <div className="p-3 bg-white/5 border border-white/10 rounded-2xl flex flex-col justify-center font-sans">
-                      <span className="text-[9px] font-black text-blue-300 uppercase tracking-wider mb-1 flex items-center gap-1 font-sans">
-                        <span>🕒</span> الهدف اليومي
-                      </span>
-                      <div className="flex items-baseline gap-1 font-sans">
-                        <span className="text-base font-black text-amber-300 font-mono leading-none">{user.dailyDuration || 30}</span>
-                        <span className="text-[9px] font-bold text-slate-300">دقيقة يومياً</span>
-                      </div>
-                    </div>
-
-                    {/* Days Tracker */}
-                    <div className="p-3 bg-white/5 border border-white/10 rounded-2xl flex flex-col justify-center">
-                      <span className="text-[9px] font-black text-blue-300 uppercase tracking-wider mb-1.5 flex items-center gap-1 font-sans">
-                        <span>📅</span> جدول السعي
-                      </span>
-                      <div className="flex justify-between items-center gap-0.5 font-sans">
-                        {['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'].map((dayChar, dayVal) => {
-                          const isSelected = (user.learningDays || []).includes(dayVal);
-                          return (
-                            <div
-                              key={dayVal}
-                              className={`w-[18px] h-[18px] rounded-md flex items-center justify-center text-[8px] font-black transition-all font-sans ${
-                                isSelected
-                                  ? 'bg-amber-400 text-slate-950 font-black scale-[1.05]'
-                                  : 'bg-white/5 text-slate-400 border border-white/5'
-                              }`}
-                              title={['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][dayVal]}
-                            >
-                              {dayChar}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Display Incentive Info if it exists */}
-                  {(user.incentiveTime || user.incentiveDesc) ? (
-                    <div className="mt-2.5 p-3 bg-white/5 border border-white/10 rounded-2xl flex items-start gap-2.5 font-sans">
-                      <div className="text-base mt-0.5 font-sans">🎁</div>
-                      <div className="flex-1 text-right font-sans">
-                        <p className="text-[9px] font-black text-amber-300 uppercase tracking-wider mb-0.5 my-0 font-sans">حافز الالتزام اليومي المخصص</p>
-                        <div className="flex flex-wrap items-center gap-2 mt-1 font-sans">
-                          {user.incentiveTime && (
-                            <span className="text-[9px] font-black text-amber-100 bg-amber-500/30 px-2 py-0.5 rounded-lg border border-amber-500/40 font-mono font-sans">
-                              🕒 {user.incentiveTime}
-                            </span>
-                          )}
-                          {user.incentiveDesc && (
-                            <p className="text-xs font-bold text-slate-150 my-0 leading-snug font-sans">{user.incentiveDesc}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-2.5 p-2.5 bg-white/5 border border-white/5 border-dashed rounded-2xl flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs">🎯</span>
-                        <p className="text-[9px] font-bold text-slate-300 my-0 font-sans">لم تحدد حافزاً لروتينك اليومي بعد.</p>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          vibrate(HAPITCS.MAJOR_CLICK);
-                          setShowRoutinePopup(true);
-                        }}
-                        className="text-[9px] font-black text-blue-300 hover:text-white transition-colors bg-transparent border-none cursor-pointer font-sans"
-                      >
-                        أضف الآن
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            <CalendarTheme 
+              stations={stations}
+              unlockedStations={unlockedStations}
+              activeStationId={activeStationId}
+              stationEnergy={stationEnergy}
+              onStationClick={handleStationClick}
+              learningDays={user.learningDays || []}
+              onAddTaskClick={(date, stationId) => {
+                setCalendarSelectedDate(date);
+                setCalendarSelectedStationId(stationId);
+                setShowCalendarAddTask(true);
+              }}
+              tasks={tasks}
+              toggleTask={toggleTask}
+              onArrangeCalendar={handleArrangeCalendar} 
+              user={user} 
+              onSaveArrangement={handleSaveArrangement} 
+              toggleSubStationTask={toggleSubStationTask} 
+              onOpenEvaluation={(task) => {
+                vibrate(HAPITCS.MAJOR_CLICK);
+                if (task.title.includes("خطة المراجعة")) {
+                  setSelectedTaskForDetails(task);
+                  setTaskDetailsVisible(true);
+                } else {
+                  setVisPreStartTask(task);
+                }
+              }}
+              onOpenReview={setReviewingTask}
+              onOpenFlashcards={setFlashcardTask}
+              onOpenAnalytics={setSelectedTaskForAnalytics}
+              onShowLinks={(stationId) => {
+                setSelectedStation(stationId);
+                setShowLinksPopup(true);
+              }}
+              onShowNotes={(stationId) => {
+                setActiveNoteStationId(stationId);
+                setShowNotesPopup(true);
+              }}
+              onShowReflection={(stationId) => {
+                setReflectionForceStationId(stationId);
+                setReflectionActiveTab(0);
+                setReflectionSidebar(true);
+              }}
+              onShowStumble={(stationId) => {
+                setSelectedStation(stationId);
+                setStumbleReason("");
+                setShowStumbleForm(true);
+              }}
+              onShowRoutine={() => {
+                setShowRoutinePopup(true);
+              }}
+              renderTaskThreeDotsMenu={renderTaskThreeDotsMenu}
+              toast={toast}
+              selectedStation={selectedStation}
+              setSelectedStation={setSelectedStation}
+            />
           )}
         </div>
       </Dialog>

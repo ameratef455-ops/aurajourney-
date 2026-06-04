@@ -32,11 +32,12 @@ export interface EvaluationSidebarProps {
   subTasks: any[];
   practicalTasks?: any[];
   practicalSubStations?: Record<string, any[]>;
-  onRewardActivity?: (isCompleted: boolean) => void;
+  onRewardActivity?: (isCompleted: boolean, activity?: any) => void;
   onCompleteTask?: (task: any) => void;
   onCompletePracticalTask?: (stationId: string, subStationIndex: number, taskId: string) => void;
   completeTaskAction?: (task: any, onComplete?: (taskId: string) => void) => Promise<any>;
   initialSelectedTask?: any;
+  onOpenVisSession?: (task: any) => void;
 }
 
 export function EvaluationSidebar({
@@ -52,7 +53,8 @@ export function EvaluationSidebar({
   onCompleteTask,
   onCompletePracticalTask,
   completeTaskAction,
-  initialSelectedTask
+  initialSelectedTask,
+  onOpenVisSession
 }: EvaluationSidebarProps) {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const settings = useLiveQuery(() => db.userSettings.toArray());
@@ -249,6 +251,10 @@ export function EvaluationSidebar({
         return;
       }
     }
+    if (onOpenVisSession) {
+      onOpenVisSession(task);
+      return;
+    }
     setSelectedTask({ ...task, _source: source });
     setDetailModalVisible(true);
   };
@@ -416,13 +422,17 @@ export function EvaluationSidebar({
   const toggleActivityCompletion = async (id: string) => {
     const updatedActivities = selectedTask.activities ? [...selectedTask.activities] : [];
     
-    const toggleInList = (list: TaskActivity[]) => {
+    let targetAct: any = null;
+    let actDepth: number = 0;
+    const toggleInList = (list: TaskActivity[], depth: number = 0) => {
       for (const act of list) {
         if (act.id === id) {
           act.isCompleted = !act.isCompleted;
+          targetAct = act;
+          actDepth = depth;
           return true;
         }
-        if (act.children && toggleInList(act.children)) return true;
+        if (act.children && toggleInList(act.children, depth + 1)) return true;
       }
       return false;
     };
@@ -430,20 +440,8 @@ export function EvaluationSidebar({
     toggleInList(updatedActivities);
     await saveActivities(updatedActivities);
 
-    // Reward activity completion individually
-    const findStatus = (list: TaskActivity[]): boolean | null => {
-      for (const act of list) {
-        if (act.id === id) return act.isCompleted;
-        if (act.children) {
-          const res = findStatus(act.children);
-          if (res !== null) return res;
-        }
-      }
-      return null;
-    };
-    const status = findStatus(updatedActivities);
-    if (status === true && onRewardActivity) {
-      onRewardActivity(true);
+    if (targetAct && targetAct.isCompleted && onRewardActivity) {
+      onRewardActivity(true, { ...targetAct, _isRoot: actDepth === 0 });
     }
 
     // Check for task completion

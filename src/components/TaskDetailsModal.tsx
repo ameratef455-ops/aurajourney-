@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { TaskActivity, db, Task } from '../db';
-import { LanguageTools } from './LanguageTools';
+import { LanguageTools, YouGlishWidget } from './LanguageTools';
 import { parseLearningResources } from '../types';
 import { safeRandomUUID } from '../lib/uuid';
 import { LAYERS } from '../constants/layers';
@@ -49,6 +49,10 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
   const reflectionsForTask = useLiveQuery(() => 
     taskId ? db.reflections.where("taskId").equals(taskId).toArray() : []
   , [taskId]);
+
+  const station = useLiveQuery(() => 
+    task?.stationId ? db.stations.get(task.stationId) : null
+  , [task?.stationId]);
 
   const settings = useLiveQuery(() => db.userSettings.toArray());
   const user = settings?.[0];
@@ -386,17 +390,17 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
           </div>
         </div>
       }
-      className="w-full max-w-3xl font-sans"
+      className="w-full max-w-5xl font-sans"
       modal
       dismissableMask
       baseZIndex={LAYERS.TASK_REVIEW + 10}
       contentClassName="p-0 bg-white"
     >
       <motion.div 
-        initial={{ opacity: 0, scale: 0.98, y: 10 }}
+        initial={{ opacity: 0, scale: 0.99, y: 3 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className="flex flex-col h-[70vh] border-t border-slate-100" 
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        className="flex flex-col h-[82vh] border-t border-slate-100" 
         dir="rtl"
       >
         <ConfirmDialog />
@@ -413,24 +417,6 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                   </div>
                 )}
               </div>
-              {!task.isCompleted && (
-                <div className="relative group">
-                  <input 
-                    type="text"
-                    value={newActivityTitle}
-                    onChange={(e) => setNewActivityTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddActivity()}
-                    placeholder="أضف نشاطاً للمهمة..."
-                    className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold placeholder:text-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
-                  />
-                  <button 
-                    onClick={handleAddActivity}
-                    className="absolute left-1.5 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 text-white rounded-xl flex items-center justify-center hover:bg-slate-900 transition-all active:scale-90"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
@@ -626,6 +612,34 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                            )}
                         </div>
                       </TabPanel>
+
+                      <TabPanel header={
+                        <div className="flex items-center gap-2 py-1">
+                          <i className="pi pi-info-circle w-4 h-4" />
+                          <span>ملاحظات الموجه</span>
+                        </div>
+                      }>
+                        <div className="py-8">
+                           <div className="bg-slate-50 border border-slate-100 rounded-[32px] p-8 min-h-[200px]">
+                             <h4 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-3">
+                               <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-indigo-600">
+                                  <i className="pi pi-info-circle" />
+                               </div>
+                               ملاحظات الموجه العامة للمحطة
+                             </h4>
+                             {station?.generalNotes ? (
+                               <p className="text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">
+                                 {station.generalNotes}
+                               </p>
+                             ) : (
+                               <div className="flex flex-col items-center justify-center py-10 opacity-40">
+                                  <i className="pi pi-inbox text-4xl mb-2" />
+                                  <p className="font-bold">لا توجد ملاحظات موجه لهذه المحطة</p>
+                               </div>
+                             )}
+                           </div>
+                        </div>
+                      </TabPanel>
                     </TabView>
                   </div>
                 );
@@ -763,7 +777,34 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
 
                   {/* Language Tools for Foreign Language Learning Journeys */}
                   {isLanguageLearning && (
-                     <LanguageTools />
+                     <div className="space-y-4">
+                        <LanguageTools />
+                        
+                        <div className="p-5 bg-gradient-to-br from-indigo-50 to-indigo-100/30 border border-indigo-100/50 rounded-3xl space-y-3 text-right shadow-3xs animate-fade-in animate-none">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-indigo-900">
+                              <span className="text-base shrink-0">🌐</span>
+                              <h4 className="text-xs font-black">تدريب النطق والاستماع (YouGlish):</h4>
+                            </div>
+                            <a 
+                              href={`https://youglish.com/pronounce/${encodeURIComponent(task.youglishKeyword || task.title || '')}/english`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5"
+                            >
+                              <i className="pi pi-external-link text-[10px]"></i>
+                              <span>زيارة موقع YouGlish</span>
+                            </a>
+                          </div>
+                          
+                          <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 p-3 pt-4 flex flex-col items-center">
+                            <p className="text-xs text-slate-500 font-bold mb-3 text-center">
+                              تدرب على نطق الكلمة المخصصة: <span className="text-indigo-600 font-extrabold">{task.youglishKeyword || task.title}</span>
+                            </p>
+                            <YouGlishWidget query={task.youglishKeyword || task.title || ""} />
+                          </div>
+                        </div>
+                     </div>
                   )}
 
                   {/* 3. Post-Task Completed Message (رسالة نهاية بعد انتهاء المهمة) */}

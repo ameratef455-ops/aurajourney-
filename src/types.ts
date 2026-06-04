@@ -19,6 +19,7 @@ export interface WizardStation {
   icon: string;
   name: string;
   description: string;
+  generalNotes?: string;
   targetDate: string;
   tasks: WizardTask[];
 }
@@ -26,10 +27,13 @@ export interface WizardStation {
 export interface WizardTask {
   id: string;
   title: string;
-  type: 'main' | 'sub' | 'side' | 'practical';
+  type: 'main' | 'sub' | 'side' | 'practical' | 'project';
   parentId?: string;
   description?: string;
   learningResources?: string;
+  youtubeUrl?: string;
+  googleDriveUrl?: string;
+  youglishKeyword?: string;
   startMessage?: string;
   endMessage?: string;
   activities?: any[];
