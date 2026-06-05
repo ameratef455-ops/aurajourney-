@@ -7,6 +7,9 @@ export interface Station {
   description: string;
   generalNotes?: string;
   secretResourcesNotes?: string;
+  riddleDetails?: string;
+  riddleAnswer?: string;
+  secretResources?: { id: string; name: string; url: string; description?: string }[];
   targetDate: string;
   order: number;
 }
@@ -38,6 +41,9 @@ export interface Task {
   youglishKeyword?: string;
   startMessage?: string;
   endMessage?: string;
+  riddleDetails?: string;
+  riddleAnswer?: string;
+  hiddenRiddleDetails?: string;
 }
 
 export interface SubStationTask {

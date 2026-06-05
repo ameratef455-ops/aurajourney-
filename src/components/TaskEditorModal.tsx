@@ -554,7 +554,7 @@ export function TaskEditorModal({
                   <textarea
                     rows={6}
                     className="w-full p-4 bg-white border border-purple-150 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-purple-500/5 transition-all resize-none text-right"
-                    placeholder="- القدرة الذاتية على ابتكار ومراجعة المبادئ الأساسية للمسار...&#10;- حل المسائل المعقدة في زمن أقل وحصانة تشتيت أعلى...&#10;- تملك الأسلوب المنهجي الموجه بثقة..."
+                    placeholder="- القدرة الذاتية على ابتكار ومراجعة المبادئ الأساسية للمسار...&#10;- حل المسائل المعقدة in زمن أقل وحصانة تشتيت أعلى...&#10;- تملك الأسلوب المنهجي الموجه بثقة..."
                     value={localTask.learningOutcomes || ""}
                     onChange={(e) => updateField("learningOutcomes", e.target.value)}
                   />
@@ -563,9 +563,79 @@ export function TaskEditorModal({
               </div>
             </div>
           </TabPanel>
+
+          <TabPanel header="🧩 لغز المحطة والتعلم الفائق" leftIcon="pi pi-key mr-2 ml-2">
+            <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-h-[50vh] overflow-y-auto px-1">
+              <div className="p-4 bg-amber-50/60 border border-amber-150/40 rounded-2xl flex items-center gap-3">
+                <span className="text-2xl">🧩</span>
+                <div>
+                  <h5 className="text-xs font-black text-amber-950">ألغاز المحطة الكبرى (The Station Riddles Engine)</h5>
+                  <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                    من هنا يمكنك نسج تحديات ألغاز فكرية وربطها بمفاتيح كبسولات المعرفة الفائقة. لا يمكن فتح الكنز أو الكشف الكامل لروابط المصادر الخفية التابعة إلا بحل هذا التحدي الفكري المحبوك.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Riddle details */}
+                <div className="p-6 bg-amber-50/10 border-2 border-amber-100/30 rounded-[32px] space-y-3">
+                  <label className="text-xs font-black text-amber-900 px-1 flex items-center gap-2">
+                    <span className="text-sm">❓</span>
+                    <span>تفاصيل ومنطوق اللغز العام للمهمة</span>
+                  </label>
+                  <p className="text-[9px] text-slate-400">اطرح سؤلاً فكرياً أو تحدياً برمجياً يحفز ذهن المستهدف للمحاولة المكررة.</p>
+                  <textarea
+                    rows={4}
+                    className="w-full p-4 bg-white border border-amber-150/50 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-amber-500/5 transition-all text-right"
+                    placeholder="مثال: لغز منطقي عن ترتيب خوارزميات البحث أو صياغة كود استثنائي..."
+                    value={localTask.riddleDetails || ""}
+                    onChange={(e) => updateField("riddleDetails", e.target.value)}
+                  />
+                </div>
+
+                {/* Riddle Answer */}
+                <div className="p-6 bg-teal-50/10 border-2 border-teal-100/30 rounded-[32px] space-y-3">
+                  <label className="text-xs font-black text-teal-900 px-1 flex items-center gap-2">
+                    <span className="text-sm">🔑</span>
+                    <span>كلمة المرور / حل اللغز المعتمد</span>
+                  </label>
+                  <p className="text-[9px] text-slate-400">الإجابة الدقيقة أو الكلمة المفتاحية التي تفك تشفير المحطة وتمنح وسام النجاح.</p>
+                  <input
+                    type="text"
+                    className="w-full p-4 bg-white border border-teal-150/50 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-teal-500/5 transition-all text-right"
+                    placeholder="اكتب الإجابة المفتاحية أو كلمة السر المحددة..."
+                    value={localTask.riddleAnswer || ""}
+                    onChange={(e) => updateField("riddleAnswer", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Hidden/Secret sources puzzle */}
+              <div className="p-6 bg-purple-50/20 border-2 border-purple-100/30 rounded-[32px] space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black">
+                    🔮
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800">اللغز الخفي الخاص بالمصادر الخفية</h4>
+                    <p className="text-[10px] text-slate-400">لغز إضافي مخصص للمصادر والمستندات الخفية المودعة بالخطة.</p>
+                  </div>
+                </div>
+
+                <textarea
+                  rows={3}
+                  className="w-full p-5 bg-white border border-purple-100 rounded-[24px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right"
+                  placeholder="اكتب لغز المصادر الخفية الذي يتعين على الطالب حله لرؤية المصار الكاملة الفائقة لهذه المحطة..."
+                  value={localTask.hiddenRiddleDetails || ""}
+                  onChange={(e) => updateField("hiddenRiddleDetails", e.target.value)}
+                />
+              </div>
+
+            </div>
+          </TabPanel>
         </TabView>
 
-        <div className="flex gap-4 pt-8 border-t border-slate-100/50">
+        <div className="flex gap-4 pt-6 pb-2 border-t border-slate-100/50 sticky bottom-0 bg-white z-10 mx-[-8px] px-2">
           <button
             type="button"
             onClick={() => onSave(localTask)}

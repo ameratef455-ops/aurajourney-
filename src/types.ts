@@ -21,6 +21,9 @@ export interface WizardStation {
   description: string;
   generalNotes?: string;
   secretResourcesNotes?: string;
+  riddleDetails?: string;
+  riddleAnswer?: string;
+  secretResources?: { id: string; name: string; url: string; description?: string; puzzle?: string; puzzleAnswer?: string }[];
   targetDate: string;
   tasks: WizardTask[];
 }
@@ -38,6 +41,9 @@ export interface WizardTask {
   startMessage?: string;
   endMessage?: string;
   activities?: any[];
+  riddleDetails?: string;
+  riddleAnswer?: string;
+  hiddenRiddleDetails?: string;
 }
 
 export interface LearningResourceItem {

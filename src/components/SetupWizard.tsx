@@ -70,6 +70,9 @@ export function SetupWizard({
               targetDate: st.targetDate,
               generalNotes: st.generalNotes || "",
               secretResourcesNotes: st.secretResourcesNotes || "",
+              riddleDetails: st.riddleDetails || "",
+              riddleAnswer: st.riddleAnswer || "",
+              secretResources: st.secretResources || [],
               tasks: dbTasks
                 .filter((t) => t.stationId === st.id)
                 .map((t) => ({
@@ -86,6 +89,9 @@ export function SetupWizard({
                   startMessage: t.startMessage || "",
                   endMessage: t.endMessage || "",
                   activities: t.activities || [],
+                  riddleDetails: t.riddleDetails || "",
+                  riddleAnswer: t.riddleAnswer || "",
+                  hiddenRiddleDetails: t.hiddenRiddleDetails || "",
                 })),
             }));
 
@@ -223,6 +229,9 @@ export function SetupWizard({
         order: i,
         generalNotes: st.generalNotes || "",
         secretResourcesNotes: st.secretResourcesNotes || "",
+        riddleDetails: st.riddleDetails || "",
+        riddleAnswer: st.riddleAnswer || "",
+        secretResources: st.secretResources || [],
       });
 
       for (const t of st.tasks) {
@@ -242,6 +251,9 @@ export function SetupWizard({
           startMessage: t.startMessage || "",
           endMessage: t.endMessage || "",
           activities: t.activities || [],
+          riddleDetails: t.riddleDetails || "",
+          riddleAnswer: t.riddleAnswer || "",
+          hiddenRiddleDetails: t.hiddenRiddleDetails || "",
         });
       }
     }
@@ -252,7 +264,7 @@ export function SetupWizard({
   return (
     <div className="absolute inset-0 bg-white flex flex-col z-40 overflow-hidden">
       {/* Header */}
-      <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+      <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
         <div className="flex gap-2" dir="ltr">
           {[1, 2, 3, 4, 5, 6].map((s) => (
             <div
@@ -268,7 +280,7 @@ export function SetupWizard({
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 md:p-12 relative no-scrollbar">
+      <div className="flex-1 overflow-y-auto min-h-0 p-6 md:p-12 relative no-scrollbar">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -276,7 +288,7 @@ export function SetupWizard({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="h-full flex flex-col"
+            className="flex flex-col w-full"
           >
             {step === 1 && <Step1 state={state} setState={setState} />}
             {step === 2 && <Step2 state={state} setState={setState} />}
@@ -370,7 +382,7 @@ export function SetupWizard({
       </div>
 
       {/* Footer Action */}
-      <div className="px-6 md:px-12 py-8 bg-gray-50/50 flex justify-between items-center border-t border-gray-100">
+      <div className="px-6 md:px-12 py-6 md:py-8 bg-gray-50/50 flex justify-between items-center border-t border-gray-100 shrink-0 relative z-50">
         {step > 1 ? (
           <button
             onClick={prevStep}
@@ -761,6 +773,50 @@ const Step4 = ({ state, setState }: any) => {
 
 const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => {
   const [selectedStation, setSelectedStation] = useState(0);
+  const [secretName, setSecretName] = useState("");
+  const [secretUrl, setSecretUrl] = useState("");
+  const [secretDesc, setSecretDesc] = useState("");
+  const [secretPuzzle, setSecretPuzzle] = useState("");
+  const [secretPuzzleAnswer, setSecretPuzzleAnswer] = useState("");
+
+  const addSecretResource = () => {
+    if (!secretName || !secretUrl) return;
+    vibrate(HAPITCS.SUCCESS);
+    const arr = [...state.stations];
+    const st = arr[selectedStation];
+    const items = st.secretResources || [];
+    const newItems = [...items, {
+      id: Math.random().toString(36).substring(7),
+      name: secretName,
+      url: secretUrl,
+      description: secretDesc,
+      puzzle: secretPuzzle,
+      puzzleAnswer: secretPuzzleAnswer
+    }];
+    arr[selectedStation] = {
+      ...st,
+      secretResources: newItems
+    };
+    setState({ ...state, stations: arr });
+    setSecretName("");
+    setSecretUrl("");
+    setSecretDesc("");
+    setSecretPuzzle("");
+    setSecretPuzzleAnswer("");
+  };
+
+  const removeSecretResource = (resId: string) => {
+    vibrate(HAPITCS.MAJOR_CLICK);
+    const arr = [...state.stations];
+    const st = arr[selectedStation];
+    const items = st.secretResources || [];
+    const newItems = items.filter((item: any) => item.id !== resId);
+    arr[selectedStation] = {
+      ...st,
+      secretResources: newItems
+    };
+    setState({ ...state, stations: arr });
+  };
 
   if (state.stations.length === 0) {
     return (
@@ -1185,64 +1241,202 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
               className="flex flex-col gap-6 bg-purple-50/10 p-6 rounded-3xl border border-purple-100/30 mt-4 text-right font-sans"
               dir="rtl"
             >
-              {!hyperLearningActive ? (
-                <div className="flex flex-col items-center justify-center text-center py-12 px-6 bg-slate-50 border border-slate-200/50 rounded-[32px] space-y-4">
-                  <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200/60 flex items-center justify-center text-3xl shadow-sm animate-bounce duration-[3000ms]">
-                    🔒
-                  </div>
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 bg-purple-50 p-4 rounded-2xl border border-purple-100/30">
+                  <span className="text-2xl">🔐</span>
                   <div>
-                    <h3 className="text-sm font-black text-slate-800">
-                      مستودع المصادر والخرائط السرية مغلق!
-                    </h3>
-                    <p className="text-[10px] text-slate-400 mt-2 max-w-sm leading-relaxed mx-auto font-medium">
-                      هذا القسم يفرز المعرفة العميقة والمصادر السرية الفائقة. يرجى تفعيل <span className="text-purple-600 font-extrabold">"كبسولة علم ومعرفة فائقة 📚"</span> من متجر السعي الجانبي لإزاحة الستار المطور!
-                    </p>
+                    <h4 className="text-xs font-black text-purple-950">إعداد وتأصيل المصادر والخرائط السرية لهذه المحطة</h4>
+                    <p className="text-[10px] text-purple-600 font-bold mt-0.5">بصفتك المصمم، يمكنك صياغة كنز المعرفة السرية هنا. سيتم الكشف عنها لاحقاً للطالب عند تفعيله للكبسولة.</p>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex items-center gap-3 bg-purple-50 p-4 rounded-2xl border border-purple-100/30">
-                    <span className="text-2xl">🔓</span>
-                    <div>
-                      <h4 className="text-xs font-black text-purple-950">تم فك حظر تفعيل مستودع المعرفة! ✨</h4>
-                      <p className="text-[10px] text-purple-600 font-bold mt-0.5">تهانيا باسة! كبسولة العلم والمعرفة الفائقة كشفت المراجع البحثية السرية والمسارات الذكية.</p>
-                    </div>
-                  </div>
 
-                  {/* Secret curated links */}
+                {/* Secret Resource Insertion Form */}
+                <div className="p-5 bg-white border border-purple-100 rounded-2xl shadow-3xs space-y-4">
+                  <h5 className="text-xs font-black text-purple-900">➕ إضافة مصدر خفي جديد لحصيلة الطالب</h5>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-white border border-purple-100 rounded-2xl shadow-3xs flex flex-col gap-2">
-                      <span className="text-xs font-black text-purple-900">🔗 أدوات البحث الأكاديمي والعميق (Deep Research)</span>
-                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed">بوابات متطورة لصياغة أسئلة البحث، توليد الأوراق الأكاديمية وحسم البراهين الفنية.</p>
-                      <a href="https://ai.google/research" target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 font-black hover:underline mt-1 inline-block">مستودع أبحاث الذكاء الاصطناعي وجوجل العالمية ←</a>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 block">اسم المصدر السري:</label>
+                      <input
+                        type="text"
+                        value={secretName}
+                        onChange={(e) => setSecretName(e.target.value)}
+                        placeholder="مثال: مستودع أكواد AI المتقدمة"
+                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right"
+                      />
                     </div>
 
-                    <div className="p-4 bg-white border border-purple-100 rounded-2xl shadow-3xs flex flex-col gap-2">
-                      <span className="text-xs font-black text-purple-900">💻 نماذج ومستودعات مطوري السعي الفائقة</span>
-                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed">اكواد جاهزة للتنصيب والاختبار الفوري تسرع تنفيذ المشروعات بـ 5 أضعاف.</p>
-                      <a href="https://github.com/google" target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 font-black hover:underline mt-1 inline-block">تصفح مستودع GitHub للمطورين ←</a>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 block">رابط المصدر السري:</label>
+                      <input
+                        type="text"
+                        value={secretUrl}
+                        onChange={(e) => setSecretUrl(e.target.value)}
+                        placeholder="https://..."
+                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-left"
+                        dir="ltr"
+                      />
                     </div>
                   </div>
 
-                  {/* Secret notes textarea */}
-                  <div className="space-y-2 mt-4">
-                    <label className="text-xs font-black text-slate-800 block">📝 ملاحظات ومستندات المصادر السرية المستقاة:</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-500 block">وصف المصدر السري ومحتواه:</label>
+                    <input
+                      type="text"
+                      value={secretDesc}
+                      onChange={(e) => setSecretDesc(e.target.value)}
+                      placeholder="صفحة سرية تضم بوابات الذكاء الاصطناعي وجوجل العالمية والشيفرات..."
+                      className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 block">🧩 لغز لفتح المصدر الخفي (اختياري):</label>
+                      <input
+                        type="text"
+                        value={secretPuzzle}
+                        onChange={(e) => setSecretPuzzle(e.target.value)}
+                        placeholder="مثال: متى تأسست شركة جوجل؟"
+                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 block">🔑 إجابة اللغز المعتمدة:</label>
+                      <input
+                        type="text"
+                        value={secretPuzzleAnswer}
+                        onChange={(e) => setSecretPuzzleAnswer(e.target.value)}
+                        placeholder="مثال: 1998"
+                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={addSecretResource}
+                    className="w-full py-2.5 bg-gradient-to-r from-purple-700 to-indigo-700 text-white font-black text-xs rounded-xl hover:brightness-110 active:scale-95 transition-all text-center border-none cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>تأمين المرجع وإضافته للائحة السرية</span>
+                    <i className="pi pi-plus" />
+                  </button>
+                </div>
+
+                {/* Curated Added links */}
+                <div className="space-y-3">
+                  <h5 className="text-xs font-black text-slate-800">🔗 لائحة المصادر الخفية المضافة للمحطة ({currentStation.secretResources?.length || 0}):</h5>
+                  
+                  {(!currentStation.secretResources || currentStation.secretResources.length === 0) ? (
+                    <div className="text-center py-6 text-xs text-slate-400 bg-white border border-dashed border-slate-200 rounded-2xl font-sans">
+                      لم تتم إضافة مصادر خفية مخصصة حتى الآن. يمكنك استخدام الفورم أعلاه لإدراج مراجع سرية.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {currentStation.secretResources.map((res: any) => (
+                        <div key={res.id} className="p-4 bg-white border border-purple-100/80 rounded-2xl shadow-3xs flex justify-between items-start gap-2 relative group overflow-hidden">
+                          <div className="space-y-1 flex-1">
+                            <span className="text-xs font-extrabold text-purple-900 block truncate">{res.name}</span>
+                            <span className="text-[9px] font-mono text-blue-500 block truncate">{res.url}</span>
+                            {res.description && (
+                              <p className="text-[10px] text-slate-400 font-bold leading-normal mt-1">{res.description}</p>
+                            )}
+                            {res.puzzle && (
+                              <div className="mt-2 bg-amber-50 p-2 rounded flex flex-col gap-1 border border-amber-100">
+                                <span className="text-[9px] font-black text-amber-900">🧩 {res.puzzle}</span>
+                                {res.puzzleAnswer && <span className="text-[9px] font-bold text-teal-700">🔑 {res.puzzleAnswer}</span>}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeSecretResource(res.id)}
+                            className="p-1 px-2 text-rose-500 bg-rose-50 rounded-lg hover:bg-rose-100 border-none cursor-pointer text-[10px] font-black self-center transition-all"
+                            title="حذف"
+                          >
+                            <i className="pi pi-trash" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Secret notes textarea */}
+                <div className="space-y-2 mt-4">
+                  <label className="text-xs font-black text-slate-800 block">📝 ملاحظات ومستندات المصادر السرية والمحتوى الخفي المرفق:</label>
+                  <textarea
+                    className="w-full p-4 bg-white border border-purple-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 focus:ring-purple-500/10 transition-all resize-y min-h-[120px]"
+                    placeholder="اكتب استخلاصات وملاحظات مصادر الكبسولة السرية لهذه المحطة..."
+                    value={currentStation.secretResourcesNotes || ""}
+                    onChange={(e) => {
+                      const arr = [...state.stations];
+                      arr[selectedStation] = {
+                        ...arr[selectedStation],
+                        secretResourcesNotes: e.target.value,
+                      };
+                      setState({ ...state, stations: arr });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </TabPanel>
+
+          <TabPanel header="🧩 لغز الخطة ككل">
+            <div
+              className="flex flex-col gap-6 bg-amber-50/10 p-6 rounded-3xl border border-amber-100/30 mt-4 text-right font-sans"
+              dir="rtl"
+            >
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center gap-3 bg-amber-50 p-4 rounded-2xl border border-amber-100/30">
+                  <span className="text-2xl">🧩</span>
+                  <div>
+                    <h4 className="text-xs font-black text-amber-950">لغز الخطة الموجهة (The Station Big Riddle)</h4>
+                    <p className="text-[10px] text-amber-700 font-bold mt-0.5">لكل خطة (محطة) لغز كبير يسعى العقل لحله، يغلف المحطة ويحمي كبسولاتها المعرفية!</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Station Riddle Detail */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-800 block">❓ تفاصيل ومنطوق لغز الخطة الكبير:</label>
                     <textarea
-                      className="w-full p-4 bg-white border border-purple-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 focus:ring-purple-500/10 transition-all resize-y min-h-[140px]"
-                      placeholder="اكتب استخلاصات وملاحظات مصادر الكبسولة السرية لهذه المحطة..."
-                      value={currentStation.secretResourcesNotes || ""}
+                      className="w-full p-4 bg-white border border-amber-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all resize-y min-h-[140px]"
+                      placeholder="اكتب لغز الخطة الشامل... الذي يمثل تحدياً ذهنياً كبيراً لاجتياز المحطة بكفاءة."
+                      value={currentStation.riddleDetails || ""}
                       onChange={(e) => {
                         const arr = [...state.stations];
                         arr[selectedStation] = {
                           ...arr[selectedStation],
-                          secretResourcesNotes: e.target.value,
+                          riddleDetails: e.target.value,
+                        };
+                        setState({ ...state, stations: arr });
+                      }}
+                    />
+                  </div>
+
+                  {/* Station Riddle Answer */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-slate-800 block">🔑 الإجابة المفتاحية / حل لغز الخطة:</label>
+                    <p className="text-[9px] text-slate-400">الكلمة أو الرقم الذي يحل هذا اللغز ليمكّن الطالب من إتمام المحطة بنجاح فاقع.</p>
+                    <input
+                      type="text"
+                      className="w-full p-4 bg-white border border-amber-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-right"
+                      placeholder="اكتب كلمة أو حل اللغز الكبير المفتاحي للمحطة..."
+                      value={currentStation.riddleAnswer || ""}
+                      onChange={(e) => {
+                        const arr = [...state.stations];
+                        arr[selectedStation] = {
+                          ...arr[selectedStation],
+                          riddleAnswer: e.target.value,
                         };
                         setState({ ...state, stations: arr });
                       }}
                     />
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </TabPanel>
         </TabView>
