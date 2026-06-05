@@ -6,6 +6,7 @@ export interface Station {
   icon: string;
   description: string;
   generalNotes?: string;
+  secretResourcesNotes?: string;
   targetDate: string;
   order: number;
 }
@@ -113,6 +114,13 @@ export interface TaskReflection {
     accentRating: number;
     dialectNotes: string;
     pronunciationIssues: string;
+  };
+  aiPromptEvaluation?: {
+    promptCreated: boolean;
+    promptTopic: string;
+    promptExpected: boolean | null;
+    promptAI: string;
+    promptAIKey: string;
   };
 }
 

@@ -440,7 +440,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             onClick={(e) => {
               e.stopPropagation();
               vibrate(HAPITCS.MAJOR_CLICK);
-              setReviewingTask(task);
+              setSelectedTaskForDetails(task);
+              setTaskDetailsVisible(true);
             }}
             className="w-5.5 h-5.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 flex items-center justify-center text-indigo-600 transition-all cursor-pointer border-none shadow-3xs"
             title="تكرار المراجعة"
@@ -454,7 +455,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             onClick={(e) => {
               e.stopPropagation();
               vibrate(HAPITCS.MAJOR_CLICK);
-              setFlashcardTask(task);
+              setSelectedTaskForDetails(task);
+              setTaskDetailsVisible(true);
             }}
             className="w-5.5 h-5.5 rounded-lg bg-sky-50 hover:bg-sky-100 flex items-center justify-center text-sky-600 transition-all cursor-pointer border-none shadow-3xs"
             title="كروت المراجعة"
@@ -468,7 +470,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             onClick={(e) => {
               e.stopPropagation();
               vibrate(HAPITCS.MAJOR_CLICK);
-              setSelectedTaskForAnalytics(task);
+              setSelectedTaskForDetails(task);
+              setTaskDetailsVisible(true);
             }}
             className="w-5.5 h-5.5 rounded-lg bg-purple-50 hover:bg-purple-100 flex items-center justify-center text-purple-600 transition-all cursor-pointer border-none shadow-3xs"
             title="عرض التحليلات"
@@ -493,7 +496,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   }, [viewMode, selectedStation, activeStationId, setSelectedStation]);
 
   useEffect(() => {
-    if (gData.fuel <= 0 && user && !user.isVacation && !user.isFrozen) {
+    if (false && gData.fuel <= 0 && user && !user.isVacation && !user.isFrozen) {
       toastHot.custom((t) => (
         <div className="bg-white rounded-2xl shadow-2xl border border-rose-100 p-5 max-w-sm w-[90vw] mx-auto text-right" dir="rtl">
            <p className="text-xl text-rose-600 font-extrabold mb-3">بنزينك خلص يا بطل! ⛽</p>
@@ -1678,6 +1681,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 didPractical: !!data.didPractical,
                 practicalIssues: data.practicalIssues || '',
                 languageLearning: data.languageLearning,
+                aiPromptEvaluation: data.aiPromptEvaluation,
                 type: 'initial',
                 createdAt: new Date().toISOString()
               });
@@ -1732,6 +1736,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 didPractical: !!data.didPractical,
                 practicalIssues: data.practicalIssues || '',
                 languageLearning: data.languageLearning,
+                aiPromptEvaluation: data.aiPromptEvaluation,
                 type: 'review',
                 createdAt: new Date().toISOString()
               });
@@ -4471,9 +4476,18 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   setVisPreStartTask(task);
                 }
               }}
-              onOpenReview={setReviewingTask}
-              onOpenFlashcards={setFlashcardTask}
-              onOpenAnalytics={setSelectedTaskForAnalytics}
+              onOpenReview={(task) => {
+                setSelectedTaskForDetails(task);
+                setTaskDetailsVisible(true);
+              }}
+              onOpenFlashcards={(task) => {
+                setSelectedTaskForDetails(task);
+                setTaskDetailsVisible(true);
+              }}
+              onOpenAnalytics={(task) => {
+                setSelectedTaskForDetails(task);
+                setTaskDetailsVisible(true);
+              }}
               onShowLinks={(stationId) => {
                 setSelectedStation(stationId);
                 setShowLinksPopup(true);

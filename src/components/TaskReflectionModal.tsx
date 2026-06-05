@@ -62,8 +62,18 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
   const [dialectNotes, setDialectNotes] = useState('');
   const [pronunciationIssues, setPronunciationIssues] = useState('');
 
+  // AI Basics States
+  const [promptCreated, setPromptCreated] = useState<boolean | null>(null);
+  const [promptTopic, setPromptTopic] = useState('');
+  const [promptExpected, setPromptExpected] = useState<boolean | null>(null);
+  const [promptAI, setPromptAI] = useState<string>(''); // 'Gemini' | 'ChatGPT' | 'Claude' | 'Copilot' | 'Other'
+  const [customAI, setCustomAI] = useState('');
+
   const settings = useLiveQuery(() => db.userSettings.toArray());
   const isLanguageLearning = settings?.[0]?.learningGoal === 'اللغات الأجنبية';
+  const isAIBasics = settings?.[0]?.learningGoal === 'اساسيات الذكاء الاصطناعي' || 
+                     settings?.[0]?.learningGoal === 'أساسيات الذكاء الاصطناعي' ||
+                     settings?.[0]?.learningGoal?.includes('الذكاء الاصطناعي');
 
   // Reset state when modal opens
   useEffect(() => {
@@ -80,6 +90,13 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
       setAccentRating(3);
       setDialectNotes('');
       setPronunciationIssues('');
+      
+      // Reset AI Basics states
+      setPromptCreated(null);
+      setPromptTopic('');
+      setPromptExpected(null);
+      setPromptAI('');
+      setCustomAI('');
     }
   }, [visible]);
 
@@ -111,6 +128,36 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
       return;
     }
 
+    if (isAIBasics) {
+      if (promptCreated === null) {
+        toastHot.error("يرجى الإجابة عما إذا تم إنشاء أمر ذكي (Prompt) في هذه المهمة");
+        setActiveIndex(isLanguageLearning ? 2 : 1);
+        return;
+      }
+      if (promptCreated === true) {
+        if (!promptTopic.trim()) {
+          toastHot.error("يرجى كتابة موضوع الـ Prompt الذي قمت بتصميمه");
+          setActiveIndex(isLanguageLearning ? 2 : 1);
+          return;
+        }
+        if (promptExpected === null) {
+          toastHot.error("يرجى تحديد ما إذا كنت حصلت على النتيجة المتوقعة أم لا");
+          setActiveIndex(isLanguageLearning ? 2 : 1);
+          return;
+        }
+        if (!promptAI) {
+          toastHot.error("يرجى اختيار منصة الذكاء الاصطناعي التي قمت بالتطبيق عليها");
+          setActiveIndex(isLanguageLearning ? 2 : 1);
+          return;
+        }
+        if (promptAI === 'Other' && !customAI.trim()) {
+          toastHot.error("يرجى كتابة اسم منصة الذكاء الاصطناعي الأخرى");
+          setActiveIndex(isLanguageLearning ? 2 : 1);
+          return;
+        }
+      }
+    }
+
     vibrate(HAPITCS.COMPLETE);
     onSubmit({
       focus,
@@ -125,6 +172,13 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
         accentRating,
         dialectNotes,
         pronunciationIssues
+      } : undefined,
+      aiPromptEvaluation: isAIBasics ? {
+        promptCreated,
+        promptTopic: promptCreated ? promptTopic : '',
+        promptExpected: promptCreated ? promptExpected : null,
+        promptAI: promptCreated ? (promptAI === 'Other' ? customAI : promptAI) : '',
+        promptAIKey: promptCreated ? promptAI : ''
       } : undefined
     });
     onHide();
@@ -544,6 +598,191 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
                     className="w-full min-h-[60px] bg-slate-50/30 border-slate-100 rounded-xl p-3 text-xs font-medium"
                   />
                 </div>
+              </div>
+            </TabPanel>
+          )}
+
+          {isAIBasics && (
+            <TabPanel header="تقييم الـ Prompt 🧠" leftIcon="pi pi-sparkles mr-2 ml-2">
+              <div className="space-y-6 py-4 mt-2 max-h-[55vh] overflow-y-auto px-1 custom-scrollbar text-right" dir="rtl">
+                
+                {/* Header info */}
+                <div className="p-4 bg-indigo-50/50 border border-indigo-150/40 rounded-2xl flex items-center gap-3">
+                  <span className="text-2xl">🤖</span>
+                  <div>
+                    <h5 className="text-xs font-black text-slate-800">تقييم تجربة هندسة الأوامر (Prompt Engineering)</h5>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                      خلال مسيرتك في أساسيات الذكاء الاصطناعي، يهمنا تتبع تطورك في صياغة وتوجيه النماذج اللغوية.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Question 1: Did you create a prompt? */}
+                <div className="space-y-3">
+                  <label className="text-xs font-black text-slate-700 flex items-center gap-2">
+                    <span className="text-indigo-500 font-bold">🔘</span>
+                    <span>هل قمت بإنشاء وتحسين أمر ذكي (Prompt) في هذه المهمة؟</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        vibrate(HAPITCS.SUCCESS);
+                        setPromptCreated(true);
+                      }}
+                      className={`py-3.5 px-4 rounded-2xl font-black text-xs cursor-pointer border-2 transition-all flex flex-col items-center gap-2 ${
+                        promptCreated === true 
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-500 shadow-sm' 
+                          : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="text-xl">✨</span>
+                      <span>نعم، قمت بتجربة إنشاء أمر ذكي</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        vibrate(HAPITCS.MAJOR_CLICK);
+                        setPromptCreated(false);
+                      }}
+                      className={`py-3.5 px-4 rounded-2xl font-black text-xs cursor-pointer border-2 transition-all flex flex-col items-center gap-2 ${
+                        promptCreated === false 
+                          ? 'bg-rose-50 text-rose-700 border-rose-500 shadow-sm' 
+                          : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="text-xl">❌</span>
+                      <span>لا، لم يكن هناك أمر ذكي</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub questions if Prompt was created */}
+                <AnimatePresence>
+                  {promptCreated === true && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-6 pt-2 border-t border-slate-100 overflow-hidden"
+                    >
+                      {/* Topic */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-700 flex items-center gap-2">
+                          <span className="text-indigo-500">📝</span>
+                          <span>ما هو موضوع الـ Prompt الذي صممته وكيف كانت صياغتك؟</span>
+                        </label>
+                        <InputTextarea
+                          value={promptTopic}
+                          onChange={(e) => setPromptTopic(e.target.value)}
+                          placeholder="مثال: قمت بكتابة برومبت لتلخيص نص طويل بأسلوب حواري، أو برومبت لمحاكاة مقابلة عمل..."
+                          rows={3}
+                          className="w-full bg-white border border-slate-100 rounded-2xl p-4 text-xs font-bold leading-relaxed focus:ring-4 ring-indigo-500/10 outline-none transition-all"
+                        />
+                      </div>
+
+                      {/* Expected Result */}
+                      <div className="space-y-3">
+                        <label className="text-xs font-black text-slate-700 flex items-center gap-2">
+                          <span className="text-indigo-500">🎯</span>
+                          <span>وهل حصلت على النتيجة المتوقعة والمثالية التي سعيت إليها؟</span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              vibrate(HAPITCS.SUCCESS);
+                              setPromptExpected(true);
+                            }}
+                            className={`py-3 px-4 rounded-xl font-black text-xs cursor-pointer border-2 transition-all ${
+                              promptExpected === true 
+                                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-none shadow-md shadow-emerald-100' 
+                                : 'bg-slate-50 text-slate-600 border-transparent hover:bg-slate-100'
+                            }`}
+                          >
+                            نعم، النتيجة مطابقة للمتوقع 👍
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              vibrate(HAPITCS.MAJOR_CLICK);
+                              setPromptExpected(false);
+                            }}
+                            className={`py-3 px-4 rounded-xl font-black text-xs cursor-pointer border-2 transition-all ${
+                              promptExpected === false 
+                                ? 'bg-gradient-to-r from-rose-600 to-amber-600 text-white border-none shadow-md shadow-rose-100' 
+                                : 'bg-slate-50 text-slate-600 border-transparent hover:bg-slate-100'
+                            }`}
+                          >
+                            لا، ظهر نقص أو تشتت وبحاجة صقل ⚠️
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* AI Selector */}
+                      <div className="space-y-3">
+                        <label className="text-xs font-black text-slate-700 flex items-center gap-2">
+                          <span className="text-indigo-500">⚡</span>
+                          <span>على أي منصة للذكاء الاصطناعي قمت بتطبيق هذا الأمر؟</span>
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                          {[
+                            { id: 'Gemini', name: 'Gemini', icon: '✨' },
+                            { id: 'ChatGPT', name: 'ChatGPT', icon: '🟢' },
+                            { id: 'Claude', name: 'Claude', icon: '🟠' },
+                            { id: 'Copilot', name: 'Copilot', icon: '🔵' },
+                            { id: 'Other', name: 'منصة أخرى', icon: '🌀' }
+                          ].map((ai) => (
+                            <button
+                              key={ai.id}
+                              type="button"
+                              onClick={() => {
+                                vibrate(HAPITCS.SUCCESS);
+                                setPromptAI(ai.id);
+                              }}
+                              className={`py-3 px-2 rounded-xl border-2 font-black text-[11px] cursor-pointer flex flex-col items-center gap-1.5 transition-all ${
+                                promptAI === ai.id
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100'
+                                  : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
+                              }`}
+                            >
+                              <span className="text-lg">{ai.icon}</span>
+                              <span>{ai.name}</span>
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Optional custom AI input field if Other is selected */}
+                        <AnimatePresence>
+                          {promptAI === 'Other' && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95, height: 0 }}
+                              animate={{ opacity: 1, scale: 1, height: 'auto' }}
+                              exit={{ opacity: 0, scale: 0.95, height: 0 }}
+                              className="overflow-hidden mt-2"
+                            >
+                              <div className="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-200/60">
+                                <label className="text-[10px] font-black text-slate-500 block">اكتب اسم منصة الذكاء الاصطناعي التي استخدمتها:</label>
+                                <input
+                                  type="text"
+                                  value={customAI}
+                                  onChange={(e) => setCustomAI(e.target.value)}
+                                  placeholder="مثال: Grok, DeepSeek, Llama..."
+                                  className="w-full py-2.5 px-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 ring-indigo-500/10 transition-all text-right"
+                                  dir="rtl"
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
               </div>
             </TabPanel>
           )}

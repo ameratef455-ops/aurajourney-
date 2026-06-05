@@ -20,6 +20,7 @@ export interface WizardStation {
   name: string;
   description: string;
   generalNotes?: string;
+  secretResourcesNotes?: string;
   targetDate: string;
   tasks: WizardTask[];
 }

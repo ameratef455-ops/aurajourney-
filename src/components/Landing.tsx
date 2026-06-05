@@ -11,8 +11,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { toast as toastHot } from "react-hot-toast";
 import { NotificationsPopover } from "./NotificationsPopover";
 import { TaskDetailsModal } from "./TaskDetailsModal";
+import { TaskEditorModal } from "./TaskEditorModal";
 import { Plus, User, LogOut, Settings as SettingsIcon, Share2, Download, X, Compass, Sparkles } from "lucide-react";
 import { GrowthTree } from "./GrowthTree";
+import confetti from "canvas-confetti";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -668,7 +670,7 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
 
   const [isReviewDialogVisible, setIsReviewDialogVisible] = useState(false);
   const [selectedReviewTripId, setSelectedReviewTripId] = useState<string>("");
-  const [selectedReviewTasks, setSelectedReviewTasks] = useState<string[]>([]);
+  const [selectedReviewTaskId, setSelectedReviewTaskId] = useState<string>("");
   const [createdReviewPlans, setCreatedReviewPlans] = useState<any[]>([]);
   const [reviewDetailsVisible, setReviewDetailsVisible] = useState(false);
   const [reviewDetailsTaskId, setReviewDetailsTaskId] = useState<string | null>(null);
@@ -693,12 +695,15 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
   };
 
   const handleCreateReviewPlans = async () => {
-    if (!selectedReviewTripId) return;
+    if (!selectedReviewTripId || !selectedReviewTaskId) return;
     vibrate(HAPITCS.COMPLETE);
     
+    const selectedTask = allAvailableTasks.find(t => t.id === selectedReviewTaskId);
+    const taskTitle = selectedTask ? selectedTask.title : "المهمة الأساسية";
+
     // Get station ID to attach to
     const stationsList = await db.stations.toArray();
-    const stationId = stationsList[0]?.id || "review-station";
+    const stationId = selectedTask?.stationId || stationsList[0]?.id || "review-station";
 
     const plan1Id = "rev-1-" + Date.now();
     const plan2Id = "rev-2-" + Date.now();
@@ -707,26 +712,29 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
     const plan1 = {
       id: plan1Id,
       stationId,
-      title: "خطة المراجعة 1: الاستيعاب والمفاهيم 🧠",
+      title: `المراجعة 1: الفهم الاستيعابي والتدوين الجريء لـ (${taskTitle}) 🧠`,
       type: "main" as const,
       isCompleted: false,
-      dueDate: new Date(Date.now() + 86400050).toISOString().slice(0, 10),
-      description: "تركز هذه الخطة على اختبار مدى ثبات الجهد الفكري والمفاهيم النظرية التي تضمنتها المهام المحددة.",
-      learningResources: "كتيب الاسترجاع المنظم وبطاقات الذاكرة.",
+      dueDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      description: `تركز هذه الخطة الأولى على جلاء الغموض والاستدعاء النشط للمفاهيم الأساسية والأفكار الجوهرية الخاصة بمهارة "${taskTitle}" لكسر سرعة منحنى النسيان.`,
+      learningResources: selectedTask?.learningResources || "كتيب الملاحظات والروابط المنظمة المضافة.",
+      youtubeUrl: selectedTask?.youtubeUrl || "",
+      googleDriveUrl: selectedTask?.googleDriveUrl || "",
+      youglishKeyword: selectedTask?.youglishKeyword || "",
       activities: [
         {
           id: "act-1-1-" + Date.now(),
-          title: "استدعاء ومناقشة الأفكار الفكرية والمفاهيم الأساسية",
+          title: "جلسة التدوين الذهبي والاستذكار الفعال غيباً",
           duration: 15,
           isCompleted: false,
-          steps: [{ id: "step-1-1-1", title: "كتابة الخلاصة المفاهيمية غيباً", isCompleted: false }]
+          steps: [{ id: "step-1-1-1", title: "كتابة الخلاصة المفاهيمية الأساسية للموضوع غيباً تماماً ومقارنتها بالمرجع", isCompleted: false }]
         },
         {
           id: "act-1-2-" + Date.now(),
-          title: "حل واختبار جودة الفهم عبر بطاقات الاستذكار الفعال",
+          title: "تفنيد ومراجعة الكروت وحل الأسئلة المربكة",
           duration: 15,
           isCompleted: false,
-          steps: [{ id: "step-1-2-1", title: "مراجعة 5 بطاقات ذاكرة على الأقل", isCompleted: false }]
+          steps: [{ id: "step-1-2-1", title: "فحص 5 كروت ومكافحة الالتباس في المفاهيم المقاومة", isCompleted: false }]
         }
       ]
     };
@@ -734,26 +742,29 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
     const plan2 = {
       id: plan2Id,
       stationId,
-      title: "خطة المراجعة 2: التطبيق والتمكين 🛠️",
+      title: `المراجعة 2: التلميع التطبيقي وصقل المنتج التنفيذي لـ (${taskTitle}) 🛠️`,
       type: "main" as const,
       isCompleted: false,
-      dueDate: new Date(Date.now() + 172800050).toISOString().slice(0, 10),
-      description: "تهدف هذه الخطة إلى مراجعة وتلميع الجوانب التطبيقية والتنفيذية التي بنيتها لضمان متانة الكود أو المخرج.",
-      learningResources: "مجلد المشاريع السابقة والأدلة الفنية.",
+      dueDate: new Date(Date.now() + 172800000).toISOString().slice(0, 10),
+      description: `تهدف هذه الخطة العملية لتفقد المخرجات التشغيلية وصناعة مخرجات عملية صلبة تؤكد تمكنك التام من تطبيق "${taskTitle}".`,
+      learningResources: selectedTask?.learningResources || "مجلد المشاريع والتمرينات التطبيقية للمحطة السابقة.",
+      youtubeUrl: selectedTask?.youtubeUrl || "",
+      googleDriveUrl: selectedTask?.googleDriveUrl || "",
+      youglishKeyword: selectedTask?.youglishKeyword || "",
       activities: [
         {
           id: "act-2-1-" + Date.now(),
-          title: "إعادة مراجعة الخطوات والنقاط التطبيقية والتنفيذية السابقة",
-          duration: 20,
+          title: "إعادة بناء وتحديث الكود أو المخرج السابق وتجويده",
+          duration: 25,
           isCompleted: false,
-          steps: [{ id: "step-2-1-1", title: "فحص مخرجات التشغيل السابقة وتصحيح العيوب", isCompleted: false }]
+          steps: [{ id: "step-2-1-1", title: "مراجعة الكفاءة وتعديل عيوب التشغيل والسرعة مع إثبات فاعليتها", isCompleted: false }]
         },
         {
           id: "act-2-2-" + Date.now(),
-          title: "إثبات الكفاءة عبر حل تمارين إضافية أو تحسين المخرجات",
-          duration: 30,
+          title: "الممارسة الإضافية أو إدخال تحسين ذكي ذو أولوية",
+          duration: 20,
           isCompleted: false,
-          steps: [{ id: "step-2-2-1", title: "إضافة ميزة ذكية واحدة للعمل السابق", isCompleted: false }]
+          steps: [{ id: "step-2-2-1", title: "إضافة لمسة إبداعية جديدة تثبت السيطرة المطلقة على النماذج", isCompleted: false }]
         }
       ]
     };
@@ -761,26 +772,29 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
     const plan3 = {
       id: plan3Id,
       stationId,
-      title: "خطة المراجعة 3: التقييم النهائي والأثر 🌟",
+      title: `المراجعة 3: تدوين الدروس والتمكين الأسبوعي والأثر لـ (${taskTitle}) 🌟`,
       type: "main" as const,
       isCompleted: false,
-      dueDate: new Date(Date.now() + 259200050).toISOString().slice(0, 10),
-      description: "مخصصة للتفكر الذاتي والتقييم النوعي للأداء قبل إغلاق ملف الجزء المراجع من الرحلة بنجاح.",
-      learningResources: "استمارة تقييم الذات الأسبوعية.",
+      dueDate: new Date(Date.now() + 259200000).toISOString().slice(0, 10),
+      description: `مخصصة لتقييم الوعي بالصعوبات، غلق ملف مراجعة "${taskTitle}" وحصاد الجهد وتعديل المسار بمزيد من الثقة.`,
+      learningResources: selectedTask?.learningResources || "استمارة غلق الفجوات المعرفية وملاحظات التفكر.",
+      youtubeUrl: selectedTask?.youtubeUrl || "",
+      googleDriveUrl: selectedTask?.googleDriveUrl || "",
+      youglishKeyword: selectedTask?.youglishKeyword || "",
       activities: [
         {
           id: "act-3-1-" + Date.now(),
-          title: "جلسة تفكر ذاتية وتدوين سجل الملاحظات في خلايا السعي",
-          duration: 10,
+          title: "تفكر ذاتي متعمق وكتابة استبصار الدروس",
+          duration: 15,
           isCompleted: false,
-          steps: [{ id: "step-3-1-1", title: "كتابة فقرة تأملية عن نسبة الإتقان الحالية", isCompleted: false }]
+          steps: [{ id: "step-3-1-1", title: "تسجيل فقرة واحدة متينة في سعي اليوم تلخص أين أجدت وأين تعثرت", isCompleted: false }]
         },
         {
           id: "act-3-2-" + Date.now(),
-          title: "التواصل أو استعراض العمل مع زميل/مرشد للتحقق من التمكين الكلي",
-          duration: 15,
+          title: "قياس الفروقات الفردية واختبار التمكين الذاتي النهائي",
+          duration: 10,
           isCompleted: false,
-          steps: [{ id: "step-3-2-1", title: "التحقق من زوال العقبات أو المخاوف السابقة", isCompleted: false }]
+          steps: [{ id: "step-3-2-1", title: "تعبئة مقياس الإتقان الروحي والموضوعي لـ 10 درجات وتأكيد غلق المحطة", isCompleted: false }]
         }
       ]
     };
@@ -789,8 +803,19 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
     await db.tasks.put(plan2);
     await db.tasks.put(plan3);
 
+    // Give a gamification surprise! +35 XP
+    const mainSettings = await db.userSettings.toArray();
+    const userToAward = mainSettings[0];
+    if (userToAward && userToAward.gameData) {
+      const updatedXp = (userToAward.gameData.xp || 0) + 35; // +35 XP bonus for starting a review plan
+      await db.userSettings.update(userToAward.id, {
+        gameData: { ...userToAward.gameData, xp: updatedXp }
+      } as any);
+    }
+
     setCreatedReviewPlans([plan1, plan2, plan3]);
-    toastHot.success("تم تشييد خطط المراجعة الثلاث بنجاح! 🚀");
+    confetti({ zIndex: 999999999, particleCount: 150, spread: 80, origin: { y: 0.6 } });
+    toastHot.success("تم تشييد خطط المراجعة الثلاث بنجاح! 🚀 (+35 XP)");
   };
 
   const menuItems = [
@@ -924,7 +949,7 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
         onHide={() => {
           setIsReviewDialogVisible(false);
           setSelectedReviewTripId("");
-          setSelectedReviewTasks([]);
+          setSelectedReviewTaskId("");
           setCreatedReviewPlans([]);
         }}
         className="w-[98vw] max-w-2xl font-sans mx-4 border-none shadow-[0_0_50px_rgba(245,158,11,0.3)] bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950 rounded-3xl overflow-hidden"
@@ -936,9 +961,27 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
         <div className="space-y-6 pt-5 text-right font-sans" dir="rtl">
           {createdReviewPlans.length === 0 ? (
             <>
+              {/* Ebbinghaus Tip Alert */}
+              <div className="p-4 bg-gradient-to-r from-blue-900/40 to-slate-900 border border-white/15 rounded-2xl text-right flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                    <i className="pi pi-bolt text-lg"></i>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-indigo-300">مصل ترويض منحنى النسيان 🧠</h4>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                      بناء ومتابعة خطط المراجعة الثلاث يعيد تركيزك ويحمي 92% من المعرفة المعرضة للتلاشي بعد 48 ساعة.
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 rounded-lg text-[9px] font-black shrink-0">
+                  +30 XP تفعيل ريادي
+                </span>
+              </div>
+
               {/* Trip Selection */}
               <div>
-                <p className="text-xs font-black text-amber-400/80 mb-3 uppercase tracking-wider">الخطوة 1: حدد الرحلة المراد مراجعتها</p>
+                <p className="text-xs font-black text-amber-400/80 mb-3 uppercase tracking-wider">الخطوة 1: حدد غاية السعي (الرحلة المحددة)</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {trips.map((trip) => (
                     <button
@@ -947,15 +990,15 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
                       onClick={() => {
                         vibrate(HAPITCS.MAJOR_CLICK);
                         setSelectedReviewTripId(trip.id);
-                        setSelectedReviewTasks([]);
+                        setSelectedReviewTaskId("");
                       }}
                       className={`p-4 rounded-2xl cursor-pointer text-right flex items-center gap-4 transition-all border outline-none ${
                         selectedReviewTripId === trip.id
-                          ? "bg-amber-500/20 border-amber-500/80 text-amber-300 animate-[pulse_1.5s_infinite]"
+                          ? "bg-amber-500/25 border-amber-500/80 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
                           : "bg-white/5 border-white/5 text-slate-350 hover:bg-white/10"
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300">
                         <i className={`pi ${getTripIcon(trip.learningGoal)} text-xs`} />
                       </div>
                       <span className="font-extrabold text-xs">{trip.learningGoal}</span>
@@ -967,35 +1010,71 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
                 </div>
               </div>
 
-              {/* Tasks Checklist */}
+              {/* Task Selector */}
               {selectedReviewTripId && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                  <p className="text-xs font-black text-amber-400/80 mb-3 uppercase tracking-wider">الخطوة 2: حدد المهام لتشييد خطة المراجعة لها</p>
+                  <p className="text-xs font-black text-amber-400/80 mb-3 uppercase tracking-wider">الخطوة 2: حدد المهمة التي ترغب بمراجعتها</p>
                   <div className="bg-black/20 rounded-2xl p-4 max-h-56 overflow-y-auto border border-white/5 backdrop-blur-md">
-                    <div className="space-y-2">
-                      {allAvailableTasks.filter(t => t.type === 'main').map((task) => (
-                        <label key={task.id} className="flex items-center gap-4 cursor-pointer hover:bg-white/5 p-3 rounded-xl transition-colors border border-transparent hover:border-white/10">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 cursor-pointer accent-amber-500 rounded-sm"
-                            checked={selectedReviewTasks.includes(task.id)}
-                            onChange={(e) => {
+                    <div className="grid grid-cols-1 gap-2">
+                      {allAvailableTasks.filter(t => t.type === 'main').map((task) => {
+                        const isSelected = selectedReviewTaskId === task.id;
+                        return (
+                          <button
+                            key={task.id}
+                            type="button"
+                            onClick={() => {
                               vibrate(HAPITCS.GUIDANCE);
-                              if (e.target.checked) setSelectedReviewTasks([...selectedReviewTasks, task.id]);
-                              else setSelectedReviewTasks(selectedReviewTasks.filter(id => id !== task.id));
+                              setSelectedReviewTaskId(task.id);
                             }}
-                          />
-                          <div className="flex items-center gap-3">
-                            <span className="w-8 h-8 rounded-full bg-amber-950/40 flex items-center justify-center text-amber-400 border border-amber-500/10">
-                              <i className="pi pi-bookmark text-[10px]" />
-                            </span>
-                            <span className="text-xs font-bold text-slate-200">{task.title}</span>
-                          </div>
-                        </label>
-                      ))}
+                            className={`w-full p-4 rounded-xl cursor-pointer text-right flex items-center justify-between transition-all border outline-none ${
+                              isSelected
+                                ? "bg-amber-500/20 border-amber-500/80 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+                                : "bg-white/5 border-white/5 text-slate-300 hover:bg-white/10"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${
+                                isSelected ? "bg-amber-500/30 border-amber-450/30 text-amber-300" : "bg-slate-800 border-white/5 text-slate-400"
+                              }`}>
+                                <i className="pi pi-bookmark text-[10px]" />
+                              </div>
+                              <div className="text-right">
+                                <span className="text-xs font-black block">{task.title}</span>
+                                {task.description && (
+                                  <span className="text-[10px] text-slate-400 block mt-0.5 max-w-[340px] truncate">{task.description}</span>
+                                )}
+                              </div>
+                            </div>
+                            {isSelected ? (
+                              <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center text-slate-950 font-black text-xs">
+                                ✓
+                              </div>
+                            ) : (
+                              <div className="w-5 h-5 rounded-full border border-white/10" />
+                            )}
+                          </button>
+                        );
+                      })}
                       {allAvailableTasks.filter(t => t.type === 'main').length === 0 && (
-                        <p className="text-xs text-slate-400 p-4 text-center">لم يتم العثور على مهام مضافة لهذه الرحلة بعد.</p>
+                        <p className="text-xs text-slate-400 p-4 text-center">لم يتم العثور على أي مهام نشطة في هذه الرحلة حالياً مخصصة للتكرار.</p>
                       )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Rewards Insight */}
+              {selectedReviewTaskId && (
+                <div className="p-4 bg-gradient-to-r from-amber-500/10 to-indigo-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between gap-4 text-right animate-in fade-in duration-300">
+                  <div className="flex items-center gap-3">
+                    <span className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 text-lg">
+                      🔥
+                    </span>
+                    <div>
+                      <p className="text-xs font-black text-amber-300">درع تعزيز الفراسة المعرفية نشط!</p>
+                      <p className="text-[10px] text-slate-300 mt-1 leading-relaxed">
+                        عند تشييد هذه المراجعة الموقّتة ستحصل فورياً على مكافأة بقيمة <b>+35 XP</b> لتعزيز ترتيب نجاحك المعرفي.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1005,29 +1084,29 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
               <div className="flex gap-4 justify-end pt-4 border-t border-white/5 mt-6">
                 <Button
                   label="تراجع"
-                  className="p-button-text text-slate-440 font-bold text-sm cursor-pointer hover:text-white hover:bg-white/5 rounded-xl px-5 py-3 border-none bg-transparent transition-all"
+                  className="p-button-text text-slate-400 font-bold text-sm cursor-pointer hover:text-white hover:bg-white/5 rounded-xl px-5 py-3 border-none bg-transparent transition-all"
                   onClick={() => {
                     setIsReviewDialogVisible(false);
                     setSelectedReviewTripId("");
-                    setSelectedReviewTasks([]);
+                    setSelectedReviewTaskId("");
                   }}
                 />
                 <Button
-                  label="إنشاء خطط المراجعة الثلاث 🚀"
+                  label="تخطيط وتشييد المراجعات الثلاث 🚀"
                   className="bg-gradient-to-r from-amber-550 to-amber-700 hover:from-amber-400 hover:to-amber-600 border-none text-white font-black px-6 py-3 rounded-xl text-xs cursor-pointer transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
                   onClick={handleCreateReviewPlans}
-                  disabled={!selectedReviewTripId || selectedReviewTasks.length === 0}
+                  disabled={!selectedReviewTripId || !selectedReviewTaskId}
                 />
               </div>
             </>
           ) : (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-400">
               <div className="text-center py-4">
-                <div className="w-16 h-16 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mx-auto mb-4 text-amber-400">
-                  <i className="pi pi-check-circle text-3xl" />
+                <div className="w-16 h-16 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mx-auto mb-4 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                  <i className="pi pi-check-circle text-3xl animate-bounce" />
                 </div>
-                <h3 className="text-xl font-black text-amber-300">تم بناء خطط المراجعة الثلاث بنجاح!</h3>
-                <p className="text-xs text-slate-350 mt-2">انقر على أي من الخطط أدناه لعرض تفاصيلها والعمل عليها عبر مودال المهام المطور.</p>
+                <h3 className="text-xl font-black text-amber-300">تم بناء خطط المراجعة الثلاث وترميم طاقتك! ✨</h3>
+                <p className="text-xs text-slate-350 mt-2">انقر على أي من خطط المراجعة الثلاث الموزعة أدناه لعرض تلميحات الجهد وحلحلة الأنشطة داخل مودال التأسيس المطور.</p>
               </div>
 
               <div className="space-y-3 font-sans">
@@ -1045,9 +1124,9 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
                       <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-black">
                         #{idx + 1}
                       </div>
-                      <div>
+                      <div className="text-right">
                         <h4 className="text-sm font-black text-white group-hover:text-amber-350 transition-colors font-sans">{plan.title}</h4>
-                        <p className="text-[10px] text-slate-400 mt-1 font-sans">{plan.description}</p>
+                        <p className="text-[10px] text-slate-400 mt-1 font-sans max-w-[450px] leading-relaxed">{plan.description}</p>
                       </div>
                     </div>
                     <i className="pi pi-angle-left text-xs text-slate-400 group-hover:text-amber-450 transition-colors" />
@@ -1062,7 +1141,7 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
                   onClick={() => {
                     setIsReviewDialogVisible(false);
                     setSelectedReviewTripId("");
-                    setSelectedReviewTasks([]);
+                    setSelectedReviewTaskId("");
                     setCreatedReviewPlans([]);
                   }}
                 />
@@ -1072,20 +1151,23 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
         </div>
       </Dialog>
 
-      {/* Task Details Modal of the Review plans */}
-      <TaskDetailsModal
-        visible={reviewDetailsVisible}
-        onHide={() => {
-          setReviewDetailsVisible(false);
-          setReviewDetailsTaskId(null);
-        }}
-        taskId={reviewDetailsTaskId}
-        onCompleteTask={async (taskId) => {
-          await (db.tasks as any).update(taskId, { isCompleted: true });
-          setReviewDetailsVisible(false);
-          toastHot.success("تم إكمال خطة المراجعة بنجاح! 🎉");
-        }}
-      />
+      {/* Task Details Modal of the Review plans - Replaced with TaskEditorModal rendering setup wizard task editor giving 0 XP */}
+      {reviewDetailsTaskId && (
+        <TaskEditorModal
+          visible={reviewDetailsVisible}
+          onHide={() => {
+            setReviewDetailsVisible(false);
+            setReviewDetailsTaskId(null);
+          }}
+          task={allAvailableTasks.find((t) => t.id === reviewDetailsTaskId)}
+          onSave={async (updatedTask) => {
+            await db.tasks.put(updatedTask);
+            setReviewDetailsVisible(false);
+            setReviewDetailsTaskId(null);
+            toastHot.success("تم تشييد التعديلات على خطة المراجعة بنجاح! 💾 (0 XP)");
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -517,11 +517,11 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     const today = new Date();
     const todayStr = today.toDateString();
 
-    let newFuel = currentGameData.fuel;
+    let newFuel = 100;
     let newStreak = currentGameData.streak || 0;
 
     if (currentGameData.lastReflectionDate !== todayStr) {
-      newFuel = Math.max(0, currentGameData.fuel - 7);
+      newFuel = 100;
 
       if (!currentGameData.lastReflectionDate) {
         newStreak = 1;
@@ -768,15 +768,15 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       return;
     }
     vibrate(HAPITCS.GUIDANCE);
-    const newFuel = Math.min(100, gData.fuel + 7); // Rests recover fuel
+    const updatedXp = (gData.xp || 0) + 5;
     await db.userSettings.update(user.id, {
-      gameData: { ...gData, fuel: newFuel, lastReflectionDate: today, streak: 0 },
+      gameData: { ...gData, fuel: 100, lastReflectionDate: today, streak: 0, xp: updatedXp },
     });
     toast.current?.show({
       severity: "success",
-      summary: "مبارك، يوم راحة مبارك! ☀️",
+      summary: "يوم راحة فكري مبارك! ☀️",
       detail:
-        "شحنّا خزانك بـ 7% من الوقود الإضافي لتتجنب الإرهاق النفسي والاحتراق وتعود أكثر قوة.",
+        "أخذ قسط من الراحة والاستراحة يجدد ملكتك الإبداعية! ربحت +5 XP كهدية توازن.",
       life: 3000,
     });
   };
