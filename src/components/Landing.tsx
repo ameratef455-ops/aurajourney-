@@ -854,13 +854,11 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
     <div className="w-full max-h-[85vh] overflow-y-auto py-12 px-6 flex flex-col items-center justify-start text-center z-10 space-y-12 max-w-2xl relative scroll-smooth no-scrollbar">
       <header className="fixed top-0 left-0 w-full p-4 md:p-6 flex justify-between items-center z-40 bg-white/80 backdrop-blur-md border-b border-slate-100" dir="rtl">
         <div className="flex-1 flex justify-start pl-2">
-           <h1 className="text-2xl md:text-3xl font-fredoka tracking-wide text-blue-950 font-black">
-              VIA
-           </h1>
         </div>
         
-        <div className="flex-1 flex justify-center items-center">
-            <div className="w-12 h-12 md:w-14 md:h-14 border-2 border-blue-900 flex items-center justify-center rounded-full bg-white shadow-sm overflow-hidden p-2.5">
+        <div className="flex-none flex justify-center items-center gap-3 md:gap-6">
+            <span className="hidden md:block text-2xl md:text-3xl text-slate-800 font-extrabold pb-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>رحلة حياة</span>
+            <div className="w-12 h-12 md:w-14 md:h-14 border-2 border-blue-900 flex items-center justify-center rounded-full bg-white shadow-sm overflow-hidden p-2.5 shrink-0">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-blue-900">
                 <circle cx="12" cy="6" r="2.5" fill="currentColor" />
                 <circle cx="6" cy="18" r="2.5" fill="currentColor" />
@@ -870,10 +868,12 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
                 <path d="M8.5 18H15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </div>
+           <h1 className="text-2xl md:text-3xl font-fredoka tracking-wide text-blue-950 font-black" dir="ltr">
+              VIA
+           </h1>
         </div>
 
         <div className="flex-1 flex justify-end items-center gap-4">
-           <span className="hidden md:block text-2xl md:text-3xl text-slate-800 font-extrabold pb-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>رحلة حياة</span>
            
            <div className="flex items-center gap-2 md:gap-4 shrink-0 pr-4">
              <Menu model={menuItems} popup ref={menu} id="create_menu" className="font-sans text-xs font-bold rounded-3xl shadow-2xl border-none bg-transparent p-0 overflow-visible" />
