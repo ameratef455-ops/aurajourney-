@@ -51,6 +51,9 @@ export function SetupWizard({
     dailyDuration: 30,
     learningDays: [0, 1, 2, 3, 4],
     theme: "cards",
+    resources: [],
+    planGoals: "",
+    planOutcomes: "",
   });
 
   useEffect(() => {
@@ -99,6 +102,8 @@ export function SetupWizard({
                   hiddenRiddleDetails: t.hiddenRiddleDetails || "",
                   hiddenRiddleAnswer: t.hiddenRiddleAnswer || "",
                   hiddenRiddleHint: t.hiddenRiddleHint || "",
+                  taskGoals: t.taskGoals || "",
+                  taskOutcomes: t.taskOutcomes || "",
                 })),
             }));
 
@@ -116,6 +121,9 @@ export function SetupWizard({
               theme: trip.theme || "cards",
               incentiveTime: trip.incentiveTime || "",
               incentiveDesc: trip.incentiveDesc || "",
+              resources: trip.resources || [],
+              planGoals: trip.planGoals || "",
+              planOutcomes: trip.planOutcomes || "",
             });
           }
         } catch (error) {
@@ -180,7 +188,7 @@ export function SetupWizard({
 
   const nextStep = () => {
     vibrate(HAPITCS.MAJOR_CLICK);
-    if (step < 6) setStep(step + 1);
+    if (step < 7) setStep(step + 1);
   };
 
   const prevStep = () => {
@@ -208,14 +216,18 @@ export function SetupWizard({
       id: uid,
       learningGoal: state.learningGoal,
       psychology: state.psychology,
+      planGoals: state.planGoals || "",
+      planOutcomes: state.planOutcomes || "",
       dailyDuration: state.dailyDuration || 30,
       learningDays: state.learningDays || [0, 1, 2, 3, 4],
       theme: state.theme || "cards",
       incentiveTime: state.incentiveTime || "",
       incentiveDesc: state.incentiveDesc || "",
+      resources: state.resources || [],
       gameData,
       notes: existingTrip?.notes || {},
       timeCapsules: existingTrip?.timeCapsules || {},
+      attachments: existingTrip?.attachments || [],
     });
 
     // Delete old stations and tasks to avoid orphans
@@ -268,6 +280,8 @@ export function SetupWizard({
           hiddenRiddleDetails: t.hiddenRiddleDetails || "",
           hiddenRiddleAnswer: t.hiddenRiddleAnswer || "",
           hiddenRiddleHint: t.hiddenRiddleHint || "",
+          taskGoals: t.taskGoals || "",
+          taskOutcomes: t.taskOutcomes || "",
         });
       }
     }
@@ -280,7 +294,7 @@ export function SetupWizard({
       {/* Header */}
       <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
         <div className="flex gap-2" dir="ltr">
-          {[1, 2, 3, 4, 5, 6].map((s) => (
+          {[1, 2, 3, 4, 5, 6, 7].map((s) => (
             <div
               key={s}
               className={`w-2 h-2 rounded-full transition-all duration-300 ${s === step ? "bg-blue-900" : "bg-gray-200"}`}
@@ -289,7 +303,7 @@ export function SetupWizard({
         </div>
 
         <span className="text-blue-900 font-bold text-sm tracking-widest uppercase">
-          Step 0{step} / 06
+          Step 0{step} / 07
         </span>
       </div>
 
@@ -306,8 +320,9 @@ export function SetupWizard({
           >
             {step === 1 && <Step1 state={state} setState={setState} />}
             {step === 2 && <Step2 state={state} setState={setState} />}
-            {step === 3 && <Step4 state={state} setState={setState} />}
-            {step === 4 && (
+            {step === 3 && <StepPlanGoals state={state} setState={setState} />}
+            {step === 4 && <Step4 state={state} setState={setState} />}
+            {step === 5 && (
               <Step5
                 state={state}
                 setState={setState}
@@ -315,8 +330,8 @@ export function SetupWizard({
                 hyperLearningActive={hyperLearningActive}
               />
             )}
-            {step === 5 && <Step6 state={state} setState={setState} />}
-            {step === 6 && (
+            {step === 6 && <Step6 state={state} setState={setState} />}
+            {step === 7 && (
               <div className="flex flex-col h-full overflow-y-auto no-scrollbar pr-1">
                 <StepTheme state={state} setState={setState} />
                 <div className="mt-8 flex flex-col items-center">
@@ -409,7 +424,7 @@ export function SetupWizard({
           <div className="w-10"></div>
         )}
 
-        {step === 6 ? (
+        {step === 7 ? (
           <button
             onClick={handleSave}
             className="px-10 py-4 bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 hover:brightness-110 text-white rounded-xl font-bold shadow-lg shadow-blue-950/20 active:scale-95 transition-all outline-none border-none cursor-pointer"
@@ -538,6 +553,61 @@ const Step2 = ({ state, setState }: any) => (
         />
       </div>
     ))}
+  </div>
+);
+
+const StepPlanGoals = ({ state, setState }: any) => (
+  <div className="flex flex-col gap-8 pb-10 pr-1">
+    <div>
+      <h2 className="text-3xl font-extrabold text-blue-950 mb-2">
+        أهداف ومخرجات الرحلة المستهدفة 🎯
+      </h2>
+      <p className="text-gray-400 font-medium">
+        حدد ما تود الوصول إليه واكتسابه عند الانتهاء من كامل الخطة.
+      </p>
+    </div>
+
+    <div className="flex flex-col gap-3">
+      <label className="text-sm font-extrabold text-gray-700">
+        🎯 أهداف الخطة المستهدفة
+      </label>
+      <p className="text-xs text-slate-400 -mt-1 font-semibold leading-relaxed">
+        أمثلة: بناء مشروع متكامل بيدي، فهم الأساسيات والتحول لوظيفة جديدة، إلخ.
+      </p>
+      <textarea
+        rows={4}
+        className="w-full border border-slate-100 hover:border-blue-200 shadow-3xs rounded-2xl p-4 bg-gray-50/50 focus:bg-white outline-none focus:ring-4 ring-blue-900/5 transition-all resize-y min-h-[120px] placeholder-gray-300 font-medium text-blue-950 text-sm"
+        placeholder="اكتب أهدافك هنا بالتفصيل..."
+        value={state.planGoals || ""}
+        onChange={(e) =>
+          setState({
+            ...state,
+            planGoals: e.target.value,
+          })
+        }
+      />
+    </div>
+
+    <div className="flex flex-col gap-3">
+      <label className="text-sm font-extrabold text-gray-700">
+        📚 نتائج التعلم المتوقعة
+      </label>
+      <p className="text-xs text-slate-400 -mt-1 font-semibold leading-relaxed">
+        أمثلة: القدرة على حل المشاكل البرمجية، إتقان التفكير التصميمي، فهم بنية قواعد البيانات.
+      </p>
+      <textarea
+        rows={4}
+        className="w-full border border-slate-100 hover:border-blue-200 shadow-3xs rounded-2xl p-4 bg-gray-50/50 focus:bg-white outline-none focus:ring-4 ring-blue-900/5 transition-all resize-y min-h-[120px] placeholder-gray-300 font-medium text-blue-950 text-sm"
+        placeholder="اكتب المخرجات والمهارت المتوقع اكتسابها بعد إتمام الرحلة..."
+        value={state.planOutcomes || ""}
+        onChange={(e) =>
+          setState({
+            ...state,
+            planOutcomes: e.target.value,
+          })
+        }
+      />
+    </div>
   </div>
 );
 
@@ -794,6 +864,33 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
   const [secretPuzzle, setSecretPuzzle] = useState("");
   const [secretPuzzleAnswer, setSecretPuzzleAnswer] = useState("");
   const [secretPuzzleHint, setSecretPuzzleHint] = useState("");
+
+  const [generalResName, setGeneralResName] = useState("");
+  const [generalResUrl, setGeneralResUrl] = useState("");
+  const [generalResDesc, setGeneralResDesc] = useState("");
+
+  const addGeneralResource = () => {
+    if (!generalResName || !generalResUrl) return;
+    vibrate(HAPITCS.SUCCESS);
+    const existing = state.resources || [];
+    const newItems = [...existing, {
+      id: Math.random().toString(36).substring(7),
+      name: generalResName.trim(),
+      url: generalResUrl.trim(),
+      description: generalResDesc.trim()
+    }];
+    setState({ ...state, resources: newItems });
+    setGeneralResName("");
+    setGeneralResUrl("");
+    setGeneralResDesc("");
+  };
+
+  const removeGeneralResource = (resId: string) => {
+    vibrate(HAPITCS.MAJOR_CLICK);
+    const existing = state.resources || [];
+    const newItems = existing.filter((item: any) => item.id !== resId);
+    setState({ ...state, resources: newItems });
+  };
 
   const addSecretResource = () => {
     if (!secretName || !secretUrl) return;
@@ -1544,6 +1641,116 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                       }}
                     />
                   </div>
+                </div>
+              </div>
+            </div>
+          </TabPanel>
+
+          <TabPanel header="📚 المصادر العامة">
+            <div
+              className="flex flex-col gap-6 bg-cyan-50/10 p-6 rounded-3xl border border-cyan-100/30 mt-4 text-right font-sans"
+              dir="rtl"
+            >
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center gap-3 bg-cyan-50 p-4 rounded-2xl border border-cyan-100/30">
+                  <span className="text-2xl">📚</span>
+                  <div>
+                    <h4 className="text-xs font-black text-cyan-950">إعداد وتأصيل المصادر والخرائط التعليمية العامة للرحلة</h4>
+                    <p className="text-[10px] text-cyan-600 font-bold mt-0.5">بصفتك المصمم، يمكنك إضافة بوابات ومصادر معرفية عامة ومستمرة لدعم الطالب طوال رحلته وباقي محطاته التعليمية.</p>
+                  </div>
+                </div>
+
+                {/* Resource Insertion Form */}
+                <div className="p-5 bg-white border border-cyan-100 rounded-2xl shadow-3xs space-y-4">
+                  <h5 className="text-xs font-black text-cyan-900">➕ إضافة مصدر عام جديد للرحلة</h5>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 block">اسم المصدر:</label>
+                      <input
+                        type="text"
+                        value={generalResName}
+                        onChange={(e) => setGeneralResName(e.target.value)}
+                        placeholder="مثال: مستند تلميحات لغة برمجة بايثون"
+                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-cyan-500/10 transition-all text-right"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 block">رابط المصدر:</label>
+                      <input
+                        type="text"
+                        value={generalResUrl}
+                        onChange={(e) => setGeneralResUrl(e.target.value)}
+                        placeholder="https://..."
+                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-cyan-500/10 transition-all text-left"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-500 block">وصف المصدر ومحتواه:</label>
+                    <input
+                      type="text"
+                      value={generalResDesc}
+                      onChange={(e) => setGeneralResDesc(e.target.value)}
+                      placeholder="مرجع شامل يحتوي على كل المفاهيم الأساسية، والتمارين وخرائط الطريق..."
+                      className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-cyan-500/10 transition-all text-right"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={addGeneralResource}
+                    className="w-full py-2.5 bg-gradient-to-r from-cyan-700 to-blue-700 text-white font-black text-xs rounded-xl hover:brightness-110 active:scale-95 transition-all text-center border-none cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>إضافة المصدر العام للرحلة ككل</span>
+                    <i className="pi pi-plus" />
+                  </button>
+                </div>
+
+                {/* List of general resources */}
+                <div className="space-y-3">
+                  <h5 className="text-xs font-black text-slate-800">🔗 لائحة المصادر العامة المضافة للرحلة ({state.resources?.length || 0}):</h5>
+                  
+                  {(!state.resources || state.resources.length === 0) ? (
+                    <div className="p-8 border-2 border-dashed border-cyan-100 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
+                      <i className="pi pi-link text-cyan-300 text-xl" />
+                      <p className="text-[11px] text-slate-400 font-bold">لم تتم إضافة أي مراجع عامة بعد لرحلتك ككل.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {state.resources.map((item: any) => (
+                        <div key={item.id} className="p-4 bg-white/75 border border-cyan-100 rounded-2xl flex justify-between items-center gap-4 hover:border-cyan-200 transition-colors">
+                          <div className="flex-1 min-w-0 pr-1 text-right">
+                            <span className="font-extrabold text-xs text-cyan-900 block truncate">{item.name}</span>
+                            {item.description && (
+                              <p className="text-[10px] text-slate-400 font-bold leading-normal mt-1">{item.description}</p>
+                            )}
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[9px] text-blue-500 font-mono font-semibold hover:underline flex items-center gap-1 mt-1.5"
+                              dir="ltr"
+                            >
+                              <i className="pi pi-external-link text-[8px]" />
+                              <span>{item.url}</span>
+                            </a>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeGeneralResource(item.id)}
+                            className="w-8 h-8 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-all flex items-center justify-center border-none cursor-pointer"
+                            title="حذف المصدر"
+                          >
+                            <i className="pi pi-trash text-xs" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

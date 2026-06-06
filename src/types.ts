@@ -12,6 +12,9 @@ export interface WizardState {
   theme?: 'cards' | 'calendar';
   incentiveTime?: string;
   incentiveDesc?: string;
+  resources?: { id?: string; name: string; url: string; description?: string }[];
+  planGoals?: string;
+  planOutcomes?: string;
 }
 
 export interface WizardStation {
@@ -51,6 +54,8 @@ export interface WizardTask {
   hiddenRiddleDetails?: string;
   hiddenRiddleAnswer?: string;
   hiddenRiddleHint?: string;
+  taskGoals?: string;
+  taskOutcomes?: string;
 }
 
 export interface LearningResourceItem {

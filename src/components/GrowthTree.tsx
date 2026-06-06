@@ -36,12 +36,6 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
   
   return (
     <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-6 border border-blue-900/50 shadow-2xl flex flex-col items-center justify-center ${className}`}>
-      {/* Dynamic Background Glow */}
-      <div 
-        className="absolute inset-0 opacity-20 blur-[100px] pointer-events-none transition-colors duration-1000"
-        style={{ backgroundColor: leafColor, filter: `brightness(${brightness}%)` }}
-      />
-
       {/* Floating Sparkles/Particles inside the card */}
       {keys > 0 && particles.map((p, i) => (
         <motion.div
@@ -53,7 +47,6 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
              left: `${p.x + 25}%`,
              top: `${p.y}%`,
              backgroundColor: leafColor,
-             boxShadow: `0 0 10px ${leafColor}`,
              filter: `brightness(${brightness}%)`
            }}
            animate={{
@@ -74,7 +67,15 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
       <div className="relative z-10 w-full flex flex-col items-center">
         <h3 className="text-white font-black text-xs mb-6 uppercase tracking-[0.2em] opacity-60">شجرة سعي المحطة</h3>
         
-        <svg viewBox="0 0 200 200" className="w-48 h-48 drop-shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+        <svg viewBox="0 0 200 200" className="w-48 h-48">
+          <defs>
+            <linearGradient id="treeLeafGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={`hsl(142, ${saturation}%, 30%)`} />
+              <stop offset="50%" stopColor={`hsl(142, ${saturation}%, 45%)`} />
+              <stop offset="100%" stopColor={`hsl(120, ${saturation}%, 60%)`} />
+            </linearGradient>
+          </defs>
+
           {/* Tree Trunk */}
           <path 
             d="M95 180 L105 180 L102 120 L98 120 Z" 
@@ -109,7 +110,7 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
                   cx={x}
                   cy={y}
                   r={size}
-                  fill={leafColor}
+                  fill="url(#treeLeafGradient)"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: i * 0.1, type: "spring" }}
@@ -117,7 +118,7 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
                   strokeWidth="1"
                   className="transition-colors duration-1000"
                   style={{
-                    filter: `brightness(${brightness}%) drop-shadow(0 0 ${keys > 5 ? 8 : 0}px ${leafColor})`
+                    filter: `brightness(${brightness}%)`
                   }}
                 />
               );
@@ -127,17 +128,16 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
             <motion.circle 
               cx="100" 
               cy="90" 
-              r={30 + Math.min(20, keys)} 
-              fill={leafColor} 
+              r={30 + Math.min(10, keys)} 
+              fill="url(#treeLeafGradient)" 
               className="transition-colors duration-1000"
               style={{
                 filter: `brightness(${brightness}%)`
               }}
               animate={{ 
-                scale: [1, 1.05 + (keys * 0.01), 1],
-                filter: [`brightness(${brightness}%) drop-shadow(0 0 10px ${leafColor}00)`, `brightness(${brightness}%) drop-shadow(0 0 ${20 + keys * 2}px ${leafColor})`, `brightness(${brightness}%) drop-shadow(0 0 10px ${leafColor}00)`]
+                scale: [1, 1.02, 1]
               }}
-              transition={{ repeat: Infinity, duration: 4 - Math.min(2, keys * 0.1) }}
+              transition={{ repeat: Infinity, duration: 8, ease: "easeInOut" }}
             />
           </g>
         </svg>
@@ -149,16 +149,6 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
           </div>
           <p className="text-[9px] text-blue-300 font-medium opacity-50 text-center max-w-[180px]">كلما زادت رتبتك ومفاتيحك، زاد اخضرار وتألق شجرتك الخاصة.</p>
         </div>
-
-        {/* Glow behind the tree based on keys */}
-        <div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full transition-all duration-1000 blur-3xl pointer-events-none"
-          style={{ 
-            backgroundColor: leafColor,
-            opacity: glowAlpha,
-            transform: `translate(-50%, -50%) scale(${1 + (keys * 0.05)})`
-          }}
-        />
       </div>
     </div>
   );

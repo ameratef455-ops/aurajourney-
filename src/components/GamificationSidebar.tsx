@@ -317,7 +317,7 @@ export function GamificationSidebar({
     let message = "";
     if (capsuleType === 'focusClarity') {
       title = "كبسولة صفاء الذهن 🧘‍♂️";
-      message = "تلاشى الضجيج للتركيز الكامل، درع حماية الأيام المتواصلة الخاص بك مفعل لحماية الاستريك كلياً من الانقطاع التلقائي لـ 48 ساعة قادمة!";
+      message = "تم تفعيل درع صفاء الذهن الخاص بك! تجميد الاستريك (السلسلة) نشط الآن لحمايتها بنجاح لمدة 48 ساعة متواصلة من الانقطاع التلقائي.";
     } else if (capsuleType === 'hyperLearning') {
       title = "كبسولة المعرفة والمراجع 📚";
       message = "تم تفعيل حاسة التعلم الفائق! كشفت الكبسولة روابط وملاحظات إضافية ذكية في محطات رحلتك الممتدة.";
@@ -331,7 +331,9 @@ export function GamificationSidebar({
       consumedCapsules: consumedCount + 1
     } as any;
 
-    if (capsuleType === 'hyperLearning') {
+    if (capsuleType === 'focusClarity') {
+      updatedGameData.streakFreezedUntil = Date.now() + 48 * 60 * 60 * 1000;
+    } else if (capsuleType === 'hyperLearning') {
       updatedGameData.hyperLearningActive = true;
     }
 
@@ -785,8 +787,8 @@ export function GamificationSidebar({
                             <span className="text-2xl">🧘‍♂️</span>
                             <span className="font-black text-slate-800 text-xs text-right">كبسولة صفاء الذهن</span>
                           </div>
-                          <p className="text-[10px] text-slate-400 font-light leading-relaxed mb-3 font-sans">
-                            تلاشي كامل لتشتت الانتباه وحرية ذهنية لـ 48 ساعة للتركيز الفائق مع رصيد ذكائي مضاعف وحماية كاملة للاستريك.
+                          <p className="text-[10px] text-slate-400 font-bold leading-relaxed mb-3 font-sans">
+                            تضمن الكبسولة وضع درع حماية لتجميد الستريك (السلسلة) تلقائياً لمدة 48 ساعة متواصلة لحمايتها كلياً من الانقطاع حتى لو لم تسجل حضوراً.
                           </p>
                         </div>
                         <div className="className-wrapper pt-3 mt-auto flex flex-col gap-2">

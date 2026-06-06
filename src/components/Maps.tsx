@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useAuraJourney } from "../hooks/useAuraJourney";
 import { LAYERS } from "../constants/layers";
@@ -36,6 +37,7 @@ import { TaskDetailsModal } from "./TaskDetailsModal";
 import { VisSession } from "./VisSession";
 import { RevertConfirmModal } from "./RevertConfirmModal";
 import { LearningRepoModal } from "./LearningRepoModal";
+import { ReviewPathSession } from "./ReviewPathSession";
 import { CalendarTheme } from "./themes/CalendarTheme";
 import { addDays, getDay, format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -387,8 +389,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [noteFilterPriority, setNoteFilterPriority] = useState('all');
 
   const [visSessionVisible, setVisSessionVisible] = useState(false);
+  const [reviewPathVisible, setReviewPathVisible] = useState(false);
+  const [currentReviewType, setCurrentReviewType] = useState<'original' | 'review1' | 'review2' | 'review3' | null>(null);
   const [selectedTaskForVis, setSelectedTaskForVis] = useState<any | null>(null);
-  const [visPreStartTask, setVisPreStartTask] = useState<any | null>(null);
+  // Removed visPreStartTask state
 
   const [activeTaskTab, setActiveTaskTab] = useState<'motd' | 'execution'>('motd');
   const [allMotds, setAllMotds] = useState<Record<string, string>>(() => {
@@ -726,7 +730,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     const result = await completeTask(task);
     if (!result || !result.success) {
       if (result && result.reason === 'activities') {
-        setVisPreStartTask(task);
+        setSelectedTaskForVis(task);
+        setReviewPathVisible(true);
       }
       return;
     }
@@ -752,7 +757,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           onClick={(e) => {
               e.stopPropagation();
               vibrate(HAPITCS.MAJOR_CLICK);
-              setVisPreStartTask(t);
+              setSelectedTaskForVis(t);
+              setReviewPathVisible(true);
           }}
       >
           <div
@@ -876,7 +882,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 onClick={(e) => {
                   e.stopPropagation();
                   vibrate(HAPITCS.MAJOR_CLICK);
-                  setVisPreStartTask(t);
+                  setSelectedTaskForVis(t);
+                  setReviewPathVisible(true);
                   setActiveTaskActionId(null);
                 }}
                 className="p-1.5 bg-indigo-50/70 border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all duration-300 rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-110 active:scale-95"
@@ -1162,20 +1169,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           title="تطبيقات الخطة"
         >
           {/* VIA style logo */}
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-            <defs>
-              <linearGradient id="darkBlueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#08102d" />
-                <stop offset="60%" stopColor="#1e3a8a" />
-                <stop offset="100%" stopColor="#3b82f6" />
-              </linearGradient>
-            </defs>
-            <circle cx="12" cy="6" r="2.5" fill="url(#darkBlueGradient)" />
-            <circle cx="6" cy="18" r="2.5" fill="url(#darkBlueGradient)" />
-            <circle cx="18" cy="18" r="2.5" fill="url(#darkBlueGradient)" />
-            <path d="M12 8.5L7.5 15.5" stroke="url(#darkBlueGradient)" strokeWidth="2.2" strokeLinecap="round" />
-            <path d="M12 8.5L16.5 15.5" stroke="url(#darkBlueGradient)" strokeWidth="2.2" strokeLinecap="round" />
-            <path d="M8.5 18H15.5" stroke="url(#darkBlueGradient)" strokeWidth="2.2" strokeLinecap="round" />
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-blue-900">
+            <circle cx="12" cy="6" r="2.5" fill="currentColor" />
+            <circle cx="6" cy="18" r="2.5" fill="currentColor" />
+            <circle cx="18" cy="18" r="2.5" fill="currentColor" />
+            <path d="M12 8.5L7.5 15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <path d="M12 8.5L16.5 15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <path d="M8.5 18H15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </button>
 
@@ -1184,11 +1184,20 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           {pinnedApps.map(id => {
             const app = SIDEBAR_APPS.find(a => a.id === id);
             if (!app) return null;
+            const appTextColors: Record<string, string> = {
+              calendar: 'text-emerald-600',
+              awards: 'text-amber-500',
+              notes: 'text-orange-500',
+              analytics: 'text-indigo-600',
+              links: 'text-blue-600',
+              forest: 'text-emerald-600',
+              compass: 'text-sky-500'
+            };
             return (
               <button
                 key={id}
                 onClick={() => { vibrate(HAPITCS.MAJOR_CLICK); app.action(); }}
-                className={`w-12 h-12 rounded-[1rem] flex items-center justify-center text-white shadow-lg transition-all hover:scale-105 active:scale-95 ${app.solidColor} border border-white/20`}
+                className={`w-12 h-12 rounded-[1rem] flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200/80 shadow-md shadow-blue-900/5 transition-all hover:scale-105 active:scale-95 ${appTextColors[id] || 'text-indigo-600'}`}
                 title={app.title}
               >
                 <i className={`${app.icon} text-lg`} />
@@ -1491,6 +1500,38 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               </div>
             </TabPanel>
 
+            <TabPanel headerTemplate={createTabHeader("pi-bullseye", "أهداف ومخرجات الخطة")}>
+              <div className="flex flex-col gap-5 py-6 px-1 text-right" dir="rtl">
+                <div className="bg-gradient-to-br from-blue-900/40 to-indigo-900/40 p-6 rounded-[32px] border border-blue-500/20 shadow-xl backdrop-blur-md">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-500 border border-amber-500/30">
+                      <i className="pi pi-target text-lg" />
+                    </div>
+                    <h3 className="text-white font-black text-lg">أهداف الرحلة الكبرى</h3>
+                  </div>
+                  <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5 min-h-[100px]">
+                    <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                      {user.planGoals || "لم يتم تحديد أهداف كبرى لهذه الرحلة بعد. يمكنك إضافتها من خلال إعدادات الخطة."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-emerald-900/40 to-teal-900/40 p-6 rounded-[32px] border border-emerald-500/20 shadow-xl backdrop-blur-md">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-500 border border-emerald-500/30">
+                      <i className="pi pi-check-circle text-lg" />
+                    </div>
+                    <h3 className="text-white font-black text-lg">نتائج التعلم المستهدفة</h3>
+                  </div>
+                  <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5 min-h-[100px]">
+                    <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                      {user.planOutcomes || "لم يتم تحديد نتائج تعلم متوقعة لهذه الرحلة بعد."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </TabPanel>
+
             <TabPanel headerTemplate={createTabHeader("pi-info-circle", "معلومات الخطة")}>
               <div className="flex flex-col gap-4 py-4 px-1 text-right" dir="rtl">
                 {/* General Goal card */}
@@ -1503,6 +1544,55 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   <p className="text-white text-xs leading-relaxed font-sans font-medium whitespace-pre-wrap select-text">
                     {user?.learningGoal || "لم يتم تحديد أهداف عامة لهذه الخطة بعد. يمكنك إعدادها من معالج الإعداد (Setup Wizard)."}
                   </p>
+
+                  <div className="h-px bg-white/10 my-3.5" />
+
+                  {/* Plan Routine / الروتين اليومي والحافز */}
+                  <div className="space-y-3.5 text-right font-sans">
+                    <h5 className="text-[11px] font-black text-indigo-300 flex items-center gap-1.5 uppercase tracking-wide">
+                      <i className="pi pi-calendar text-[10px]"></i>
+                      روتين الخطة والالتزام اليومي
+                    </h5>
+                    
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div className="p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col justify-center">
+                        <span className="text-[10px] text-slate-400 font-black">أيام التعلم والسعي:</span>
+                        <span className="text-[11px] text-white font-bold mt-1 leading-normal">
+                          {user?.learningDays && user.learningDays.length > 0 
+                            ? user.learningDays.map((d: number) => ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][d]).join(" ، ")
+                            : "غير محدد"
+                          }
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col justify-center">
+                        <span className="text-[10px] text-slate-400 font-black">المدة اليومية المحددة:</span>
+                        <span className="text-[11px] text-white font-bold mt-1 font-mono">
+                          {user?.dailyDuration ? `${user.dailyDuration} دقيقة` : "غير محدد"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {(user?.incentiveTime || user?.incentiveDesc || user?.psychology?.motivation) && (
+                      <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl space-y-1.5 mt-2">
+                        <span className="text-[10px] text-cyan-300 font-black flex items-center gap-1">
+                          <i className="pi pi-heart-fill text-[8px]" />
+                          الحافز والمكافأة اليومية:
+                        </span>
+                        {user.incentiveDesc && (
+                          <p className="text-[11px] text-white font-bold leading-relaxed">{user.incentiveDesc}</p>
+                        )}
+                        {user.incentiveTime && (
+                          <span className="text-[9px] text-slate-300 font-semibold block">
+                            ⏰ موقت المكافأة: {user.incentiveTime}
+                          </span>
+                        )}
+                        {!user.incentiveDesc && user.psychology?.motivation && (
+                          <p className="text-[11px] text-white font-bold leading-relaxed">{user.psychology.motivation}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Stages/Stations list */}
@@ -1577,7 +1667,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         completeTaskAction={completeTask}
         onOpenVisSession={(task) => {
           vibrate(HAPITCS.MAJOR_CLICK);
-          setVisPreStartTask(task);
+          setSelectedTaskForVis(task);
+          setReviewPathVisible(true);
         }}
       />
 
@@ -1660,17 +1751,44 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         }}
       />
 
+      <ReviewPathSession 
+        visible={reviewPathVisible}
+        user={user}
+        onClose={() => {
+          setReviewPathVisible(false);
+          setSelectedTaskForVis(null);
+        }}
+        onStartSession={(type) => {
+          setCurrentReviewType(type);
+          setReviewPathVisible(false);
+          setVisSessionVisible(true);
+        }}
+      />
+
       <VisSession 
         visible={visSessionVisible}
         onHide={() => {
           setVisSessionVisible(false);
           setSelectedTaskForVis(null);
+          setCurrentReviewType(null);
         }}
         task={selectedTaskForVis}
         onCompleteTask={async (taskId) => {
           const t = tasks.find(x => x.id === taskId);
           if (t) {
             await completeTask(t);
+            
+            // Update Review Progress if applicable
+            if (currentReviewType && user) {
+              const currentProgress = user.reviewSessionProgress || [];
+              if (!currentProgress.includes(currentReviewType)) {
+                await db.userSettings.update(user.id, {
+                  reviewSessionProgress: [...currentProgress, currentReviewType]
+                });
+                toastHot.success("تم إتمام مرحلة المراجعة بنجاح! 🎉");
+              }
+              setCurrentReviewType(null);
+            }
           }
         }}
         onOpenReflection={(t) => {
@@ -1678,57 +1796,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           setInitialReflectionVisible(true);
         }}
       />
-
-      {/* VIS Pre-start Overlay */}
-      <AnimatePresence>
-        {visPreStartTask && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[2000] flex items-center justify-center p-6 bg-[#0c183e]/95 backdrop-blur-xl"
-            onClick={() => setVisPreStartTask(null)}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="max-w-md w-full bg-[#162555] border border-white/10 rounded-[40px] p-10 text-center shadow-2xl relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
-              
-              <div className="w-20 h-20 rounded-[30px] bg-indigo-600/20 flex items-center justify-center text-indigo-400 mx-auto mb-8 border border-indigo-500/30">
-                <Play className="w-10 h-10 fill-indigo-400" />
-              </div>
-
-              <h2 className="text-2xl font-black text-white mb-3">هل أنت مستعد للبدء؟ 🚀</h2>
-              <p className="text-gray-400 font-medium mb-10 leading-relaxed">
-                سيتم فتح جلسة <span className="text-indigo-400 font-black">VIS SESSION</span> المخصصة لهذه المهمة لضمان أعلى مستويات التركيز والإنجاز.
-              </p>
-
-              <div className="space-y-3">
-                <button 
-                  onClick={() => {
-                    vibrate(HAPITCS.MAJOR_CLICK);
-                    setSelectedTaskForVis(visPreStartTask);
-                    setVisSessionVisible(true);
-                    setVisPreStartTask(null);
-                  }}
-                  className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[24px] font-black text-lg transition-all shadow-xl shadow-indigo-600/30 active:scale-95"
-                >
-                  بدأ VIS SESSION
-                </button>
-                <button 
-                  onClick={() => setVisPreStartTask(null)}
-                  className="w-full py-4 text-gray-500 hover:text-white font-bold text-sm transition-all"
-                >
-                  إلغاء والعودة للخريطة
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Floating Pending Evaluations */}
       <AnimatePresence>
@@ -1959,125 +2026,128 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       </Dialog>
 
       {/* Celebratory Unlocked Time Capsule Modal Overlay */}
-      <AnimatePresence>
-        {celebratedCapsule && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-blue-950/75 backdrop-blur-md z-50 flex items-center justify-center p-6"
-            />
-            <motion.div
-              initial={{ scale: 0.9, y: 20, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-3xl p-8 z-55 shadow-2xl border border-blue-50 text-center"
-              dir="rtl"
-            >
-              {!isCapsuleBoxOpened ? (
-                <div 
-                  onClick={() => {
-                    vibrate(HAPITCS.COMPLETE);
-                    confetti({
-                      particleCount: 160,
-                      spread: 85,
-                      origin: { y: 0.55 },
-                      colors: ['#3b82f6', '#f59e0b', '#10b981', '#fbbf24', '#f43f5e', '#a855f7'],
-                      zIndex: 30000000
-                    });
-                    setIsCapsuleBoxOpened(true);
-                  }}
-                  className="cursor-pointer group relative py-8 px-4 bg-gradient-to-br from-indigo-50/60 to-blue-50/20 rounded-3xl border border-indigo-120/40 shadow-inner flex flex-col items-center justify-center space-y-4 hover:scale-105 active:scale-95 hover:border-amber-200 hover:shadow-lg transition-all duration-300"
-                >
-                  <div className="absolute inset-0 bg-amber-400/5 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  
-                  <motion.div
-                    animate={{ 
-                      y: [0, -10, 0],
-                      rotate: [0, -2, 2, -2, 0]
+      {createPortal(
+        <AnimatePresence>
+          {celebratedCapsule && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-blue-950/75 backdrop-blur-md z-[20000000] flex items-center justify-center p-6"
+              />
+              <motion.div
+                initial={{ scale: 0.9, y: 20, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-3xl p-8 z-[20000010] shadow-2xl border border-blue-50 text-center"
+                dir="rtl"
+              >
+                {!isCapsuleBoxOpened ? (
+                  <div 
+                    onClick={() => {
+                      vibrate(HAPITCS.COMPLETE);
+                      confetti({
+                        particleCount: 160,
+                        spread: 85,
+                        origin: { y: 0.55 },
+                        colors: ['#3b82f6', '#f59e0b', '#10b981', '#fbbf24', '#f43f5e', '#a855f7'],
+                        zIndex: 30000000
+                      });
+                      setIsCapsuleBoxOpened(true);
                     }}
-                    transition={{ 
-                      repeat: Infinity, 
-                      duration: 2.2, 
-                      ease: "easeInOut" 
-                    }}
-                    className="text-7xl select-none filter drop-shadow-[0_8px_16px_rgba(245,158,11,0.2)] group-hover:scale-110 group-hover:rotate-6 transition-all"
+                    className="cursor-pointer group relative py-8 px-4 bg-gradient-to-br from-indigo-50/60 to-blue-50/20 rounded-3xl border border-indigo-120/40 shadow-inner flex flex-col items-center justify-center space-y-4 hover:scale-105 active:scale-95 hover:border-amber-200 hover:shadow-lg transition-all duration-300"
                   >
-                    📦✨
-                  </motion.div>
+                    <div className="absolute inset-0 bg-amber-400/5 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                    
+                    <motion.div
+                      animate={{ 
+                        y: [0, -10, 0],
+                        rotate: [0, -2, 2, -2, 0]
+                      }}
+                      transition={{ 
+                        repeat: Infinity, 
+                        duration: 2.2, 
+                        ease: "easeInOut" 
+                      }}
+                      className="text-7xl select-none filter drop-shadow-[0_8px_16px_rgba(245,158,11,0.2)] group-hover:scale-110 group-hover:rotate-6 transition-all"
+                    >
+                      📦✨
+                    </motion.div>
 
-                  <div className="space-y-1.5 text-center">
-                    <h4 className="text-sm font-black text-blue-900 group-hover:text-amber-600 transition-colors">
-                      لديك كبسولة زمنية مغلقة من ماضيك!
-                    </h4>
-                    <p className="text-[10px] text-slate-500 font-medium px-4 leading-relaxed">
-                      خلال رحلتك السابقة، تركت رسالة وتنبيهات لنفسك المستقبلية لتفتح الآن. انقر على الصندوق لفتحه واستلام رادع الماضي!
+                    <div className="space-y-1.5 text-center">
+                      <h4 className="text-sm font-black text-blue-900 group-hover:text-amber-600 transition-colors">
+                        لديك كبسولة زمنية مغلقة من ماضيك!
+                      </h4>
+                      <p className="text-[10px] text-slate-500 font-medium px-4 leading-relaxed">
+                        خلال رحلتك السابقة، تركت رسالة وتنبيهات لنفسك المستقبلية لتفتح الآن. انقر على الصندوق لفتحه واستلام رادع الماضي!
+                      </p>
+                    </div>
+
+                    <button className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-black text-[10px] shadow-sm select-none transition-all border-none cursor-pointer">
+                      انقر لفتح الصندوق 🔑
+                    </button>
+                  </div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                  >
+                    <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5 border-4 border-emerald-50 shadow-md">
+                      <span className="text-4xl animate-bounce">✉️</span>
+                    </div>
+
+                    <h3 className="text-2xl font-black text-blue-950 mb-2">
+                      لقد فتحت كبسولتك الزمنية!
+                    </h3>
+                    <p className="text-xs text-emerald-700 font-bold mb-6">
+                      وصلت بنجاح للخطة، واحتضنت رسالة ماضيك
                     </p>
-                  </div>
 
-                  <button className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-black text-[10px] shadow-sm select-none transition-all border-none cursor-pointer">
-                    انقر لفتح الصندوق 🔑
-                  </button>
-                </div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                >
-                  <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5 border-4 border-emerald-50 shadow-md">
-                    <span className="text-4xl animate-bounce">✉️</span>
-                  </div>
-
-                  <h3 className="text-2xl font-black text-blue-950 mb-2">
-                    لقد فتحت كبسولتك الزمنية!
-                  </h3>
-                  <p className="text-xs text-emerald-700 font-bold mb-6">
-                    وصلت بنجاح للخطة، واحتضنت رسالة ماضيك
-                  </p>
-
-                  <div className="max-h-[250px] overflow-y-auto no-scrollbar space-y-3 mb-6">
-                    {celebratedCapsule.messages && celebratedCapsule.messages.length > 0 ? (
-                      celebratedCapsule.messages.map((item: any, idx: number) => (
-                        <div key={idx} className="bg-gray-50 border border-gray-100 rounded-2xl p-4 text-right relative shadow-xs">
-                          <span className="absolute top-1 left-3 text-2xl font-black text-indigo-100 select-none">
+                    <div className="max-h-[250px] overflow-y-auto no-scrollbar space-y-3 mb-6">
+                      {celebratedCapsule.messages && celebratedCapsule.messages.length > 0 ? (
+                        celebratedCapsule.messages.map((item: any, idx: number) => (
+                          <div key={idx} className="bg-gray-50 border border-gray-100 rounded-2xl p-4 text-right relative shadow-xs">
+                            <span className="absolute top-1 left-3 text-2xl font-black text-indigo-100 select-none">
+                              ”
+                            </span>
+                            <p className="text-blue-950 font-bold text-xs leading-relaxed whitespace-pre-line">
+                              {item.message}
+                            </p>
+                            <p className="text-[9px] text-gray-400 font-bold text-left mt-3">
+                              — كُتبت في: {item.writtenAt}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5 text-right relative">
+                          <span className="absolute top-2 left-3 text-3xl font-black text-gray-200 select-none">
                             ”
                           </span>
-                          <p className="text-blue-950 font-bold text-xs leading-relaxed whitespace-pre-line">
-                            {item.message}
+                          <p className="text-blue-950 font-medium text-sm leading-relaxed whitespace-pre-line">
+                            {celebratedCapsule.message}
                           </p>
-                          <p className="text-[9px] text-gray-400 font-bold text-left mt-3">
-                            — كُتبت في: {item.writtenAt}
+                          <p className="text-[10px] text-gray-400 font-bold text-left mt-4">
+                            — كُتبت بواسطة نفسك السابقة
                           </p>
                         </div>
-                      ))
-                    ) : (
-                      <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5 text-right relative">
-                        <span className="absolute top-2 left-3 text-3xl font-black text-gray-200 select-none">
-                          ”
-                        </span>
-                        <p className="text-blue-950 font-medium text-sm leading-relaxed whitespace-pre-line">
-                          {celebratedCapsule.message}
-                        </p>
-                        <p className="text-[10px] text-gray-400 font-bold text-left mt-4">
-                          — كُتبت بواسطة نفسك السابقة
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
 
-                  <Button
-                    label="استوعبت الرسالة ونظرت للمستقبل"
-                    className="w-full bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 text-white rounded-xl py-3.5 font-bold border-none shadow-lg shadow-blue-950/15 hover:brightness-110 transition-all text-sm cursor-pointer"
-                    onClick={closeCelebration}
-                  />
-                </motion.div>
-              )}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                    <Button
+                      label="استوعبت الرسالة ونظرت للمستقبل"
+                      className="w-full bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 text-white rounded-xl py-3.5 font-bold border-none shadow-lg shadow-blue-950/15 hover:brightness-110 transition-all text-sm cursor-pointer"
+                      onClick={closeCelebration}
+                    />
+                  </motion.div>
+                )}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* Locked Station Dialog */}
       <Dialog
@@ -4559,7 +4629,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   setSelectedTaskForDetails(task);
                   setTaskDetailsVisible(true);
                 } else {
-                  setVisPreStartTask(task);
+                  setSelectedTaskForVis(task);
+                  setReviewPathVisible(true);
                 }
               }}
               onOpenReview={(task) => {

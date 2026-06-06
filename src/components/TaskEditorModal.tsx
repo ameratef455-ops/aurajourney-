@@ -654,7 +654,7 @@ export function TaskEditorModal({
             </div>
           </TabPanel>
 
-          <TabPanel header="🎯 أهداف الخطة ونتائج التعلم">
+          <TabPanel header="🎯 الأهداف والمخرجات المستهدفة للمهمة">
             <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
@@ -662,15 +662,15 @@ export function TaskEditorModal({
                 <div className="p-6 bg-emerald-50/40 border-2 border-emerald-100/30 rounded-[32px] space-y-3">
                   <label className="text-xs font-black text-emerald-900 px-1 flex items-center gap-2">
                     <span className="text-lg">🎯</span>
-                    <span>أهداف الخطة المستهدفة</span>
+                    <span>الأهداف المستهدفة للمهمة</span>
                   </label>
-                  <p className="text-[10px] text-slate-400">ما هي الغايات الكبرى التي نسعى لترسيخها عند إتمام خطة السعي الحالية؟</p>
+                  <p className="text-[10px] text-slate-400">ما هي الغايات والمهام الفرعية التي يسعى المتعلم لإتمامها في هذه المهمة؟</p>
                   <textarea
                     rows={6}
                     className="w-full p-4 bg-white border border-emerald-150 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-emerald-500/5 transition-all resize-none text-right"
-                    placeholder="1. تمكين الفهم الأساسي للمفاهيم...&#10;2. تطبيق الحلول العملية بطلاقة...&#10;3. القدرة على مناقشة النتائج المعقدة..."
-                    value={localTask.planGoals || ""}
-                    onChange={(e) => updateField("planGoals", e.target.value)}
+                    placeholder="مثال:&#10;1. فهم بنية الجداول وطرق الربط بوضوح.&#10;2. تطبيق عملي لإنشاء قاعدة بيانات مصغرة.&#10;3. التمكن من صياغة استعلامات البحث الحيوية."
+                    value={localTask.taskGoals || ""}
+                    onChange={(e) => updateField("taskGoals", e.target.value)}
                   />
                 </div>
 
@@ -678,15 +678,15 @@ export function TaskEditorModal({
                 <div className="p-6 bg-purple-50/40 border-2 border-purple-100/30 rounded-[32px] space-y-3">
                   <label className="text-xs font-black text-purple-900 px-1 flex items-center gap-2">
                     <span className="text-lg">📈</span>
-                    <span>نتائج التعلم المتوقعة (Outcomes)</span>
+                    <span>المخرجات والنتائج المتوقعة للمهمة</span>
                   </label>
-                  <p className="text-[10px] text-slate-400">المهارات والقدرات الملموسة التي سيكتسبها عقل المتعلم ويستحسفها.</p>
+                  <p className="text-[10px] text-slate-400">المهارات الملموسة والنتائج القابلة للقياس التي سيتقنها المتعلم بعد إتمام المهمة.</p>
                   <textarea
                     rows={6}
                     className="w-full p-4 bg-white border border-purple-150 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-purple-500/5 transition-all resize-none text-right"
-                    placeholder="- القدرة الذاتية على ابتكار ومراجعة المبادئ الأساسية للمسار...&#10;- حل المسائل المعقدة in زمن أقل وحصانة تشتيت أعلى...&#10;- تملك الأسلوب المنهجي الموجه بثقة..."
-                    value={localTask.learningOutcomes || ""}
-                    onChange={(e) => updateField("learningOutcomes", e.target.value)}
+                    placeholder="مثال:&#10;- القدرة على تصميم رسم تخطيطي (ERD) للمشروع بمهارة.&#10;- كتابة استعلامات JOIN دون أخطاء برمجية.&#10;- شرح المفاهيم لزميل آخر بثقة تامة."
+                    value={localTask.taskOutcomes || ""}
+                    onChange={(e) => updateField("taskOutcomes", e.target.value)}
                   />
                 </div>
 

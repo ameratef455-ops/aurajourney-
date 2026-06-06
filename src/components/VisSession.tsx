@@ -86,6 +86,8 @@ export function VisSession({ visible, onHide, task, onCompleteTask, onOpenReflec
       onHide={onHide}
       maximized
       modal
+      baseZIndex={10000000}
+      maskClassName="vis-session-dialog-mask"
       className="vis-session-dialog font-sans"
       showHeader={false}
       contentClassName="p-0 bg-[#05091a] text-white overflow-hidden"
@@ -566,6 +568,14 @@ export function VisSession({ visible, onHide, task, onCompleteTask, onOpenReflec
         
         .vis-session-dialog .p-dialog-content {
           overflow: hidden !important;
+        }
+        
+        body .vis-session-dialog-mask {
+          z-index: 10000000 !important;
+        }
+        
+        body .vis-session-dialog {
+          z-index: 10000000 !important;
         }
       `}</style>
     </Dialog>

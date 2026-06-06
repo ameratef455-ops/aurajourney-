@@ -92,11 +92,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     <Sidebar 
       visible={isOpen} 
       onHide={onClose} 
-      position="right"
-      className="w-full md:w-80 font-sans"
+      position="left"
+      className="w-full md:w-80 font-sans bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 text-white border-r border-indigo-500/20 shadow-2xl custom-left-sidebar"
       header={
-        <div className="flex items-center gap-3 text-indigo-950 font-black">
-          <i className="pi pi-user p-2 bg-indigo-100 rounded-lg text-indigo-600 text-sm"></i>
+        <div className="flex items-center gap-3 text-white font-black">
+          <i className="pi pi-user p-2 bg-white/10 rounded-lg text-blue-200 text-sm"></i>
           البروفايل والاعدادات
         </div>
       }
@@ -104,23 +104,23 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       <div className="flex flex-col gap-3 py-2 pr-2 pl-4" dir="rtl">
         
         {/* Profile Card */}
-        <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
-          <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black">
-            <User className="w-5 h-5" />
+        <div className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl mb-2">
+          <div className="w-12 h-12 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-black">
+            <User className="w-5 h-5 pointer-events-none" />
           </div>
           <div>
-            <h3 className="font-black text-slate-800 text-sm">أهلاً بك!</h3>
-            <p className="text-[10px] font-bold text-slate-500">بياناتك محفوظة محلياً</p>
+            <h3 className="font-black text-white text-sm">أهلاً بك!</h3>
+            <p className="text-[10px] font-bold text-slate-400">بياناتك محفوظة محلياً</p>
           </div>
         </div>
 
         {/* Buttons */}
         <button
           onClick={handleInstallPWA}
-          className="flex items-center justify-center gap-4 w-full p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 transition-all active:scale-95 text-right outline-none cursor-pointer group shadow-sm"
+          className="flex items-center justify-center gap-4 w-full p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 border border-white/10 transition-all active:scale-95 text-right outline-none cursor-pointer group shadow-sm"
         >
-          <span className="font-bold text-sm text-slate-700 font-sans tracking-wide flex-1 text-center">تثبيت التطبيق</span>
-          <Download className="w-4 h-4 text-slate-500 group-hover:scale-110 transition-transform" />
+          <span className="font-bold text-sm text-slate-200 font-sans tracking-wide flex-1 text-center">تثبيت التطبيق</span>
+          <Download className="w-4 h-4 text-slate-400 group-hover:scale-110 transition-transform" />
         </button>
 
         <button
@@ -138,38 +138,38 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               toastHot.success("تم نسخ رابط التطبيق! 🔗");
             }
           }}
-          className="flex items-center justify-center gap-4 w-full p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 transition-all active:scale-95 text-right outline-none cursor-pointer group shadow-sm"
+          className="flex items-center justify-center gap-4 w-full p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 border border-white/10 transition-all active:scale-95 text-right outline-none cursor-pointer group shadow-sm"
         >
-          <span className="font-bold text-sm text-slate-700 font-sans tracking-wide flex-1 text-center">مشاركة العمل</span>
-          <Share2 className="w-4 h-4 text-slate-500 group-hover:scale-110 transition-transform" />
+          <span className="font-bold text-sm text-slate-200 font-sans tracking-wide flex-1 text-center">مشاركة العمل</span>
+          <Share2 className="w-4 h-4 text-slate-400 group-hover:scale-110 transition-transform" />
         </button>
 
-        <div className="h-0.5 bg-slate-100 my-2 rounded-full w-full" />
+        <div className="h-0.5 bg-white/10 my-2 rounded-full w-full" />
 
-        <h3 className="text-xs font-black text-slate-400 px-2 uppercase tracking-wider">تصدير البيانات</h3>
+        <h3 className="text-xs font-black text-indigo-300 px-2 uppercase tracking-wider">تصدير البيانات</h3>
         
         <button
           onClick={() => handleExportData('journeys')}
-          className="flex items-center gap-4 w-full p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 transition-all active:scale-95 text-right outline-none cursor-pointer group"
+          className="flex items-center gap-4 w-full p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 border border-white/10 transition-all active:scale-95 text-right outline-none cursor-pointer group"
         >
-          <Compass className="w-4 h-4 text-indigo-500" />
-          <span className="font-bold text-xs text-slate-700 font-sans">تصدير الرحلات</span>
+          <Compass className="w-4 h-4 text-indigo-400" />
+          <span className="font-bold text-xs text-slate-200 font-sans">تصدير الرحلات</span>
         </button>
 
         <button
           onClick={() => handleExportData('gamification')}
-          className="flex items-center gap-4 w-full p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 transition-all active:scale-95 text-right outline-none cursor-pointer group"
+          className="flex items-center gap-4 w-full p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 border border-white/10 transition-all active:scale-95 text-right outline-none cursor-pointer group"
         >
-          <Sparkles className="w-4 h-4 text-indigo-500" />
-          <span className="font-bold text-xs text-slate-700 font-sans">تصدير Gamification</span>
+          <Sparkles className="w-4 h-4 text-indigo-400" />
+          <span className="font-bold text-xs text-slate-200 font-sans">تصدير Gamification</span>
         </button>
 
         <button
           onClick={() => handleExportData('system')}
-          className="flex items-center gap-4 w-full p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 transition-all active:scale-95 text-right outline-none cursor-pointer group"
+          className="flex items-center gap-4 w-full p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 border border-white/10 transition-all active:scale-95 text-right outline-none cursor-pointer group"
         >
-          <SettingsIcon className="w-4 h-4 text-indigo-500" />
-          <span className="font-bold text-xs text-slate-700 font-sans">تصدير النظام</span>
+          <SettingsIcon className="w-4 h-4 text-indigo-400" />
+          <span className="font-bold text-xs text-slate-200 font-sans">تصدير النظام</span>
         </button>
 
       </div>

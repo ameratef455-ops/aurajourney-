@@ -51,6 +51,8 @@ export interface Task {
   hiddenRiddleDetails?: string;
   hiddenRiddleAnswer?: string;
   hiddenRiddleHint?: string;
+  taskGoals?: string;
+  taskOutcomes?: string;
 }
 
 export interface SubStationTask {
@@ -86,6 +88,8 @@ export interface UserSettings {
   theme?: 'cards' | 'calendar'; // Theme selection
   incentiveTime?: string;
   incentiveDesc?: string;
+  planGoals?: string;
+  planOutcomes?: string;
   gameData?: {
     fuel: number;
     xp: number;
@@ -105,6 +109,7 @@ export interface UserSettings {
   timeCapsules?: Record<string, { message: string; writtenAt: string; isRead: boolean; messages?: { message: string; writtenAt: string }[] }>; // Station ID -> Time capsule
   subStations?: Record<string, SubStation[]>; // Station ID -> Array of SubStation details
   flashcards?: Record<string, any[]>; // Station ID/Task ID -> Array of flashcards
+  reviewSessionProgress?: string[]; // Array of completed target IDs: 'original', 'review1', 'review2', 'review3'
 }
 
 export interface TaskReflection {

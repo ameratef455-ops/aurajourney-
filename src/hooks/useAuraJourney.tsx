@@ -542,8 +542,13 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
           checkDate.setDate(checkDate.getDate() - 1);
         }
 
+        const isCapsuleFrozen = currentGameData?.streakFreezedUntil && currentGameData.streakFreezedUntil > Date.now();
         if (missedLearningDay) {
-          newStreak = 1;
+          if (isCapsuleFrozen) {
+            newStreak = currentGameData.streak || 1;
+          } else {
+            newStreak = 1;
+          }
         } else {
           // Only increment streak if today is a scheduled learning day
           const todayDay = today.getDay();
