@@ -9,7 +9,11 @@ export interface Station {
   secretResourcesNotes?: string;
   riddleDetails?: string;
   riddleAnswer?: string;
-  secretResources?: { id: string; name: string; url: string; description?: string }[];
+  riddleHint?: string;
+  secretResourcesRiddleDetails?: string;
+  secretResourcesRiddleAnswer?: string;
+  secretResourcesRiddleHint?: string;
+  secretResources?: { id: string; name: string; url: string; description?: string; puzzle?: string; puzzleAnswer?: string; puzzleHint?: string }[];
   targetDate: string;
   order: number;
 }
@@ -43,7 +47,10 @@ export interface Task {
   endMessage?: string;
   riddleDetails?: string;
   riddleAnswer?: string;
+  riddleHint?: string;
   hiddenRiddleDetails?: string;
+  hiddenRiddleAnswer?: string;
+  hiddenRiddleHint?: string;
 }
 
 export interface SubStationTask {

@@ -856,8 +856,13 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
         <div className="flex-1 flex justify-start pl-2">
         </div>
         
-        <div className="flex-none flex justify-center items-center gap-3 md:gap-6">
-            <span className="hidden md:block text-2xl md:text-3xl text-slate-800 font-extrabold pb-2" style={{ fontFamily: 'Tajawal, sans-serif' }}>رحلة حياة</span>
+        <div className="flex-none flex justify-center items-center gap-3 md:gap-4">
+            <div className="flex flex-col items-start px-2">
+              <h1 className="text-2xl md:text-3xl font-fredoka tracking-wide text-blue-950 font-black leading-none" dir="ltr">
+                 VIA
+              </h1>
+              <span className="text-xs md:text-sm text-indigo-800 font-extrabold mt-0.5 tracking-wider" style={{ fontFamily: 'Tajawal, sans-serif' }}>رحلة حياة</span>
+            </div>
             <div className="w-12 h-12 md:w-14 md:h-14 border-2 border-blue-900 flex items-center justify-center rounded-full bg-white shadow-sm overflow-hidden p-2.5 shrink-0">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-blue-900">
                 <circle cx="12" cy="6" r="2.5" fill="currentColor" />
@@ -868,9 +873,6 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
                 <path d="M8.5 18H15.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </div>
-           <h1 className="text-2xl md:text-3xl font-fredoka tracking-wide text-blue-950 font-black" dir="ltr">
-              VIA
-           </h1>
         </div>
 
         <div className="flex-1 flex justify-end items-center gap-4">
@@ -914,7 +916,60 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
            <GrowthTree xp={treeXp} keys={treeKeys} />
         </motion.div>
 
-        {/* Primary Action Buttons removed per user request */}
+        {/* Gamification Stats Dashboard */}
+        <motion.div
+           initial={{ opacity: 0, scale: 0.95 }}
+           animate={{ opacity: 1, scale: 1 }}
+           transition={{ delay: 0.1 }}
+           className="w-full max-w-sm mx-auto mb-10 flex gap-4 bg-white/60 backdrop-blur-xl border border-indigo-50 p-4 rounded-[2rem] shadow-sm"
+           dir="rtl"
+        >
+           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-gradient-to-b from-indigo-50 to-white rounded-2xl border border-indigo-100/50 shadow-sm relative overflow-hidden group hover:scale-105 transition-transform cursor-default">
+              <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:rotate-12 transition-transform">
+                <i className="pi pi-star-fill text-lg drop-shadow-sm"></i>
+              </div>
+              <span className="font-extrabold text-2xl text-indigo-950 font-mono tracking-tight">{Math.floor(treeXp / 100) + 1}</span>
+              <span className="text-[10px] font-black text-indigo-400 uppercase mt-1">المستوى</span>
+           </div>
+           
+           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-gradient-to-b from-amber-50/50 to-white rounded-2xl border border-amber-100/50 shadow-sm relative overflow-hidden group hover:scale-105 transition-transform cursor-default">
+              <div className="w-10 h-10 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform">
+                <i className="pi pi-bolt text-lg drop-shadow-sm"></i>
+              </div>
+              <span className="font-extrabold text-2xl text-amber-950 font-mono tracking-tight">{treeXp}</span>
+              <span className="text-[10px] font-black text-amber-500 uppercase mt-1">نقاط المعرفة</span>
+           </div>
+
+           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-gradient-to-b from-emerald-50/50 to-white rounded-2xl border border-emerald-100/50 shadow-sm relative overflow-hidden group hover:scale-105 transition-transform cursor-default">
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:-rotate-12 transition-transform">
+                <i className="pi pi-key text-lg drop-shadow-sm"></i>
+              </div>
+              <span className="font-extrabold text-2xl text-emerald-950 font-mono tracking-tight">{treeKeys}</span>
+              <span className="text-[10px] font-black text-emerald-500 uppercase mt-1">المفاتيح</span>
+           </div>
+        </motion.div>
+
+        {/* Level Progress Bar */}
+        <motion.div
+           initial={{ opacity: 0, scale: 0.95 }}
+           animate={{ opacity: 1, scale: 1 }}
+           transition={{ delay: 0.2 }}
+           className="w-full max-w-sm mx-auto mb-6 bg-white/40 backdrop-blur-xl border border-slate-100 p-4 rounded-3xl shadow-sm text-right"
+           dir="rtl"
+        >
+           <div className="flex justify-between items-center mb-2">
+              <span className="text-[10px] font-black tracking-widest text-slate-500 uppercase">التقدم نحو المستوى {Math.floor(treeXp / 100) + 2}</span>
+              <span className="text-xs font-bold font-mono text-indigo-600">{treeXp % 100} / 100</span>
+           </div>
+           <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+               <motion.div 
+                 initial={{ width: 0 }}
+                 animate={{ width: `${treeXp % 100}%` }}
+                 transition={{ duration: 1, ease: "easeOut" }}
+                 className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full"
+               />
+           </div>
+        </motion.div>
       </div>
  
       <TripsList onEdit={onEdit} onOpen={onOpen} />

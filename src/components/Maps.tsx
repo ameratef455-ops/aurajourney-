@@ -552,6 +552,20 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [initialReflectionVisible, setInitialReflectionVisible] = useState(false);
   const [showStumbleForm, setShowStumbleForm] = useState(false);
   const [mapsSidebarVisible, setMapsSidebarVisible] = useState(false);
+  const [isSidebarPinned, setIsSidebarPinned] = useState(false);
+  const [pinnedApps, setPinnedApps] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('aura_pinned_apps');
+      return stored ? JSON.parse(stored) : ['calendar', 'awards'];
+    } catch {
+      return ['calendar', 'awards'];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('aura_pinned_apps', JSON.stringify(pinnedApps));
+  }, [pinnedApps]);
+
   const [stumbleReason, setStumbleReason] = useState("");
   const [showAddNoteForm, setShowAddNoteForm] = useState(false);
   const [reflectionForceStationId, setReflectionForceStationId] = useState<string | null>(null);
@@ -1032,6 +1046,16 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     }
   };
 
+  const SIDEBAR_APPS = [
+    { id: 'calendar', title: 'الخطة والمهام', icon: 'pi pi-calendar-plus', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', solidColor: 'bg-emerald-500', action: () => { setShowJourneyIntroPopup(true); } },
+    { id: 'awards', title: 'المحرك والجوائز', icon: 'pi pi-trophy', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', solidColor: 'bg-amber-500', action: () => { setGamificationActiveTab(0); setGamificationSidebar(true); } },
+    { id: 'notes', title: 'التدوين والملاحظات', icon: 'pi pi-pencil', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20', solidColor: 'bg-orange-500', action: () => { if(activeStationId) setActiveNoteStationId(activeStationId); setShowNotesPopup(true); } },
+    { id: 'analytics', title: 'التحليلات والمراجعة', icon: 'pi pi-chart-line', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', solidColor: 'bg-indigo-500', action: () => { setReflectionForceStationId(null); setReflectionActiveTab(0); setReflectionSidebar(true); } },
+    { id: 'links', title: 'المصادر', icon: 'pi pi-book', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', solidColor: 'bg-blue-500', action: () => { setShowLinksPopup(true); } },
+    { id: 'forest', title: 'غابة المعرفة', icon: 'pi pi-sitemap', color: 'bg-green-500/10 text-green-400 border-green-500/20', solidColor: 'bg-green-500', action: () => { setLearningRepoVisible(true); } },
+    { id: 'compass', title: 'البوصلة والتوجيه', icon: 'pi pi-compass', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20', solidColor: 'bg-sky-500', action: () => { setShowCompassPopup(true); } },
+  ];
+
   if (!stations || !tasks || !user) return null;
 
   // EnergyRing logic removed as per user request
@@ -1127,35 +1151,67 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         }
       `}</style>
 
-      {/* Notifications */}
-      <div className="absolute top-8 left-6 z-40 flex items-center gap-3">
-         <NotificationsPopover />
+      {/* Top Left User Custom Logo / Sidebar Trigger */}
+      <div className="absolute top-6 left-6 z-40 flex flex-col items-center gap-3">
+        <button
+          className="bg-white/90 backdrop-blur-md hover:bg-white text-blue-900 w-14 h-14 rounded-[1.25rem] border border-slate-200/50 shadow-sm shadow-blue-900/10 flex items-center justify-center transition-all active:scale-95 cursor-pointer overflow-hidden p-2.5"
+          onClick={() => {
+            vibrate(HAPITCS.MAJOR_CLICK);
+            setMapsSidebarVisible(!mapsSidebarVisible);
+          }}
+          title="تطبيقات الخطة"
+        >
+          {/* VIA style logo */}
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+            <defs>
+              <linearGradient id="darkBlueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#08102d" />
+                <stop offset="60%" stopColor="#1e3a8a" />
+                <stop offset="100%" stopColor="#3b82f6" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="6" r="2.5" fill="url(#darkBlueGradient)" />
+            <circle cx="6" cy="18" r="2.5" fill="url(#darkBlueGradient)" />
+            <circle cx="18" cy="18" r="2.5" fill="url(#darkBlueGradient)" />
+            <path d="M12 8.5L7.5 15.5" stroke="url(#darkBlueGradient)" strokeWidth="2.2" strokeLinecap="round" />
+            <path d="M12 8.5L16.5 15.5" stroke="url(#darkBlueGradient)" strokeWidth="2.2" strokeLinecap="round" />
+            <path d="M8.5 18H15.5" stroke="url(#darkBlueGradient)" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+        </button>
+
+        {/* Pinned Apps */}
+        <div className="flex flex-col gap-2">
+          {pinnedApps.map(id => {
+            const app = SIDEBAR_APPS.find(a => a.id === id);
+            if (!app) return null;
+            return (
+              <button
+                key={id}
+                onClick={() => { vibrate(HAPITCS.MAJOR_CLICK); app.action(); }}
+                className={`w-12 h-12 rounded-[1rem] flex items-center justify-center text-white shadow-lg transition-all hover:scale-105 active:scale-95 ${app.solidColor} border border-white/20`}
+                title={app.title}
+              >
+                <i className={`${app.icon} text-lg`} />
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Top Right Floating Action Bar with Back Button */}
-      <div className="absolute top-8 right-6 z-40 flex items-center gap-3">
+      <div className="absolute top-6 right-6 z-40 flex items-center gap-3">
         {onBack && (
           <button
-            className="bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-blue-600 w-11 h-11 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
+            className="bg-slate-50/80 backdrop-blur-md hover:bg-white text-slate-600 hover:text-blue-600 w-12 h-12 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
             onClick={() => {
               vibrate(HAPITCS.MAJOR_CLICK);
               onBack();
             }}
             title="الرجوع للمسارات"
           >
-            <i className="pi pi-arrow-right text-sm"></i>
+            <i className="pi pi-arrow-right text-base"></i>
           </button>
         )}
-        <button
-          className="bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-indigo-600 w-11 h-11 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
-          onClick={() => {
-            vibrate(HAPITCS.MAJOR_CLICK);
-            setMapsSidebarVisible(true);
-          }}
-          title="القائمة"
-        >
-          <i className="pi pi-bars text-sm"></i>
-        </button>
       </div>
 
       {user?.isFrozen && (
@@ -1170,6 +1226,25 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         id="maps-viewport-scroll"
       >
         <div className="w-full max-w-7xl px-4 md:px-8 mx-auto py-4 flex flex-col items-center justify-start z-10 relative">
+
+          {/* Titles Display */}
+          {(user?.gameData as any)?.unlockedTitles && ((user?.gameData as any).unlockedTitles.length > 0) && (
+            <div className="w-full flex items-center justify-center flex-wrap gap-2 mb-6 pointer-events-none z-30">
+              {((user?.gameData as any).unlockedTitles as string[]).map(t => {
+                let text = "";
+                if (t === 'title_solver_of_3_task_riddles') text = 'حلّال المهام الثلاث 🧩';
+                else if (t === 'title_solver_of_plan_riddle') text = 'سيد الخطة 🗺️';
+                else if (t === 'title_hidden_riddle_master') text = 'كاشف الخبايا 👁️';
+                else return null;
+                
+                return (
+                  <div key={t} className="px-3 py-1.5 bg-gradient-to-br from-indigo-900 to-blue-950 text-cyan-300 rounded-2xl text-[11px] font-black shadow-lg shadow-blue-900/40 border border-cyan-400/30 uppercase tracking-widest backdrop-blur-md">
+                    {text}
+                  </div>
+                )
+              })}
+            </div>
+          )}
           
           {/* Vacation Banner */}
           {user?.isVacation && (
@@ -1242,7 +1317,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       delay: i * 0.05,
                       ease: [0.16, 1, 0.3, 1] 
                     }}
-                    className="relative flex flex-col items-center w-full max-w-md"
+                    className="relative flex flex-col items-center w-full max-w-xl"
                   >
                     {/* Connection Line */}
                     {i < stations.length - 1 && (
@@ -1256,175 +1331,79 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       </div>
                     )}
 
-                    {/* Station Node / Card Wrapper with direct Action Toolbar */}
+                    {/* Station Node / Card Wrapper */}
                     <div className="relative w-full flex items-center justify-center group/card">
                       <motion.div
                         initial={{ scale: 1 }}
                         whileHover={isUnlocked ? { scale: 1.02 } : {}}
                         transition={{ type: "spring", stiffness: 400, damping: 25 }}
                         onClick={() => handleStationClick(st.id, isUnlocked, i)}
-                        className={`relative z-10 w-full p-6 pb-5 rounded-[36px] flex flex-col gap-5 cursor-pointer transition-all duration-500 border-2
+                        className={`relative z-10 w-full p-8 rounded-[40px] flex flex-col gap-5 cursor-pointer transition-all duration-500 border-2
                           ${isActive 
-                            ? "bg-gradient-to-bl from-slate-900 via-slate-800 to-indigo-950 border-amber-400/50 shadow-[0_20px_60px_-15px_rgba(30,27,75,0.7)] ring-1 ring-inset ring-white/10" 
+                            ? "bg-gradient-to-bl from-slate-900 via-indigo-950 to-blue-950 border-cyan-400/50 shadow-[0_20px_60px_-15px_rgba(6,182,212,0.5)] ring-1 ring-inset ring-cyan-400/30" 
                             : isCompleted 
-                              ? "bg-white/90 backdrop-blur-2xl border-indigo-100 shadow-[0_15px_40px_rgba(37,99,235,0.08)] hover:border-indigo-300" 
+                              ? "bg-gradient-to-bl from-slate-900 via-blue-950 to-indigo-900 border-indigo-500/30 shadow-[0_15px_40px_rgba(59,130,246,0.2)] hover:border-indigo-400" 
                               : isUnlocked 
-                                ? "bg-white/80 backdrop-blur-2xl border-white shadow-[0_15px_50px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.08)] hover:border-slate-200" 
-                                : "bg-slate-50/40 backdrop-blur-xl border-white/50 opacity-60 grayscale hover:grayscale-[0.5] transition-all duration-700"}
+                                ? "bg-gradient-to-bl from-slate-800 via-slate-900 to-indigo-950 border-slate-700 shadow-[0_15px_50px_rgba(0,0,0,0.4)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.6)] hover:border-blue-500/40" 
+                                : "bg-white/80 backdrop-blur-xl border-slate-200 opacity-70 grayscale hover:grayscale-[0.3] transition-all duration-700 shadow-sm"}
                         `}
                       >
-                       {/* Card Header Content */}
-                       <div className="flex items-center gap-5 w-full relative z-10">
-                         <div className={`w-16 h-16 rounded-[22px] flex items-center justify-center shrink-0 border transition-transform duration-500 ${isActive ? 'rotate-[5deg]' : 'group-hover/card:rotate-[3deg]'}
-                           ${isActive 
-                             ? 'bg-amber-500/10 border-amber-400/50 text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.25)]' 
-                             : isCompleted 
-                               ? 'bg-gradient-to-br from-blue-50 to-indigo-50/80 border-blue-200 shadow-inner' 
-                               : 'bg-white border-slate-100 shadow-sm'}
-                         `}>
-                           {isLocked ? (
-                             <i className={`pi pi-lock text-xl ${isNextLocked ? 'text-amber-500/80 animate-pulse' : 'text-slate-300'}`} />
-                           ) : (
-                             <i className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-2xl 
-                               ${isActive ? 'text-amber-300 drop-shadow-md' : isCompleted ? 'text-blue-600' : 'text-slate-700'}`} 
-                             />
-                           )}
-                         </div>
+                        {/* Card Header Content - Centered */}
+                        <div className="flex flex-col items-center justify-center text-center gap-4 w-full relative z-10">
+                          {/* Softer and Smooth Plan Icon Container */}
+                          <div className={`w-20 h-20 rounded-full flex items-center justify-center shrink-0 border transition-all duration-700 ease-out hover:scale-110 shadow-lg
+                            ${isActive 
+                              ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_30px_rgba(34,211,238,0.3)]' 
+                              : isCompleted 
+                                ? 'bg-indigo-500/20 border-indigo-400/50 shadow-[0_0_20px_rgba(99,102,241,0.2)]' 
+                                : isUnlocked 
+                                  ? 'bg-white/5 border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.03)]'
+                                  : 'bg-slate-50 border-slate-100 shadow-inner text-slate-400'}
+                          `}>
+                            {isLocked ? (
+                              <i className={`pi pi-lock text-3xl ${isNextLocked ? 'text-amber-500/80 animate-pulse' : 'text-slate-400'}`} />
+                            ) : (
+                              <i className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-4xl 
+                                ${isActive ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]' : isCompleted ? 'text-indigo-300 drop-shadow-[0_0_8px_rgba(129,140,248,0.4)]' : 'text-slate-350 hover:text-white transition-colors duration-500'}`} 
+                              />
+                            )}
+                          </div>
 
-                         <div className="flex-1 text-right overflow-hidden font-sans">
-                           <div className="flex items-center justify-between mb-1">
-                             <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-amber-400/90' : 'text-slate-400'}`}>
-                               الخطة {i + 1}
-                             </span>
-                             {isCompleted && <i className="pi pi-check-circle text-blue-600 text-[13px] font-black relative top-0.5" />}
-                           </div>
-                           <h3 className={`text-[17px] font-black truncate leading-tight mt-1 ${isActive ? 'text-white' : 'text-slate-900'}`}>{st.name}</h3>
-                         </div>
-                       </div>
+                          <div className="flex-1 text-center overflow-hidden font-sans w-full">
+                            <div className="flex items-center justify-center gap-2 mb-1.5">
+                              <span className={`text-[12px] font-black uppercase tracking-widest ${isActive ? 'text-cyan-400' : isLocked ? 'text-slate-500' : 'text-slate-400'}`}>
+                                 الخطة {i + 1}
+                              </span>
+                              {isCompleted && <i className="pi pi-check-circle text-indigo-400 text-lg font-black relative" />}
+                            </div>
+                            <h3 className={`text-xl font-black truncate leading-tight mt-1 ${isLocked ? 'text-slate-800' : 'text-white'}`}>{st.name}</h3>
 
-                       {/* Integrated direct Action Grid, only for unlocked plans */}
-                       {isUnlocked && (
-                         <div className="pt-4 border-t border-slate-200/20 grid grid-cols-3 gap-2 w-full relative z-10" dir="rtl">
-                           {/* 1. الخطة */}
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               vibrate(HAPITCS.MAJOR_CLICK);
-                               
-                               setShowJourneyIntroPopup(true);
-                             }}
-                             className={`py-2.5 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border border-b-2 text-[10px] font-black backdrop-blur-md shadow-sm
-                               ${isActive 
-                                 ? "bg-white/5 hover:bg-white/15 text-emerald-300 border-emerald-500/20 shadow-[0_4px_15px_rgba(0,0,0,0.15)]" 
-                                 : "bg-gradient-to-b from-white to-slate-50 hover:to-white text-slate-700 border-slate-200"}`}
-                             title="الخطة والتقويم"
-                           >
-                             <i className="pi pi-map text-[13px] opacity-80" />
-                             <span className="leading-none mt-0.5 tracking-wide">الخطة</span>
-                           </button>
+                            <div className="mt-3 flex items-center justify-center gap-3 text-[10px] font-bold">
+                              {st.targetDate && (
+                                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border ${isLocked ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white/10 text-cyan-200 border-white/5'}`}>
+                                  <i className="pi pi-calendar"></i>
+                                  <span>{st.targetDate}</span>
+                                </div>
+                              )}
+                              {(user?.learningDays?.length > 0) && (
+                                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border ${isLocked ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white/10 text-cyan-200 border-white/5'}`}>
+                                  <i className="pi pi-clock"></i>
+                                  <span>{user.learningDays.length} أيام أسبوعياً</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
 
-                           {/* 2. الروتين */}
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               vibrate(HAPITCS.MAJOR_CLICK);
-                               setShowRoutinePopup(true);
-                             }}
-                             className={`py-2.5 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border border-b-2 text-[10px] font-black backdrop-blur-md shadow-sm
-                               ${isActive 
-                                 ? "bg-white/5 hover:bg-white/15 text-indigo-300 border-indigo-500/20 shadow-[0_4px_15px_rgba(0,0,0,0.15)]" 
-                                 : "bg-gradient-to-b from-white to-slate-50 hover:to-white text-slate-700 border-slate-200"}`}
-                             title="روتين التعلم"
-                           >
-                             <i className="pi pi-calendar text-[13px] opacity-80" />
-                             <span className="leading-none mt-0.5 tracking-wide">الروتين</span>
-                           </button>
-
-                           {/* 3. المصادر */}
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               vibrate(HAPITCS.MAJOR_CLICK);
-                               
-                               setShowLinksPopup(true);
-                             }}
-                             className={`py-2.5 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border border-b-2 text-[10px] font-black backdrop-blur-md shadow-sm
-                               ${isActive 
-                                 ? "bg-white/5 hover:bg-white/15 text-blue-300 border-blue-500/20 shadow-[0_4px_15px_rgba(0,0,0,0.15)]" 
-                                 : "bg-gradient-to-b from-white to-slate-50 hover:to-white text-slate-700 border-slate-200"}`}
-                             title="مصادر التعلم"
-                           >
-                             <i className="pi pi-book text-[13px] opacity-80" />
-                             <span className="leading-none mt-0.5 tracking-wide">المصادر</span>
-                           </button>
-
-                           {/* 4. الملاحظات */}
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               vibrate(HAPITCS.MAJOR_CLICK);
-                               setActiveNoteStationId(st.id);
-                               setShowNotesPopup(true);
-                             }}
-                             className={`py-2.5 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border border-b-2 text-[10px] font-black backdrop-blur-md shadow-sm
-                               ${isActive 
-                                 ? "bg-white/5 hover:bg-white/15 text-amber-300 border-amber-500/20 shadow-[0_4px_15px_rgba(0,0,0,0.15)]" 
-                                 : "bg-gradient-to-b from-white to-slate-50 hover:to-white text-slate-700 border-slate-200"}`}
-                             title="التدوين والملاحظات"
-                           >
-                             <i className="pi pi-pencil text-[13px] opacity-80" />
-                             <span className="leading-none mt-0.5 tracking-wide">التدوين</span>
-                           </button>
-
-                           {/* 5. التحليلات */}
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               vibrate(HAPITCS.MAJOR_CLICK);
-                               setReflectionForceStationId(st.id);
-                               setReflectionActiveTab(0);
-                               setReflectionSidebar(true);
-                             }}
-                             className={`py-2.5 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border border-b-2 text-[10px] font-black backdrop-blur-md shadow-sm
-                               ${isActive 
-                                 ? "bg-white/5 hover:bg-white/15 text-sky-300 border-sky-500/20 shadow-[0_4px_15px_rgba(0,0,0,0.15)]" 
-                                 : "bg-gradient-to-b from-white to-slate-50 hover:to-white text-slate-700 border-slate-200"}`}
-                             title="التحليلات والمتابعة"
-                           >
-                             <i className="pi pi-chart-bar text-[13px] opacity-80" />
-                             <span className="leading-none mt-0.5 tracking-wide">التحليلات</span>
-                           </button>
-
-                           {/* 6. العقبات */}
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               vibrate(HAPITCS.MAJOR_CLICK);
-                               setSelectedStation(st.id);
-                               setStumbleReason("");
-                               setShowStumbleForm(true);
-                             }}
-                             className={`py-2.5 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center hover:scale-105 active:scale-95 transition-all outline-none border border-b-2 text-[10px] font-black backdrop-blur-md shadow-sm
-                               ${isActive 
-                                 ? "bg-white/5 hover:bg-white/15 text-rose-300 border-rose-500/20 shadow-[0_4px_15px_rgba(0,0,0,0.15)]" 
-                                 : "bg-gradient-to-b from-white to-slate-50 hover:to-white text-slate-700 border-slate-200"}`}
-                             title="رصد عقبة أو تعثر"
-                           >
-                             <i className="pi pi-exclamation-triangle text-[13px] opacity-80" />
-                             <span className="leading-none mt-0.5 tracking-wide">العقبات</span>
-                           </button>
-                         </div>
-                       )}
-
-                       {isActive && (
-                         <div className="absolute -left-2 -top-2">
-                           <span className="relative flex h-3 w-3">
-                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                             <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-                           </span>
-                         </div>
-                       )}
-                     </motion.div>
+                        {isActive && (
+                          <div className="absolute -left-2 -top-2">
+                            <span className="relative flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                            </span>
+                          </div>
+                        )}
+                      </motion.div>
                     </div>
                   </motion.div>
                 );
@@ -1439,52 +1418,142 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       <Sidebar
         visible={mapsSidebarVisible}
         onHide={() => setMapsSidebarVisible(false)}
-        position="right"
-        className="w-full md:w-80 font-sans"
+        position="left"
+        modal={!isSidebarPinned}
+        className="w-full md:w-[360px] font-sans bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 border-r border-indigo-500/20 shadow-2xl custom-left-sidebar"
         header={
-          <div className="flex items-center gap-3 text-indigo-950 font-black">
-            <i className="pi pi-th-large p-2 bg-indigo-100 rounded-lg text-indigo-600 text-sm"></i>
-            تطبيقات الخطة
+          <div className="flex items-center justify-between w-full pr-2">
+            <div className="flex items-center gap-3 text-white font-black">
+              <i className="pi pi-compass p-2 bg-white/10 rounded-xl text-blue-200 text-sm shadow-inner shadow-white/5"></i>
+              قائمة التحكم والمسار
+            </div>
+            <button 
+              onClick={() => setIsSidebarPinned(!isSidebarPinned)}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isSidebarPinned ? 'bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+              title={isSidebarPinned ? "إلغاء التثبيت" : "تثبيت القائمة"}
+            >
+              <i className={`pi pi-thumbtack ${isSidebarPinned ? 'rotate-45' : ''}`}></i>
+            </button>
           </div>
         }
       >
-        <div className="flex flex-col gap-3 py-2 pr-2 pl-4" dir="rtl">
-          {[
-            { id: 'calendar', title: 'التقويم والمهام', icon: 'pi pi-calendar', color: 'emerald', action: () => { setShowJourneyIntroPopup(true); } },
-            { id: 'notes', title: 'التدوين والملاحظات', icon: 'pi pi-pencil', color: 'amber', action: () => { if(activeStationId) setActiveNoteStationId(activeStationId); setShowNotesPopup(true); } },
-            { id: 'links', title: 'المصادر', icon: 'pi pi-book', color: 'blue', action: () => { setShowLinksPopup(true); } },
-            { id: 'analytics', title: 'التحليلات والمراجعة', icon: 'pi pi-chart-bar', color: 'indigo', action: () => { setReflectionForceStationId(null); setReflectionActiveTab(0); setReflectionSidebar(true); } },
-            { id: 'forest', title: 'غابة المعرفة', icon: 'pi pi-sitemap', color: 'green', action: () => { setLearningRepoVisible(true); } },
-            { id: 'compass', title: 'البوصلة والتوجيه', icon: 'pi pi-compass', color: 'sky', action: () => { setShowCompassPopup(true); } },
-            { id: 'awards', title: 'الجوائز والمكافآت', icon: 'pi pi-star', color: 'amber', action: () => { setShowCapsulePopup(true); } },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setMapsSidebarVisible(false);
-                vibrate(HAPITCS.MAJOR_CLICK);
-                item.action();
-              }}
-              className="flex items-center gap-4 w-full p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all active:scale-95 text-right outline-none cursor-pointer group"
-            >
-              <i className={`${item.icon} text-slate-500 group-hover:scale-110 transition-transform`} />
-              <span className="font-bold text-sm text-slate-700 font-sans tracking-wide">{item.title}</span>
-            </button>
-          ))}
+        <div className="h-full flex flex-col pt-2" dir="rtl">
+          <TabView className="custom-spaced-tabs flex-1" dir="rtl">
+            <TabPanel headerTemplate={createTabHeader("pi-th-large", "تطبيقات الخطة")}>
+              <div className="flex flex-col gap-3.5 py-4 px-1">
+                {SIDEBAR_APPS.map((item) => {
+                  const isPinned = pinnedApps.includes(item.id);
+                  return (
+                    <div key={item.id} className="relative w-full">
+                      <button
+                        onClick={() => {
+                          if (!isSidebarPinned) setMapsSidebarVisible(false);
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          item.action();
+                        }}
+                        className="flex items-center gap-4 w-full p-4 pl-12 rounded-2xl bg-gradient-to-l from-slate-900/80 to-blue-950/80 hover:from-blue-900/80 hover:to-indigo-900/80 border border-blue-500/20 hover:border-blue-400/40 shadow-sm shadow-blue-900/40 transition-all duration-300 active:scale-95 text-right outline-none cursor-pointer group backdrop-blur-md"
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-inner transition-transform group-hover:scale-110 ${item.color}`}>
+                          <i className={`${item.icon} text-lg`} />
+                        </div>
+                        <span className="font-extrabold text-sm text-slate-200 font-sans tracking-wide flex-1">{item.title}</span>
+                      </button>
+                      
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPinnedApps(prev => isPinned ? prev.filter(p => p !== item.id) : [...prev, item.id]);
+                        }}
+                        className={`absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${isPinned ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-transparent text-slate-500 hover:bg-white/10 hover:text-white'}`}
+                        title={isPinned ? 'إلغاء التثبيت' : 'تثبيت'}
+                      >
+                        <i className={`pi pi-thumbtack ${isPinned ? 'rotate-45' : ''}`}></i>
+                      </button>
+                    </div>
+                  );
+                })}
 
-          <div className="h-0.5 bg-slate-100 my-2 rounded-full w-full" />
+                <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent my-3 w-full" />
 
-          <button
-              onClick={() => {
-                setMapsSidebarVisible(false);
-                vibrate(HAPITCS.MAJOR_CLICK);
-                setShowRoutinePopup(true);
-              }}
-              className="flex items-center gap-4 w-full p-4 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-all active:scale-95 text-right outline-none cursor-pointer group shadow-sm"
-            >
-              <i className="pi pi-cog text-indigo-600 group-hover:rotate-45 transition-transform" />
-              <span className="font-black text-sm text-indigo-900 font-sans tracking-wide">إعدادات الخطة والروتين</span>
-          </button>
+                <button
+                  onClick={() => {
+                    if (!isSidebarPinned) setMapsSidebarVisible(false);
+                    vibrate(HAPITCS.MAJOR_CLICK);
+                    setShowRoutinePopup(true);
+                  }}
+                  className="flex items-center gap-4 w-full p-4 rounded-2xl bg-gradient-to-l from-indigo-600/20 to-blue-600/20 hover:from-indigo-600/30 hover:to-blue-600/30 border border-indigo-500/30 transition-all active:scale-95 text-right outline-none cursor-pointer group shadow-lg shadow-indigo-900/20"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center border border-indigo-400/20 group-hover:rotate-90 transition-transform duration-500">
+                    <i className="pi pi-cog text-lg" />
+                  </div>
+                  <span className="font-black text-sm text-indigo-100 font-sans tracking-wide flex-1">إعدادات الخطة والروتين</span>
+                </button>
+              </div>
+            </TabPanel>
+
+            <TabPanel headerTemplate={createTabHeader("pi-info-circle", "معلومات الخطة")}>
+              <div className="flex flex-col gap-4 py-4 px-1 text-right" dir="rtl">
+                {/* General Goal card */}
+                <div className="bg-white/5 border border-white/10 p-5 rounded-3xl shadow-lg relative overflow-hidden backdrop-blur-md">
+                  <div className="absolute right-0 top-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl" />
+                  <h4 className="text-cyan-400 font-extrabold text-sm mb-2 flex items-center gap-2">
+                    <i className="pi pi-target text-cyan-300"></i>
+                    🎯 أهداف الخطة العامة والوصف
+                  </h4>
+                  <p className="text-white text-xs leading-relaxed font-sans font-medium whitespace-pre-wrap select-text">
+                    {user?.learningGoal || "لم يتم تحديد أهداف عامة لهذه الخطة بعد. يمكنك إعدادها من معالج الإعداد (Setup Wizard)."}
+                  </p>
+                </div>
+
+                {/* Stages/Stations list */}
+                <div className="mt-2">
+                  <h4 className="text-indigo-300 font-extrabold text-sm mb-3 flex items-center gap-2 px-1">
+                    <i className="pi pi-map-marker text-indigo-400"></i>
+                    📌 مسارات ومراحل الخطة
+                  </h4>
+                  <div className="flex flex-col gap-3">
+                    {stations?.map((st, i) => {
+                      const isUnlocked = unlockedStations.includes(st.id);
+                      return (
+                        <div 
+                          key={st.id} 
+                          className={`p-4 rounded-2xl border transition-all duration-300 backdrop-blur-md
+                            ${isUnlocked 
+                              ? 'bg-gradient-to-l from-slate-900/60 to-indigo-950/60 border-indigo-500/20 text-white shadow-md' 
+                              : 'bg-white/5 border-white/5 text-slate-500 opacity-60'}`}
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${isUnlocked ? 'text-cyan-400' : 'text-slate-500'}`}>
+                              الخطة المرحلة {i + 1}
+                            </span>
+                            {isUnlocked ? (
+                              <span className="text-[9px] bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded-full font-bold">
+                                نشط
+                              </span>
+                            ) : (
+                              <span className="text-[9px] bg-white/5 text-slate-400 px-2 py-0.5 rounded-full font-bold">
+                                مغلق
+                              </span>
+                            )}
+                          </div>
+                          <h5 className="font-extrabold text-sm text-slate-100">{st.name}</h5>
+                          {st.description ? (
+                            <p className="text-xs text-slate-300 leading-relaxed mt-1 font-medium select-text">
+                              {st.description}
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-slate-500 italic mt-1 select-none">
+                              لا يوجد وصف تفصيلي لهذه المرحلة بعد.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </TabPanel>
+          </TabView>
         </div>
       </Sidebar>
 
@@ -3992,74 +4061,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       
       {/* Zoom Controls code block completely removed */}
 
-      {/* Main Map Side Actions Centered Dock (Plan & Path, Knowledge Forest, Compass & Rewards) */}
-      <AnimatePresence>
-        {!selectedStation && (
-          <motion.div 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 20, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 450, damping: 30 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 pointer-events-auto flex items-center gap-3.5 bg-gradient-to-r from-blue-950 to-indigo-900 border border-indigo-800 shadow-[0_20px_50px_rgba(30,58,138,0.5)] px-6 py-2.5 rounded-[28px] justify-center"
-          >
-            <div className="w-[1px] h-6 bg-white/20 self-center" />
 
-            {/* Plan & Path (الخطة والتقويم) */}
-            {user && (
-              <button
-                className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer"
-                onClick={() => {
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  setShowJourneyIntroPopup(true);
-                }}
-                title="الخطة والتقويم"
-              >
-                <i className="pi pi-map text-lg font-bold"></i>
-              </button>
-            )}
-
-            {/* Knowledge Forest (غابة المعرفة) */}
-            {(() => {
-              return (
-                <button
-                  className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer"
-                  onClick={() => {
-                    vibrate(HAPITCS.MAJOR_CLICK);
-                    setLearningRepoVisible(true);
-                  }}
-                  title="غابة المعرفة"
-                >
-                  <Trees className="w-5 h-5 text-white" />
-                </button>
-              );
-            })()}
-
-            {/* Compass (بوصلة الوضوح) */}
-            <button
-              onClick={() => {
-                vibrate(HAPITCS.MAJOR_CLICK);
-                setShowCompassPopup(true);
-              }}
-              title="بوصلة الوضوح"
-              className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-sm cursor-pointer"
-            >
-              <i className="pi pi-compass text-lg"></i>
-            </button>
-
-            {/* Jowayz/Trophy */}
-            <button
-              onClick={() => {
-                vibrate(HAPITCS.MAJOR_CLICK);
-                setGamificationSidebar(true);
-              }}
-              title="المحرك والجوائز"
-              className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-sm cursor-pointer"
-            >
-              <i className="pi pi-trophy text-lg"></i>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Luxurious Mission Control Dialog */}
       <Dialog
@@ -4112,17 +4114,24 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       </h3>
                    </div>
                    
-                   <Tree 
-                      value={filteredMainTasksNodes} 
-                      className="bg-transparent border-none p-0 custom-tree-animation"
-                      nodeTemplate={treeNodeTemplate}
-                      expandedKeys={expandedKeys}
-                      onToggle={(e) => setExpandedKeys(e.value)}
-                      filter
-                      filterBy="label"
-                      filterPlaceholder="ابحث في المهام..."
-                      contentClassName="p-2 hover:bg-white/5 rounded-xl transition-all"
-                   />
+                   <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto no-scrollbar pb-6 px-1">
+                     {filteredMainTasksNodes.map((node: any) => (
+                       <div key={node.key} className="space-y-3">
+                         <div className="bg-white border border-slate-200 rounded-[24px] p-4 hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer">
+                           {treeNodeTemplate(node)}
+                         </div>
+                         {node.children && node.children.length > 0 && (
+                           <div className="flex flex-col gap-3 pr-6 border-r-2 border-indigo-100 mr-4">
+                             {node.children.map((child: any) => (
+                               <div key={child.key} className="bg-slate-50 border border-slate-200 rounded-[20px] p-3 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer">
+                                 {treeNodeTemplate(child)}
+                               </div>
+                             ))}
+                           </div>
+                         )}
+                       </div>
+                     ))}
+                   </div>
                 </div>
 
                 {/* Side Tasks Panel */}
@@ -4415,48 +4424,23 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       >
         <div className="p-4 flex flex-col gap-4 text-right font-sans" dir="rtl">
           <div className="flex flex-col gap-1.5 font-sans">
-            <label className="text-[10px] font-black text-slate-400 font-sans">اسم الخطة المستهدفة *</label>
+            <label className="text-[11px] font-black text-indigo-950 font-sans px-1">تعديل التاريخ المستهدف</label>
             <input 
-              value={stationFormName}
-              onChange={(e) => setStationFormName(e.target.value)}
-              className="w-full p-3.5 bg-slate-50 border border-slate-150 rounded-2xl outline-none focus:ring-2 ring-indigo-500/10 text-xs font-bold text-slate-800 placeholder-slate-300 transition-all font-sans"
-              placeholder="مثال: أسواق الطاقة المتجددة"
+              type="date"
+              value={stationFormDate}
+              onChange={(e) => setStationFormDate(e.target.value)}
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none focus:ring-2 ring-indigo-500/20 text-sm font-bold text-slate-800 transition-all select-none font-sans shadow-sm"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 font-sans">
-            <label className="text-[10px] font-black text-slate-400 font-sans">وصف موجز للخطة</label>
-            <textarea 
-              value={stationFormDescription}
-              onChange={(e) => setStationFormDescription(e.target.value)}
-              className="w-full p-3.5 bg-slate-50 border border-slate-150 rounded-2xl outline-none focus:ring-2 ring-indigo-500/10 text-xs font-bold text-slate-800 placeholder-slate-300 transition-all font-sans min-h-[160px] h-40 resize-y"
-              placeholder="تفاصيل الهدف الأساسي، السعي، أو المنهجية المتبعة..."
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5 font-sans">
-              <label className="text-[10px] font-black text-slate-400 font-sans">التاريخ المستهدف</label>
-              <input 
-                type="date"
-                value={stationFormDate}
-                onChange={(e) => setStationFormDate(e.target.value)}
-                className="w-full p-3 bg-slate-50 border border-slate-150 rounded-2xl outline-none focus:ring-2 ring-indigo-500/10 text-xs font-bold text-slate-800 transition-all select-none font-sans"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5 font-sans">
-              <label className="text-[10px] font-black text-slate-400 font-sans">رمز الأيقونة</label>
-              <div className="flex items-center gap-2 bg-slate-50 border border-slate-150 rounded-2xl p-2 h-[46px] justify-between font-sans">
-                <i className={`${stationFormIcon} text-indigo-600 text-sm`} />
-                <span className="text-[9px] font-black text-slate-400 truncate font-sans">{stationFormIcon.replace('pi ', '')}</span>
+          <div className="flex flex-col gap-1.5 bg-slate-50 border border-slate-100 p-4 rounded-[24px] font-sans">
+            <div className="flex items-center gap-3 justify-center mb-3">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shadow-inner">
+                <i className={`${stationFormIcon} text-indigo-600 text-3xl`} />
               </div>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5 bg-slate-50 border border-slate-100 p-3 rounded-2xl font-sans">
-            <label className="text-[9px] font-black text-indigo-950 uppercase tracking-tight mb-1 font-sans">اختر أيقونة من الاختيارات المتاحة:</label>
-            <div className="flex flex-wrap gap-2 justify-center py-1">
+            <label className="text-xs font-black text-indigo-950 text-center tracking-tight mb-2 font-sans">تغيير الأيقونة الخاصة بالخطة</label>
+            <div className="flex flex-wrap gap-2 justify-center py-2 h-[200px] overflow-y-auto w-full no-scrollbar">
               {ICON_PRESETS.map((icon) => (
                 <button
                   key={icon}
@@ -4465,9 +4449,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     vibrate(HAPITCS.MAJOR_CLICK);
                     setStationFormIcon(icon);
                   }}
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${stationFormIcon === icon ? 'bg-indigo-600 text-white scale-110 shadow-md' : 'bg-white border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
+                  className={`w-10 h-10 rounded-[14px] flex items-center justify-center transition-all cursor-pointer ${stationFormIcon === icon ? 'bg-indigo-600 text-white scale-110 shadow-lg shadow-indigo-500/30' : 'bg-white border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:scale-105'}`}
                 >
-                  <i className={`${icon} text-xs`} />
+                  <i className={`${icon} text-lg`} />
                 </button>
               ))}
             </div>

@@ -23,7 +23,11 @@ export interface WizardStation {
   secretResourcesNotes?: string;
   riddleDetails?: string;
   riddleAnswer?: string;
-  secretResources?: { id: string; name: string; url: string; description?: string; puzzle?: string; puzzleAnswer?: string }[];
+  riddleHint?: string;
+  secretResourcesRiddleDetails?: string;
+  secretResourcesRiddleAnswer?: string;
+  secretResourcesRiddleHint?: string;
+  secretResources?: { id: string; name: string; url: string; description?: string; puzzle?: string; puzzleAnswer?: string; puzzleHint?: string }[];
   targetDate: string;
   tasks: WizardTask[];
 }
@@ -43,13 +47,17 @@ export interface WizardTask {
   activities?: any[];
   riddleDetails?: string;
   riddleAnswer?: string;
+  riddleHint?: string;
   hiddenRiddleDetails?: string;
+  hiddenRiddleAnswer?: string;
+  hiddenRiddleHint?: string;
 }
 
 export interface LearningResourceItem {
   id: string;
   name: string;
   url: string;
+  description?: string;
 }
 
 export function parseLearningResources(raw?: string): LearningResourceItem[] {
@@ -62,7 +70,8 @@ export function parseLearningResources(raw?: string): LearningResourceItem[] {
         return parsed.map((item: any) => ({
           id: item.id || Math.random().toString(36).substring(7),
           name: item.name || '',
-          url: item.url || ''
+          url: item.url || '',
+          description: item.description || ''
         }));
       }
     } catch (e) {
@@ -78,12 +87,13 @@ export function parseLearningResources(raw?: string): LearningResourceItem[] {
     items.push({
       id: Math.random().toString(36).substring(7),
       name: isUrl ? '' : item,
-      url: isUrl ? item : ''
+      url: isUrl ? item : '',
+      description: ''
     });
   }
   return items;
 }
 
 export function serializeLearningResources(items: LearningResourceItem[]): string {
-  return JSON.stringify(items.map(({ name, url }) => ({ name: name.trim(), url: url.trim() })));
+  return JSON.stringify(items.map(({ name, url, description }) => ({ name: name.trim(), url: url.trim(), description: (description || '').trim() })));
 }

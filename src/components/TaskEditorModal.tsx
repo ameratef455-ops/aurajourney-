@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Dialog } from "primereact/dialog";
 import { TabView, TabPanel } from "primereact/tabview";
-import { Youtube, FileText, Sparkles, Plus, X } from "lucide-react";
+import { Youtube, FileText, Sparkles, Plus, Trash2, X, AlertCircle } from "lucide-react";
 import { safeRandomUUID } from "../lib/uuid";
 import { vibrate, HAPITCS } from "../lib/haptics";
+import { parseLearningResources, serializeLearningResources } from "../types";
 
 interface TaskEditorModalProps {
   visible: boolean;
@@ -11,6 +12,7 @@ interface TaskEditorModalProps {
   task: any;
   onSave: (task: any) => void;
   mainTasks?: any[];
+  isSetupWizard?: boolean;
 }
 
 export function TaskEditorModal({
@@ -19,8 +21,14 @@ export function TaskEditorModal({
   task,
   onSave,
   mainTasks = [],
+  isSetupWizard = false,
 }: TaskEditorModalProps) {
   const [localTask, setLocalTask] = useState<any>(null);
+
+  // States to add custom resources interactively
+  const [newResName, setNewResName] = useState("");
+  const [newResUrl, setNewResUrl] = useState("");
+  const [newResDesc, setNewResDesc] = useState("");
 
   useEffect(() => {
     if (visible && task) {
@@ -484,18 +492,140 @@ export function TaskEditorModal({
                 </div>
               </div>
 
-              <div className="md:col-span-2 space-y-2 mt-4 pt-4 border-t border-slate-100/50">
-                <label className="text-sm font-black text-blue-900 px-1 flex items-center gap-2">
-                  <i className="pi pi-book text-lg text-blue-500" />
-                  <span>المراجع الإضافية والمستندات العامة</span>
+              <div className="md:col-span-2 space-y-4 mt-4 pt-4 border-t border-slate-100/50 text-right" dir="rtl">
+                <label className="text-sm font-black text-blue-900 px-1 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <i className="pi pi-book text-lg text-blue-500" />
+                    <span>📚 مصادر ومراجع التعلم المقترحة للمهمة</span>
+                  </div>
+                  {isSetupWizard && (
+                    <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-black border border-emerald-100">تحرير نشط في المعالج</span>
+                  )}
                 </label>
-                <textarea
-                  rows={4}
-                  className="w-full p-5 bg-white border border-blue-100 rounded-[20px] text-sm font-bold text-blue-950 outline-none focus:ring-4 ring-blue-500/10 transition-all resize-y shadow-inner text-right"
-                  placeholder="مقالات ومصادر وقراءات عامة لإثراء الفهم والتحصيل العلمي للمستهدف..."
-                  value={localTask.learningResources || ""}
-                  onChange={(e) => updateField("learningResources", e.target.value)}
-                />
+
+                {/* If isSetupWizard is true, we display the inputs to add new resources */}
+                {isSetupWizard ? (
+                  <div className="bg-slate-50 border border-slate-100 p-5 rounded-[24px] space-y-4">
+                    <h5 className="text-xs font-black text-slate-800">➕ إضافة مصدر تعلم جديد للمهمة:</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5 text-right">
+                        <label className="text-[10px] font-black text-slate-500">اسم المرجع/المصدر:</label>
+                        <input
+                          type="text"
+                          value={newResName}
+                          onChange={(e) => setNewResName(e.target.value)}
+                          placeholder="مثال: مقال مدرسة الحكمة لقواعد البيانات"
+                          className="w-full py-2.5 px-3 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/15"
+                        />
+                      </div>
+                      <div className="space-y-1.5 text-right">
+                        <label className="text-[10px] font-black text-slate-500">رابط المصدر:</label>
+                        <input
+                          type="text"
+                          value={newResUrl}
+                          onChange={(e) => setNewResUrl(e.target.value)}
+                          placeholder="https://example.com/resource"
+                          className="w-full py-2.5 px-3 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/15 text-left"
+                          dir="ltr"
+                        />
+                      </div>
+                      <div className="space-y-1.5 md:col-span-2 text-right">
+                        <label className="text-[10px] font-black text-slate-500">الوصف التوضيحي للمصدر (اختياري/يظهر للطلاب):</label>
+                        <input
+                          type="text"
+                          value={newResDesc}
+                          onChange={(e) => setNewResDesc(e.target.value)}
+                          placeholder="اكتب نبذة أو وصفاً مختصراً يوضح فائدة هذا المصدر..."
+                          className="w-full py-2.5 px-3 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/15 text-right"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newResName.trim() || !newResUrl.trim()) return;
+                        vibrate(HAPITCS.SUCCESS);
+                        const current = parseLearningResources(localTask.learningResources);
+                        const newItem = {
+                          id: safeRandomUUID(),
+                          name: newResName.trim(),
+                          url: newResUrl.trim(),
+                          description: newResDesc.trim() || undefined,
+                        };
+                        const updated = [...current, newItem];
+                        updateField("learningResources", serializeLearningResources(updated));
+                        setNewResName("");
+                        setNewResUrl("");
+                        setNewResDesc("");
+                      }}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition-all border-none cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <span>تثبيت المصدر وإضافته للائحة 🌐</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-amber-500/5 border border-amber-500/15 rounded-2xl flex items-center gap-2.5 text-amber-800 text-[11px] font-bold">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                    <span>إضافة أو تعديل المصادر العامة مخصص ومشروط فقط داخل معالج التثبيت (Setup Wizard) لحماية تماسك الخطط المنهجية.</span>
+                  </div>
+                )}
+
+                {/* Display existing learning resources in Dark Gradient Blue Cards! */}
+                <div className="space-y-3 mt-3">
+                  <h5 className="text-xs font-black text-slate-700">📚 قائمة المصادر المرفقة الحالية:</h5>
+                  {parseLearningResources(localTask.learningResources).length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {parseLearningResources(localTask.learningResources).map((item) => {
+                        const isUrl = item.url.startsWith('http://') || item.url.startsWith('https://');
+                        const displayName = item.name.trim() || item.url;
+                        return (
+                          <div
+                            key={item.id}
+                            className="p-4.5 bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 border border-blue-500/20 text-blue-100 rounded-2xl flex flex-col justify-between gap-1.5 group transition-all duration-300 hover:border-blue-400 shadow-md shadow-blue-955/20"
+                          >
+                            <div className="flex items-center justify-between">
+                              <a
+                                href={isUrl ? item.url : undefined}
+                                target={isUrl ? "_blank" : undefined}
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2.5 text-xs font-black text-slate-150 hover:text-blue-300 transition-colors"
+                              >
+                                <i className={`pi ${isUrl ? 'pi-external-link' : 'pi-bookmark'} text-[10px] text-blue-400`}></i>
+                                <span>{displayName}</span>
+                              </a>
+
+                              {isSetupWizard && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    vibrate(HAPITCS.MAJOR_CLICK);
+                                    const current = parseLearningResources(localTask.learningResources);
+                                    const updated = current.filter(x => x.id !== item.id);
+                                    updateField("learningResources", serializeLearningResources(updated));
+                                  }}
+                                  className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-350 transition-colors flex items-center justify-center border-none cursor-pointer"
+                                  title="حذف هذا المصدر"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            
+                            {item.description && (
+                              <p className="text-[10px] text-slate-300 font-normal leading-relaxed overflow-hidden font-sans mt-1 pr-2 border-r-2 border-blue-500/30">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-slate-400 text-xs font-bold border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
+                      لا توجد مصادر مضافة حالياً لهذه المهمة.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </TabPanel>
@@ -593,20 +723,35 @@ export function TaskEditorModal({
                   />
                 </div>
 
-                {/* Riddle Answer */}
-                <div className="p-6 bg-teal-50/10 border-2 border-teal-100/30 rounded-[32px] space-y-3">
-                  <label className="text-xs font-black text-teal-900 px-1 flex items-center gap-2">
-                    <span className="text-sm">🔑</span>
-                    <span>كلمة المرور / حل اللغز المعتمد</span>
-                  </label>
-                  <p className="text-[9px] text-slate-400">الإجابة الدقيقة أو الكلمة المفتاحية التي تفك تشفير المحطة وتمنح وسام النجاح.</p>
-                  <input
-                    type="text"
-                    className="w-full p-4 bg-white border border-teal-150/50 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-teal-500/5 transition-all text-right"
-                    placeholder="اكتب الإجابة المفتاحية أو كلمة السر المحددة..."
-                    value={localTask.riddleAnswer || ""}
-                    onChange={(e) => updateField("riddleAnswer", e.target.value)}
-                  />
+                {/* Riddle Answer & Hint */}
+                <div className="p-6 bg-teal-50/10 border-2 border-teal-100/30 rounded-[32px] space-y-3 flex flex-col justify-between">
+                  <div>
+                    <label className="text-xs font-black text-teal-900 px-1 flex items-center gap-2">
+                      <span className="text-sm">🔑</span>
+                      <span>كلمة المرور / حل اللغز المعتمد</span>
+                    </label>
+                    <p className="text-[9px] text-slate-400">الإجابة الدقيقة أو الكلمة المفتاحية التي تفك تشفير المحطة وتمنح وسام النجاح.</p>
+                    <input
+                      type="text"
+                      className="w-full p-4 bg-white border border-teal-150/50 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-teal-500/5 transition-all text-right"
+                      placeholder="اكتب الإجابة المفتاحية أو كلمة السر المحددة..."
+                      value={localTask.riddleAnswer || ""}
+                      onChange={(e) => updateField("riddleAnswer", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black text-amber-600 px-1 mt-2 flex items-center gap-2">
+                      <span className="text-sm">💡</span>
+                      <span>تلميح اللغز العام للمهمة (Hint)</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-4 bg-white border border-amber-100/50 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-amber-500/5 transition-all text-right mt-1"
+                      placeholder="اكتب تلميحاً يوجه انتباه الطالب للحل دون تبسيطه المفرط..."
+                      value={localTask.riddleHint || ""}
+                      onChange={(e) => updateField("riddleHint", e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -622,13 +767,40 @@ export function TaskEditorModal({
                   </div>
                 </div>
 
-                <textarea
-                  rows={3}
-                  className="w-full p-5 bg-white border border-purple-100 rounded-[24px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right"
-                  placeholder="اكتب لغز المصادر الخفية الذي يتعين على الطالب حله لرؤية المصار الكاملة الفائقة لهذه المحطة..."
-                  value={localTask.hiddenRiddleDetails || ""}
-                  onChange={(e) => updateField("hiddenRiddleDetails", e.target.value)}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-700 block">تفاصيل اللغز الخفي للمهمة:</label>
+                    <textarea
+                      rows={3}
+                      className="w-full p-5 bg-white border border-purple-100 rounded-[24px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right resize-y"
+                      placeholder="اكتب لغز المصادر الخفية الذي يتعين على الطالب حله لرؤية المصار الكاملة الفائقة لهذه المحطة..."
+                      value={localTask.hiddenRiddleDetails || ""}
+                      onChange={(e) => updateField("hiddenRiddleDetails", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-3 flex flex-col justify-between">
+                    <div>
+                      <label className="text-xs font-black text-slate-700 block">إجابة اللغز الخفي المعتمدة:</label>
+                      <input
+                        type="text"
+                        className="w-full p-4.5 bg-white border border-purple-100 rounded-[20px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right"
+                        placeholder="إجابة لغز المصادر الخفية..."
+                        value={localTask.hiddenRiddleAnswer || ""}
+                        onChange={(e) => updateField("hiddenRiddleAnswer", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-black text-slate-700 block mt-1">تلميح اللغز الخفي (Hint):</label>
+                      <input
+                        type="text"
+                        className="w-full p-4.5 bg-white border border-purple-100 rounded-[20px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right"
+                        placeholder="تلميح لفك عقدة هذا اللغز..."
+                        value={localTask.hiddenRiddleHint || ""}
+                        onChange={(e) => updateField("hiddenRiddleHint", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
             </div>

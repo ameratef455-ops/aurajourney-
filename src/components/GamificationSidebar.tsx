@@ -58,6 +58,7 @@ export function GamificationSidebar({
   const [activeOracleQuote, setActiveOracleQuote] = useState<any>(null);
 
   const allAvailableTasks = useLiveQuery(() => db.tasks.toArray()) || [];
+  const allStations = useLiveQuery(() => db.stations.toArray()) || [];
 
   // Creative Gamification Achievements List
   const achievements = [
@@ -84,9 +85,9 @@ export function GamificationSidebar({
     {
       id: "focus_review_legend",
       title: "وسام ترويض الفجوات 🧠",
-      description: "إنشاء خطة مراجعة ذكية وحماية المعرفة من النسيان لرحلة واحدة على الأقل.",
+      description: "إنهاء خطة المراجعة الثلاثية لمهمة واحدة على الأقل.",
       check: () => {
-        return allAvailableTasks.some(t => t.title && t.title.includes('المراجعة'));
+        return allAvailableTasks.some(t => t.title && t.title.includes('المراجعة 3') && t.isCompleted);
       },
       rewardText: "+3 مفاتيح تركيز",
       rewardAmount: 3,
@@ -139,6 +140,42 @@ export function GamificationSidebar({
       rewardAmount: 150,
       rewardType: "xp",
       icon: "pi-bookmark"
+    },
+    {
+      id: "title_solver_of_3_task_riddles",
+      title: "حل 3 ألغاز لثلاث مهام 🧩",
+      description: "إنجاز 3 مهام تحتوي على ألغاز منطقية بنجاح.",
+      check: () => {
+        return allAvailableTasks.filter(t => t.riddleDetails && t.riddleAnswer && t.isCompleted).length >= 3;
+      },
+      rewardText: "لقب الخريطة + 150 XP",
+      rewardAmount: 150,
+      rewardType: "xp",
+      icon: "pi-hashtag"
+    },
+    {
+      id: "title_solver_of_plan_riddle",
+      title: "إنهاء لغز الخطة 🗺️",
+      description: "النجاح في إنهاء محطة رئيسية تحتوي على لغز كبير.",
+      check: () => {
+        return allStations.some(s => s.riddleDetails && s.riddleAnswer && (s as any).isCompleted);
+      },
+      rewardText: "لقب الخريطة + 200 XP",
+      rewardAmount: 200,
+      rewardType: "xp",
+      icon: "pi-map"
+    },
+    {
+      id: "title_hidden_riddle_master",
+      title: "اللغز الخفي 👁️",
+      description: "اكتشاف وإنهاء اللغز الخفي المخصص للمصادر الخفية في إحدى المهام.",
+      check: () => {
+        return allAvailableTasks.some(t => t.hiddenRiddleDetails && t.isCompleted);
+      },
+      rewardText: "لقب الخريطة + 250 XP",
+      rewardAmount: 250,
+      rewardType: "xp",
+      icon: "pi-eye"
     }
   ];
 
@@ -163,11 +200,19 @@ export function GamificationSidebar({
       updatedKeys += ach.rewardAmount;
     }
 
+    const currentTitles = (gData as any).unlockedTitles || [];
+    let updatedTitles = currentTitles;
+    
+    if (ach.id.startsWith("title_")) {
+      updatedTitles = [...currentTitles, ach.id];
+    }
+
     const updatedGameData = {
       ...gData,
       xp: updatedXp,
       keys: updatedKeys,
-      claimedAchievements: updatedClaimed
+      claimedAchievements: updatedClaimed,
+      unlockedTitles: updatedTitles
     } as any;
 
     await db.userSettings.update(user.id, {
@@ -197,7 +242,34 @@ export function GamificationSidebar({
     hotToast.success("كشفت نبوءة طالع السير وربحت +25 XP! 🔮");
   };
 
-  const buyCapsule = async (capsuleType: 'focusClarity' | 'hyperLearning' | 'streakShield' | 'genieOracle', cost: number) => {
+  const buyTreasure = async (treasureType: string, costKeys: number) => {
+    if (!user) return;
+    if (gData.keys < costKeys) {
+      hotToast.error("عذراً، رصيد المفاتيح (Keys) غير كافٍ لإتمام عملية الشراء! اقتني المزيد من المتجر أو عبر المهام 🔑");
+      return;
+    }
+    vibrate(HAPITCS.SUCCESS);
+    
+    const currentOwned = (user.gameData as any)?.ownedTreasures || {};
+    const updatedOwned = {
+      ...currentOwned,
+      [treasureType]: (currentOwned[treasureType] || 0) + 1
+    };
+
+    const updatedGameData = {
+      ...gData,
+      keys: gData.keys - costKeys,
+      ownedTreasures: updatedOwned
+    };
+
+    await db.userSettings.update(user.id, {
+      gameData: updatedGameData as any
+    });
+
+    hotToast.success(`مبارك! لقد استخرجت كنزاً أسطورياً بالاعتماد على المفاتيح التي جمعتها 💎`);
+  };
+
+  const buyCapsule = async (capsuleType: 'focusClarity' | 'hyperLearning', cost: number) => {
     if (!user) return;
     if (gData.xp < cost) {
       hotToast.error("عذراً، رصيد نقاط الخبرة (XP) غير كافٍ لإتمام عملية الشراء! 🪙");
@@ -205,7 +277,7 @@ export function GamificationSidebar({
     }
     vibrate(HAPITCS.SUCCESS);
     
-    const currentOwned = (user.gameData as any)?.ownedCapsules || { focusClarity: 0, hyperLearning: 0, streakShield: 0, genieOracle: 0 };
+    const currentOwned = (user.gameData as any)?.ownedCapsules || { focusClarity: 0, hyperLearning: 0 };
     const updatedOwned = {
       ...currentOwned,
       [capsuleType]: (currentOwned[capsuleType] || 0) + 1
@@ -224,9 +296,9 @@ export function GamificationSidebar({
     hotToast.success(`لقد اشتريت كبسولة نجاح جديدة! 💊 تم إضافتها إلى حقيبتك.`);
   };
 
-  const consumeCapsule = async (capsuleType: 'focusClarity' | 'hyperLearning' | 'streakShield' | 'genieOracle') => {
+  const consumeCapsule = async (capsuleType: 'focusClarity' | 'hyperLearning') => {
     if (!user) return;
-    const currentOwned = (user.gameData as any)?.ownedCapsules || { focusClarity: 0, hyperLearning: 0, streakShield: 0, genieOracle: 0 };
+    const currentOwned = (user.gameData as any)?.ownedCapsules || { focusClarity: 0, hyperLearning: 0 };
     
     if (!currentOwned[capsuleType] || currentOwned[capsuleType] <= 0) {
       hotToast.error("لا تملك أي كبسولات من هذا النوع في حقيبتك حالياً! 🎒");
@@ -245,16 +317,10 @@ export function GamificationSidebar({
     let message = "";
     if (capsuleType === 'focusClarity') {
       title = "كبسولة صفاء الذهن 🧘‍♂️";
-      message = "تلاشى الضجيج وحصلت فورياً على صفاء ذهني مضاعف وحصانة كاملة ضد التشتيت لـ 48 ساعة متواصلة!";
+      message = "تلاشى الضجيج للتركيز الكامل، درع حماية الأيام المتواصلة الخاص بك مفعل لحماية الاستريك كلياً من الانقطاع التلقائي لـ 48 ساعة قادمة!";
     } else if (capsuleType === 'hyperLearning') {
       title = "كبسولة المعرفة والمراجع 📚";
       message = "تم تفعيل حاسة التعلم الفائق! كشفت الكبسولة روابط وملاحظات إضافية ذكية في محطات رحلتك الممتدة.";
-    } else if (capsuleType === 'streakShield') {
-      title = "كبسولة الستريك المعزّز 🛡️";
-      message = "تم نشر درع الحماية الأبدي! ستريك الأيام المتواصلة الخاص بك محمي كلياً من الانقطاع التلقائي لـ 24 ساعة قادمة.";
-    } else if (capsuleType === 'genieOracle') {
-      title = "كبسولة طالع السعي اللانهائي 🔮";
-      message = "تم تصفير وقت طالع السير! يمكنك الآن المطالبة بكشف طالع إضافي والحصول على +25 XP فورية!";
     }
 
     const consumedCount = (gData as any).consumedCapsules || 0;
@@ -267,10 +333,6 @@ export function GamificationSidebar({
 
     if (capsuleType === 'hyperLearning') {
       updatedGameData.hyperLearningActive = true;
-    }
-
-    if (capsuleType === 'genieOracle') {
-      updatedGameData.lastOracleClaimDate = "";
     }
 
     await db.userSettings.update(user.id, {
@@ -714,7 +776,7 @@ export function GamificationSidebar({
                       <h4 className="font-extrabold text-slate-900 text-lg">صيدلية السعي والكبسولات الذهنية 🧪</h4>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       
                       {/* Capsule 1: focusClarity */}
                       <div className="bg-gradient-to-br from-indigo-50/20 via-white to-blue-50/20 p-5 rounded-3xl border border-blue-100/60 shadow-xs flex flex-col justify-between hover:shadow-md transition-all divide-y divide-slate-50">
@@ -724,19 +786,19 @@ export function GamificationSidebar({
                             <span className="font-black text-slate-800 text-xs text-right">كبسولة صفاء الذهن</span>
                           </div>
                           <p className="text-[10px] text-slate-400 font-light leading-relaxed mb-3 font-sans">
-                            تلاشي كامل لتشتت الانتباه وحرية ذهنية لـ 48 ساعة للتركيز الفائق مع رصيد ذكائي مضاعف.
+                            تلاشي كامل لتشتت الانتباه وحرية ذهنية لـ 48 ساعة للتركيز الفائق مع رصيد ذكائي مضاعف وحماية كاملة للاستريك.
                           </p>
                         </div>
                         <div className="className-wrapper pt-3 mt-auto flex flex-col gap-2">
                           <div className="flex justify-between items-center text-[9px] font-bold">
                             <span className="text-slate-400">التكلفة</span>
-                            <span className="text-indigo-600">50 XP</span>
+                            <span className="text-indigo-600">100 XP</span>
                           </div>
                           <Button 
                             label="شراء الكبسولة 🪙" 
-                            disabled={gData.xp < 50}
+                            disabled={gData.xp < 100}
                             className="w-full text-[9px] font-bold py-2 px-3 border-none bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all text-center"
-                            onClick={() => buyCapsule('focusClarity', 50)}
+                            onClick={() => buyCapsule('focusClarity', 100)}
                           />
                         </div>
                       </div>
@@ -755,67 +817,85 @@ export function GamificationSidebar({
                         <div className="className-wrapper pt-3 mt-auto flex flex-col gap-2">
                           <div className="flex justify-between items-center text-[9px] font-bold">
                             <span className="text-slate-400">التكلفة</span>
-                            <span className="text-purple-600">80 XP</span>
+                            <span className="text-purple-600">150 XP</span>
                           </div>
                           <Button 
                             label="شراء الكبسولة 🪙" 
-                            disabled={gData.xp < 80}
+                            disabled={gData.xp < 150}
                             className="w-full text-[9px] font-bold py-2 px-3 border-none bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all text-center"
-                            onClick={() => buyCapsule('hyperLearning', 80)}
+                            onClick={() => buyCapsule('hyperLearning', 150)}
                           />
                         </div>
                       </div>
 
-                      {/* Capsule 3: streakShield */}
-                      <div className="bg-gradient-to-br from-amber-50/20 via-white to-orange-50/20 p-5 rounded-3xl border border-amber-100/60 shadow-xs flex flex-col justify-between hover:shadow-md transition-all divide-y divide-slate-50">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-2xl">🛡️</span>
-                            <span className="font-black text-slate-800 text-xs text-right">كبسولة درع الستريك</span>
-                          </div>
-                          <p className="text-[10px] text-slate-400 font-light leading-relaxed mb-3 font-sans">
-                            تجميد وحماية ستريك الأيام المتواصلة تلقائياً ضد الانقطاع أو الإلغاء ليوم واحد متكامل.
-                          </p>
-                        </div>
-                        <div className="className-wrapper pt-3 mt-auto flex flex-col gap-2">
-                          <div className="flex justify-between items-center text-[9px] font-bold">
-                            <span className="text-slate-400">التكلفة</span>
-                            <span className="text-amber-600">110 XP</span>
-                          </div>
-                          <Button 
-                            label="شراء الكبسولة 🪙" 
-                            disabled={gData.xp < 110}
-                            className="w-full text-[9px] font-bold py-2 px-3 border-none bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all text-center"
-                            onClick={() => buyCapsule('streakShield', 110)}
-                          />
-                        </div>
-                      </div>
+                    </div>
+                  </div>
 
-                      {/* Capsule 4: genieOracle */}
-                      <div className="bg-gradient-to-br from-cyan-50/20 via-white to-sky-50/20 p-5 rounded-3xl border border-cyan-100/60 shadow-xs flex flex-col justify-between hover:shadow-md transition-all divide-y divide-slate-50">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-2xl">🔮</span>
-                            <span className="font-black text-slate-800 text-xs text-right">كبسولة طالع السعي اللانهائي</span>
+                  {/* Precious Treasures Section (Bought with Keys) */}
+                  <div className="border-t border-slate-100 pt-8 mt-8 space-y-6">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🏆</span>
+                      <h4 className="font-extrabold text-slate-900 text-lg">خزنة الكنوز الأسطورية (حصرية بالمفاتيح) 🗝️</h4>
+                    </div>
+                    
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/50 rounded-3xl p-6 relative overflow-hidden">
+                       <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/10 rounded-full blur-3xl"></div>
+                       <p className="text-xs text-amber-900/70 font-bold mb-5 relative z-10 font-sans leading-relaxed">
+                         المفاتيح ليست فقط لفتح المحطات! يمكنك استغلالها للحصول على مقتنيات ثمينة وكنوز تذكارية تضاف إلى ملفك الشخصي كأوسمة نادرة للأبد.
+                       </p>
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 relative z-10">
+                          
+                          {/* Treasure 1 */}
+                          <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-amber-100 flex flex-col items-center text-center gap-3 hover:scale-105 transition-transform group">
+                             <div className="w-14 h-14 bg-gradient-to-br from-amber-300 to-yellow-500 rounded-full flex items-center justify-center text-2xl shadow-lg shadow-amber-500/30 group-hover:rotate-12 transition-transform">
+                                📜
+                             </div>
+                             <div>
+                               <h5 className="font-black text-amber-950 text-sm">وثيقة الحكمة الخالدة</h5>
+                               <p className="text-[9px] text-slate-500 mt-1 font-bold">تذكار رقمي يرمز لصبرك في التعلم المستمر.</p>
+                             </div>
+                             <Button 
+                               label="15 مفتاح 🗝️" 
+                               disabled={gData.keys < 15}
+                               onClick={() => buyTreasure('wisdomScroll', 15)}
+                               className="w-full text-[10px] font-black mt-2 py-2 border-none bg-amber-100 text-amber-700 hover:bg-amber-200 cursor-pointer rounded-xl transition-colors"
+                             />
                           </div>
-                          <p className="text-[10px] text-slate-400 font-light leading-relaxed mb-3 font-sans">
-                            تحطيم القيد الزمني لطالع اليوم لإعادة المحاولة فورياً وتجميع +25 XP من صندوق التوجيه.
-                          </p>
-                        </div>
-                        <div className="className-wrapper pt-3 mt-auto flex flex-col gap-2">
-                          <div className="flex justify-between items-center text-[9px] font-bold">
-                            <span className="text-slate-400">التكلفة</span>
-                            <span className="text-cyan-600">40 XP</span>
-                          </div>
-                          <Button 
-                            label="شراء الكبسولة 🪙" 
-                            disabled={gData.xp < 40}
-                            className="w-full text-[9px] font-bold py-2 px-3 border-none bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all text-center"
-                            onClick={() => buyCapsule('genieOracle', 40)}
-                          />
-                        </div>
-                      </div>
 
+                          {/* Treasure 2 */}
+                          <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-amber-100 flex flex-col items-center text-center gap-3 hover:scale-105 transition-transform group">
+                             <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-full flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/30 group-hover:-rotate-12 transition-transform">
+                                🌱
+                             </div>
+                             <div>
+                               <h5 className="font-black text-emerald-950 text-sm">بذرة الإلهام المتجذرة</h5>
+                               <p className="text-[9px] text-slate-500 mt-1 font-bold">نبتة أسطورية تزين حديقتك المعرفية.</p>
+                             </div>
+                             <Button 
+                               label="25 مفتاح 🗝️" 
+                               disabled={gData.keys < 25}
+                               onClick={() => buyTreasure('inspirationSeed', 25)}
+                               className="w-full text-[10px] font-black mt-2 py-2 border-none bg-emerald-100 text-emerald-700 hover:bg-emerald-200 cursor-pointer rounded-xl transition-colors"
+                             />
+                          </div>
+
+                          {/* Treasure 3 */}
+                          <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-amber-100 flex flex-col items-center text-center gap-3 hover:scale-105 transition-transform group">
+                             <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center text-2xl shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                                👑
+                             </div>
+                             <div>
+                               <h5 className="font-black text-blue-950 text-sm">تاج التفوق الموسيقي</h5>
+                               <p className="text-[9px] text-slate-500 mt-1 font-bold">الجوهرة الأعظم. لا يقدر بثمن إلا للذين وصلوا للقمة.</p>
+                             </div>
+                             <Button 
+                               label="50 مفتاح 🗝️" 
+                               disabled={gData.keys < 50}
+                               onClick={() => buyTreasure('crownOfExcellence', 50)}
+                               className="w-full text-[10px] font-black mt-2 py-2 border-none bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer rounded-xl transition-colors"
+                             />
+                          </div>
+                       </div>
                     </div>
                   </div>
 
@@ -867,43 +947,37 @@ export function GamificationSidebar({
                         )}
                       </div>
 
-                      {/* Inv 3 */}
-                      <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-200/50 text-right" dir="rtl">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-xl">🛡️</span>
-                          <div>
-                            <span className="text-xs font-black text-slate-800 block">درع الستريك</span>
-                            <span className="text-[10px] text-slate-400">المقتنى: {((user?.gameData as any)?.ownedCapsules?.streakShield) || 0}</span>
-                          </div>
-                        </div>
-                        { (Number((user?.gameData as any)?.ownedCapsules?.streakShield) || 0) > 0 && (
-                          <Button 
-                            label="تفعيل 🧪" 
-                            className="px-2.5 py-1 text-[9px] font-bold border-none bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-115 text-white rounded-lg cursor-pointer transition-all"
-                            onClick={() => consumeCapsule('streakShield')}
-                          />
-                        )}
-                      </div>
-
-                      {/* Inv 4 */}
-                      <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-200/50 text-right" dir="rtl">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-xl">🔮</span>
-                          <div>
-                            <span className="text-xs font-black text-slate-800 block">طالع السير</span>
-                            <span className="text-[10px] text-slate-400">المقتنى: {((user?.gameData as any)?.ownedCapsules?.genieOracle) || 0}</span>
-                          </div>
-                        </div>
-                        { (Number((user?.gameData as any)?.ownedCapsules?.genieOracle) || 0) > 0 && (
-                          <Button 
-                            label="تفعيل 🧪" 
-                            className="px-2.5 py-1 text-[9px] font-bold border-none bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-115 text-white rounded-lg cursor-pointer transition-all"
-                            onClick={() => consumeCapsule('genieOracle')}
-                          />
-                        )}
-                      </div>
-
                     </div>
+                    
+                    {/* Treasure Inventory (Static rendering of owned treasures) */}
+                    {Object.keys(((user?.gameData as any)?.ownedTreasures || {})).length > 0 && (
+                      <div className="mt-8 pt-4 border-t border-slate-100 mb-4">
+                        <h4 className="font-extrabold text-amber-950 text-sm mb-4">💎 كنوزي الأسطورية المستخرجة</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {((user?.gameData as any)?.ownedTreasures?.wisdomScroll) > 0 && (
+                            <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-2xl border border-amber-200 text-center shadow-sm">
+                              <span className="text-3xl block mb-1">📜</span>
+                              <span className="text-xs font-black text-amber-900 block">وثيقة الحكمة</span>
+                              <span className="text-[10px] text-amber-700 font-bold">العدد: {((user?.gameData as any)?.ownedTreasures?.wisdomScroll)}</span>
+                            </div>
+                          )}
+                          {((user?.gameData as any)?.ownedTreasures?.inspirationSeed) > 0 && (
+                            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-2xl border border-emerald-200 text-center shadow-sm">
+                              <span className="text-3xl block mb-1">🌱</span>
+                              <span className="text-xs font-black text-emerald-900 block">بذرة الإلهام</span>
+                              <span className="text-[10px] text-emerald-700 font-bold">العدد: {((user?.gameData as any)?.ownedTreasures?.inspirationSeed)}</span>
+                            </div>
+                          )}
+                          {((user?.gameData as any)?.ownedTreasures?.crownOfExcellence) > 0 && (
+                            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-2xl border border-blue-200 text-center shadow-sm">
+                              <span className="text-3xl block mb-1">👑</span>
+                              <span className="text-xs font-black text-blue-900 block">تاج التفوق</span>
+                              <span className="text-[10px] text-blue-700 font-bold">العدد: {((user?.gameData as any)?.ownedTreasures?.crownOfExcellence)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                 </div>
