@@ -555,6 +555,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [reviewReflectionVisible, setReviewReflectionVisible] = useState(false);
   const [initialReflectionVisible, setInitialReflectionVisible] = useState(false);
   const [showStumbleForm, setShowStumbleForm] = useState(false);
+
+  const openReviewPath = (task: any) => {
+    vibrate(HAPITCS.MAJOR_CLICK);
+    setSelectedTaskForVis(task);
+    setReviewPathVisible(true);
+    setEvaluationSidebarVisible(false);
+    setTaskDetailsVisible(false);
+  };
   const [mapsSidebarVisible, setMapsSidebarVisible] = useState(false);
   const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   const [pinnedApps, setPinnedApps] = useState<string[]>(() => {
@@ -730,8 +738,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     const result = await completeTask(task);
     if (!result || !result.success) {
       if (result && result.reason === 'activities') {
-        setSelectedTaskForVis(task);
-        setReviewPathVisible(true);
+        openReviewPath(task);
       }
       return;
     }
@@ -756,9 +763,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           className="flex items-center gap-3 py-1.5 w-full font-sans group"
           onClick={(e) => {
               e.stopPropagation();
-              vibrate(HAPITCS.MAJOR_CLICK);
-              setSelectedTaskForVis(t);
-              setReviewPathVisible(true);
+              openReviewPath(t);
           }}
       >
           <div
@@ -881,9 +886,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  setSelectedTaskForVis(t);
-                  setReviewPathVisible(true);
+                  openReviewPath(t);
                   setActiveTaskActionId(null);
                 }}
                 className="p-1.5 bg-indigo-50/70 border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all duration-300 rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-110 active:scale-95"
@@ -1666,9 +1669,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         onCompletePracticalTask={completePracticalTask}
         completeTaskAction={completeTask}
         onOpenVisSession={(task) => {
-          vibrate(HAPITCS.MAJOR_CLICK);
-          setSelectedTaskForVis(task);
-          setReviewPathVisible(true);
+          openReviewPath(task);
         }}
       />
 
@@ -1754,7 +1755,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       <ReviewPathSession 
         visible={reviewPathVisible}
         user={user}
-        task={selectedTaskForVis}
+        task={selectedTaskForVis ? (tasks.find(x => x.id === selectedTaskForVis.id) || selectedTaskForVis) : null}
         onClose={() => {
           setReviewPathVisible(false);
           setSelectedTaskForVis(null);
@@ -1763,6 +1764,44 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           setCurrentReviewType(type);
           setReviewPathVisible(false);
           setVisSessionVisible(true);
+        }}
+        onRevertSession={async (type) => {
+          if (user && user.id) {
+            const currentProgress = user.reviewSessionProgress || [];
+            const updatedProgress = currentProgress.filter((p: string) => p !== type);
+            await db.userSettings.update(user.id, {
+              reviewSessionProgress: updatedProgress
+            });
+            
+            const currentTask = selectedTaskForVis ? tasks.find(x => x.id === selectedTaskForVis.id) : null;
+            if (currentTask) {
+              const resetActivities = (currentTask.activities || []).map((act: any) => ({
+                ...act,
+                isCompleted: false,
+                steps: (act.steps || []).map((s: any) => ({ ...s, isCompleted: false }))
+              }));
+              await (db.tasks as any).update(currentTask.id, {
+                activities: resetActivities,
+                isCompleted: false
+              });
+              toastHot.success("تم التراجع وإلغاء إتمام الأنشطة بنجاح ↩️");
+            } else {
+              toastHot.success("تم التراجع عن إكمال هذه المرحلة بنجاح ↩️");
+            }
+          }
+        }}
+        onOpenReflection={(t) => {
+          setReviewPathVisible(false);
+          setReviewingTask(t);
+          setInitialReflectionVisible(true);
+        }}
+        onOpenFlashcards={(t) => {
+          setReviewPathVisible(false);
+          setFlashcardTask(t);
+        }}
+        onOpenAnalytics={(t) => {
+          setReviewPathVisible(false);
+          openTaskAnalytics(t);
         }}
       />
 
@@ -4548,8 +4587,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   setSelectedTaskForDetails(task);
                   setTaskDetailsVisible(true);
                 } else {
-                  setSelectedTaskForVis(task);
-                  setReviewPathVisible(true);
+                  openReviewPath(task);
                 }
               }}
               onOpenReview={(task) => {

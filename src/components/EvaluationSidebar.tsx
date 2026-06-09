@@ -227,6 +227,15 @@ export function EvaluationSidebar({
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [newActivityTitle, setNewActivityTitle] = useState("");
   const [newActivityDuration, setNewActivityDuration] = useState<number | null>(30);
+  const [showStartConfirmation, setShowStartConfirmation] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setShowStartConfirmation(true);
+    } else {
+      setShowStartConfirmation(false);
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (visible && initialSelectedTask) {
@@ -534,6 +543,86 @@ export function EvaluationSidebar({
         taskTitle={selectedTask?.title || ""}
       />
       <ConfirmPopup />
+
+      {/* Elegant Full-Screen Confirmation Dialog to Enter the Evaluation/Review */}
+      {showStartConfirmation && (
+        <div 
+          className="fixed inset-0 bg-[#0A0F2C] text-white flex flex-col font-sans p-6 overflow-y-auto"
+          style={{ zIndex: 65000000 }}
+          dir="rtl"
+        >
+          {/* Accent lighting gradients for visual depth */}
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#2D52CC]/15 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-10 left-1/4 w-96 h-96 bg-[#4D7FFF]/10 rounded-full blur-[150px] pointer-events-none" />
+
+          <div className="max-w-2xl w-full mx-auto my-auto flex flex-col items-center justify-center text-center space-y-8 py-10 relative z-10">
+            
+            {/* Soft pulsing halo illustration */}
+            <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-[#2D52CC] to-[#4D7FFF] flex items-center justify-center text-white shadow-[0_0_40px_rgba(77,127,255,0.4)] animate-pulse border border-white/20">
+              <Sparkles className="w-12 h-12" />
+            </div>
+
+            <div className="space-y-3">
+              <span className="text-xs font-black uppercase tracking-widest text-[#4D7FFF]">بوابة التمكين والتقييم</span>
+              <h1 className="text-4xl font-extrabold text-white leading-tight">
+                سجل التقييم والتحصيل الأصلي 🛡️
+              </h1>
+              <p className="text-[#A0B4E8] text-sm max-w-md mx-auto">
+                أنت الآن بصدد الدخول لشاشة قياس الأداء وتوثيق التقدم المعرفي لرحلتك الاستكشافية.
+              </p>
+            </div>
+
+            {/* Target Objectives Section */}
+            <div className="w-full bg-[#1A2B6B]/80 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/5 space-y-4 text-right shadow-2xl relative">
+              <div className="absolute top-0 left-6 w-16 h-[2px] bg-gradient-to-r from-transparent to-[#4D7FFF]" />
+              <div className="flex items-center gap-2 text-[#4D7FFF] border-b border-indigo-950 pb-3">
+                <Target className="w-5 h-5 animate-pulse" />
+                <h3 className="font-extrabold text-white text-base">الأهداف والمخرجات المستهدفة للمهمة:</h3>
+              </div>
+              <p className="text-slate-200 text-sm leading-relaxed font-bold">
+                {initialSelectedTask?.taskGoals || initialSelectedTask?.taskOutcomes || user?.planGoals || user?.planOutcomes || 'تثبيت المعارف الأساسية، رصد نقاط التعثر والتقدم، وقياس العائد المعرفي لضمان السيولة الذهنية الكاملة.'}
+              </p>
+            </div>
+
+            {/* Motivation / Startup Message Section */}
+            <div className="w-full bg-[#2D52CC]/10 backdrop-blur-md rounded-[2.5rem] p-6 border border-[#2D52CC]/20 space-y-4 text-right shadow-2xl">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <CheckCircle2 className="w-5 h-5" />
+                <h3 className="font-extrabold text-white text-base">رسالة بدء المهمة والتمكين الجوهري:</h3>
+              </div>
+              <p className="text-slate-300 text-sm italic font-medium leading-relaxed">
+                {initialSelectedTask?.startMessage || user?.psychology?.motivation || 'تذكر: الاستمرارية المنضبطة هي سلاح الإتقان الجوهري. استعن بالله، ركز حواسك وابدأ رحلتك الآن نحو العلو المعرفي!'}
+              </p>
+            </div>
+
+            {/* Buttons Group */}
+            <div className="flex flex-col gap-3 w-full">
+              <button
+                onClick={() => {
+                  vibrate(HAPITCS.SUCCESS);
+                  setShowStartConfirmation(false);
+                }}
+                className="w-full py-5 rounded-2xl bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white text-lg font-black shadow-[0_4px_25px_rgba(77,127,255,0.4)] transition-all hover:scale-[1.01] hover:brightness-110 active:scale-[0.99] cursor-pointer"
+              >
+                بدء المهمة الآن 🚀
+              </button>
+              
+              <button
+                onClick={() => {
+                  vibrate(HAPITCS.MAJOR_CLICK);
+                  setShowStartConfirmation(false);
+                  onHide();
+                }}
+                className="w-full py-4 rounded-xl bg-white/5 hover:bg-white/10 text-[#A0B4E8] font-bold transition-all border border-white/5 cursor-pointer"
+              >
+                تراجع للوقت الحالي
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       <Sidebar
         visible={visible && !initialSelectedTask}
         onHide={() => {
@@ -547,36 +636,37 @@ export function EvaluationSidebar({
             accept: onHide,
           });
         }}
-        position="bottom"
-        className="w-full h-auto max-h-[90vh] md:w-[600px] md:mx-auto !bg-transparent p-0 border-none shadow-none"
+        fullScreen
+        dismissable={false}
+        className="w-screen h-screen !p-0 border-none shadow-none bg-[#0A0F2C]"
         showCloseIcon={false}
         modal={true}
         baseZIndex={LAYERS.EVALUATION_LOG}
       >
         <div 
-          className="flex flex-col h-[85vh] md:h-[70vh] mb-0 mx-2 md:mx-auto bg-slate-50/100 rounded-t-[2.5rem] md:rounded-[2.5rem] overflow-hidden border border-white/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] relative css-side-panel" 
+          className="flex flex-col h-screen w-screen bg-[#0A0F2C] text-white overflow-hidden relative" 
           dir="rtl"
         >
           {/* Header */}
-          <div className="p-6 bg-white border-b border-slate-100 flex items-center justify-between z-10 shrink-0">
+          <div className="p-6 bg-[#080d26] border-b border-indigo-950/40 flex items-center justify-between z-10 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 px-5 py-2 rounded-2xl shadow-md border border-white/10">
+              <div className="bg-gradient-to-br from-[#0A0F2C] via-[#1A2B6B] to-[#2D52CC] px-5 py-2 rounded-2xl shadow-md border border-white/10">
                 <h2 className="text-lg font-black tracking-tighter text-white uppercase flex items-center gap-2">
-                  <ListChecks className="w-5 h-5 opacity-70" />
+                  <ListChecks className="w-5 h-5 opacity-70 text-[#4D7FFF]" />
                   سجل التقييم
                 </h2>
               </div>
             </div>
             <button 
               onClick={handleManualHide}
-              className="evaluation-close-btn w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center transition-all border border-slate-200 active:scale-95 text-slate-400 group"
+              className="evaluation-close-btn w-10 h-10 rounded-xl bg-[#1A2B6B] hover:bg-[#2D52CC] flex items-center justify-center transition-all border border-white/10 active:scale-95 text-[#A0B4E8] group cursor-pointer"
             >
               <i className="pi pi-times text-sm group-hover:rotate-90 transition-transform duration-300"></i>
             </button>
           </div>
 
           {/* Content with Tabs */}
-          <div className="flex-1 overflow-y-auto px-4 py-6 bg-white">
+          <div className="flex-1 overflow-y-auto px-4 py-6 bg-[#0A0F2C]">
             <TabView className="custom-evaluation-tabs">
               <TabPanel header="" leftIcon={<Target className="w-5 h-5" />}>
                 <div 
@@ -730,10 +820,10 @@ export function EvaluationSidebar({
         <style>{`
           .custom-evaluation-tabs .p-tabview-nav {
             display: flex;
-            background: #f8fafc;
+            background: #1A2B6B;
             padding: 6px;
             border-radius: 20px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.05);
             margin-bottom: 24px;
           }
           .custom-evaluation-tabs .p-tabview-nav li {
@@ -750,15 +840,15 @@ export function EvaluationSidebar({
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #94a3b8;
+            color: #A0B4E8;
             border-radius: 16px;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             position: relative;
           }
           .custom-evaluation-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
-            background: linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 100%);
+            background: linear-gradient(135deg, #2D52CC 0%, #4D7FFF 100%);
             color: white;
-            box-shadow: 0 4px 15px rgba(30, 58, 138, 0.3);
+            box-shadow: 0 4px 15px rgba(77, 127, 255, 0.3);
             transform: translateY(-2px);
           }
           .custom-evaluation-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link::after {
@@ -767,23 +857,30 @@ export function EvaluationSidebar({
             bottom: -8px;
             width: 6px;
             height: 6px;
-            background: #2563eb;
+            background: #4D7FFF;
             border-radius: 50%;
-            box-shadow: 0 0 10px #2563eb;
+            box-shadow: 0 0 10px #4d7fff;
           }
           .custom-evaluation-tabs .p-tabview-panels {
             background: transparent;
             padding: 0;
           }
           
-          /* Adjust TaskItem for white background */
+          /* Adjust TaskItem inside EvaluationSidebar */
           .custom-evaluation-tabs .TaskItemContainer {
-             background: #f8fafc;
-             border: 1px solid #f1f5f9;
+             background: #1A2B6B !important;
+             border: 1px solid rgba(255, 255, 255, 0.05) !important;
+             color: white !important;
           }
           .custom-evaluation-tabs .TaskItemContainer:hover {
-             background: #f1f5f9;
-             border-color: #e2e8f0;
+             background: #2D52CC !important;
+             border-color: rgba(255, 255, 255, 0.1) !important;
+          }
+          .custom-evaluation-tabs .TaskItemContainer h4 {
+             color: white !important;
+          }
+          .custom-evaluation-tabs .TaskItemContainer p {
+             color: #A0B4E8 !important;
           }
 
           .p-confirm-popup {

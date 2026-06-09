@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from 'primereact/button';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
-import { BookOpen, Target, Sparkles, Lock, CheckCircle2, ChevronLeft, Zap, Play } from 'lucide-react';
+import { BookOpen, Target, Sparkles, Lock, CheckCircle2, ChevronLeft, Zap, Play, RotateCcw } from 'lucide-react';
 import { vibrate, HAPITCS } from '../lib/haptics';
 import { db } from '../db';
 import { toast } from 'react-hot-toast';
+import confetti from 'canvas-confetti';
 
 interface ReviewPathSessionProps {
   visible: boolean;
@@ -13,9 +15,23 @@ interface ReviewPathSessionProps {
   task: any;
   onClose: () => void;
   onStartSession: (sessionType: 'original' | 'review1' | 'review2' | 'review3') => void;
+  onRevertSession?: (sessionType: 'original' | 'review1' | 'review2' | 'review3') => void;
+  onOpenReflection?: (task: any) => void;
+  onOpenFlashcards?: (task: any) => void;
+  onOpenAnalytics?: (task: any) => void;
 }
 
-export function ReviewPathSession({ visible, user, task, onClose, onStartSession }: ReviewPathSessionProps) {
+export function ReviewPathSession({ 
+  visible, 
+  user, 
+  task, 
+  onClose, 
+  onStartSession, 
+  onRevertSession, 
+  onOpenReflection,
+  onOpenFlashcards,
+  onOpenAnalytics
+}: ReviewPathSessionProps) {
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'execution'>('info');
   const completedTargets = user?.reviewSessionProgress || [];
@@ -55,72 +71,450 @@ export function ReviewPathSession({ visible, user, task, onClose, onStartSession
     }
   ];
 
+  const [showConfirmStart, setShowConfirmStart] = useState<any>(null);
+  const [showConfirmRevert, setShowConfirmRevert] = useState<any>(null);
+
+  const [localActivities, setLocalActivities] = useState<any[]>(task?.activities || []);
+
+  const [activeGuidedActivity, setActiveGuidedActivity] = useState<any | null>(null);
+  const [guideStep, setGuideStep] = useState<1 | 2 | 3>(1);
+  const [activityNotes, setActivityNotes] = useState("");
+  const [activityLearnings, setActivityLearnings] = useState("");
+
+  const startGuidedActivity = (act: any) => {
+    vibrate(HAPITCS.MAJOR_CLICK);
+    setActiveGuidedActivity(act);
+    setGuideStep(1);
+    setActivityNotes(act.notes || "");
+    setActivityLearnings(act.learnings || "");
+  };
+
+  const completeGuidedActivity = async () => {
+    if (!task || !activeGuidedActivity) return;
+    vibrate(HAPITCS.SUCCESS);
+
+    const updatedActivities = localActivities.map(act => {
+      if (act.id === activeGuidedActivity.id) {
+        const updatedSteps = (act.steps || []).map((s: any) => ({ ...s, isCompleted: true }));
+        return { 
+          ...act, 
+          isCompleted: true, 
+          steps: updatedSteps,
+          notes: activityNotes,
+          learnings: activityLearnings
+        };
+      }
+      return act;
+    });
+
+    setLocalActivities(updatedActivities);
+
+    const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
+    const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
+
+    await (db.tasks as any).update(task.id, {
+      activities: updatedActivities,
+      isCompleted: allActivitiesCompleted
+    });
+
+    if (taskJustCompleted) {
+      vibrate(HAPITCS.SUCCESS);
+      confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 } });
+      toast.success("أحسنت! أنهيت جميع الأنشطة بنجاح 🏆");
+    } else {
+      toast.success("تم تسجيل الملاحظات وإتمام النشاط بنجاح! 🎉");
+    }
+
+    setActiveGuidedActivity(null);
+  };
+
+  React.useEffect(() => {
+    if (task?.activities) {
+      setLocalActivities(task.activities);
+    }
+  }, [task?.activities]);
+
+  const toggleActivity = async (activityId: string) => {
+    if (!task) return;
+    vibrate(HAPITCS.MAJOR_CLICK);
+    
+    const updatedActivities = localActivities.map(act => {
+      if (act.id === activityId) {
+        const newStatus = !act.isCompleted;
+        const updatedSteps = (act.steps || []).map((s: any) => ({ ...s, isCompleted: newStatus }));
+        return { ...act, isCompleted: newStatus, steps: updatedSteps };
+      }
+      return act;
+    });
+
+    setLocalActivities(updatedActivities);
+
+    const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
+    const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
+
+    await (db.tasks as any).update(task.id, {
+      activities: updatedActivities,
+      isCompleted: allActivitiesCompleted
+    });
+
+    if (taskJustCompleted) {
+      vibrate(HAPITCS.SUCCESS);
+      confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 } });
+      toast.success("أحسنت! أنهيت جميع الأنشطة بنجاح 🏆");
+    } else {
+      toast.success("تم تحديث حالة النشاط");
+    }
+  };
+
   const handleStart = (target: any, isLocked: boolean) => {
     if (isLocked) {
       vibrate(HAPITCS.GUIDANCE);
       toast.error('يجب إكمال المسار السابق لفتح هذا المسار 🔒', {
-        style: { borderRadius: '24px', background: '#1e1b4b', color: '#fff', direction: 'rtl' }
+        style: { borderRadius: '24px', background: '#0A0F2C', color: '#fff', direction: 'rtl' }
       });
       return;
     }
-    
-    confirmDialog({
-      message: `هل تريد فتح تفاصيل "${target.title}"؟`,
-      header: 'تأكيد الانتقال',
-      icon: 'pi pi-info-circle',
-      acceptLabel: 'نعم، افتح',
-      rejectLabel: 'إلغاء',
-      className: 'rtl-dialog custom-confirm',
-      acceptClassName: 'p-button-primary rounded-xl px-6',
-      rejectClassName: 'p-button-text text-gray-400',
-      accept: () => {
-        vibrate(HAPITCS.MAJOR_CLICK);
-        setSelectedTarget(target);
-      }
-    });
+    vibrate(HAPITCS.MAJOR_CLICK);
+    setSelectedTarget(target);
   };
 
   const confirmStartSession = (target: any) => {
-    confirmDialog({
-      message: `هل أنت مستعد لبدء "${target.title}"؟`,
-      header: 'تأكيد البدء',
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'نعم، ابدأ الآن',
-      rejectLabel: 'إلغاء',
-      className: 'rtl-dialog custom-confirm',
-      acceptClassName: 'p-button-primary rounded-xl px-6',
-      rejectClassName: 'p-button-text text-gray-400',
-      accept: () => {
-        vibrate(HAPITCS.SUCCESS);
-        onStartSession(target.id);
-      }
-    });
+    vibrate(HAPITCS.MAJOR_CLICK);
+    setShowConfirmStart(target);
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {visible && (
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[4000] bg-slate-950/40 backdrop-blur-md flex flex-col font-sans overflow-x-hidden overflow-y-auto"
+          className="fixed inset-0 z-[6200000] bg-[#0A0F2C]/95 backdrop-blur-md flex flex-col font-sans overflow-x-hidden overflow-y-auto"
           dir="rtl"
         >
+          {/* Custom Elegant confirmation pop-up */}
+          {showConfirmStart && (
+            <div 
+              className="fixed inset-0 bg-[#0A0F2C]/95 backdrop-blur-md text-white flex flex-col font-sans p-6 overflow-y-auto"
+              style={{ zIndex: 65000100 }}
+              dir="rtl"
+            >
+              <div className="max-w-md w-full mx-auto my-auto flex flex-col items-center justify-center text-center space-y-6 py-6 bg-[#1A2B6B] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative">
+                <div className="absolute top-0 right-1/4 w-32 h-32 bg-[#2D52CC]/20 rounded-full blur-[40px] pointer-events-none" />
+                
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#2D52CC] to-[#4D7FFF] flex items-center justify-center text-white shadow-xl animate-bounce">
+                  <Play className="w-8 h-8 fill-white" />
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-black text-white">تأكيد الانطلاق 🚀</h2>
+                  <p className="text-[#A0B4E8] text-sm leading-relaxed">
+                    هل أنت جاهز لتفعيل خطة <strong>{showConfirmStart.title}</strong> والبدء بالتركيز الكامل الآن؟
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2 w-full pt-4">
+                  <button
+                    onClick={() => {
+                      vibrate(HAPITCS.SUCCESS);
+                      const targetId = showConfirmStart.id;
+                      setShowConfirmStart(null);
+                      onStartSession(targetId);
+                    }}
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white font-black shadow-[0_4px_20px_rgba(77,127,255,0.3)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    نعم، ابدأ الآن!
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      vibrate(HAPITCS.MAJOR_CLICK);
+                      setShowConfirmStart(null);
+                    }}
+                    className="w-full py-3 rounded-lg bg-white/5 hover:bg-white/10 text-[#A0B4E8] font-bold transition-all border border-white/5 cursor-pointer"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Custom Elegant revert confirmation pop-up */}
+          {showConfirmRevert && (
+            <div 
+              className="fixed inset-0 bg-[#0A0F2C]/95 backdrop-blur-md text-white flex flex-col font-sans p-6 overflow-y-auto"
+              style={{ zIndex: 65000200 }}
+              dir="rtl"
+            >
+              <div className="max-w-md w-full mx-auto my-auto flex flex-col items-center justify-center text-center space-y-6 py-6 bg-[#1A2B6B] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative">
+                <div className="absolute top-0 right-1/4 w-32 h-32 bg-rose-500/10 rounded-full blur-[40px] pointer-events-none" />
+                
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-600 to-red-500 flex items-center justify-center text-white shadow-xl animate-pulse">
+                  <RotateCcw className="w-8 h-8 text-white" />
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-black text-white">تأكيد التراجع ↩️</h2>
+                  <p className="text-[#A0B4E8] text-sm leading-relaxed">
+                    هل أنت متأكد من رغبتك في التراجع عن إكمال <strong>{showConfirmRevert.title}</strong>؟ سيتم إعادة فتح هذه المرحلة وإلغاء إكمالها.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2 w-full pt-4">
+                  <button
+                    onClick={() => {
+                      vibrate(HAPITCS.SUCCESS);
+                      const targetId = showConfirmRevert.id;
+                      setShowConfirmRevert(null);
+                      if (onRevertSession) {
+                        onRevertSession(targetId);
+                      }
+                      setSelectedTarget(null); // Return to list
+                    }}
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-rose-600 to-red-500 text-white font-black shadow-[0_4px_20px_rgba(239,68,68,0.3)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    نعم، تراجع عن الإكمال
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      vibrate(HAPITCS.MAJOR_CLICK);
+                      setShowConfirmRevert(null);
+                    }}
+                    className="w-full py-3 rounded-lg bg-white/5 hover:bg-white/10 text-[#A0B4E8] font-bold transition-all border border-white/5 cursor-pointer"
+                  >
+                    إلغاء التراجع
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Custom Interactive Guided Activity Flow */}
+          {activeGuidedActivity && (
+            <div 
+              className="fixed inset-0 bg-[#0A0F2C]/98 backdrop-blur-lg text-white flex flex-col font-sans p-4 md:p-8 overflow-y-auto"
+              style={{ zIndex: 65000300 }}
+              dir="rtl"
+            >
+              <div className="max-w-2xl w-full mx-auto my-auto bg-[#131B4E]/90 border border-white/10 rounded-[2.5rem] p-6 md:p-8 shadow-2xl relative flex flex-col space-y-6">
+                <div className="absolute top-0 right-1/4 w-32 h-32 bg-[#2D52CC]/15 rounded-full blur-[45px] pointer-events-none" />
+                
+                {/* Header with Title and Stepper */}
+                <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                  <div className="space-y-1 text-right">
+                    <span className="text-xs font-black text-[#4D7FFF] uppercase tracking-wider">النشاط التطبيقي ⚡</span>
+                    <h2 className="text-xl md:text-2xl font-black text-white">{activeGuidedActivity.title}</h2>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      vibrate(HAPITCS.MAJOR_CLICK);
+                      setActiveGuidedActivity(null);
+                    }}
+                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#A0B4E8] hover:text-white transition-all cursor-pointer border-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Progress Stepper bar */}
+                <div className="flex items-center justify-between gap-2 px-1 py-3 bg-white/5 rounded-2xl border border-white/5 select-none text-xs font-bold text-center">
+                  <div className={`flex-1 py-2 px-1 rounded-xl transition-all ${guideStep === 1 ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-md' : 'text-[#A0B4E8] opacity-75'}`}>
+                    1. التوجيه والإرشاد 🧭
+                  </div>
+                  <div className="w-4 h-0.5 bg-white/15 shrink-0" />
+                  <div className={`flex-1 py-2 px-1 rounded-xl transition-all ${guideStep === 2 ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-md' : 'text-[#A0B4E8] opacity-75'}`}>
+                    2. مصادر النشاط والمفكرة 📝
+                  </div>
+                  <div className="w-4 h-0.5 bg-white/15 shrink-0" />
+                  <div className={`flex-1 py-2 px-1 rounded-xl transition-all ${guideStep === 3 ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-md' : 'text-[#A0B4E8] opacity-75'}`}>
+                    3. غابة المعرفة 🌳
+                  </div>
+                </div>
+
+                {/* Step Content */}
+                <div className="flex-1 space-y-4">
+                  {guideStep === 1 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="space-y-4 text-right"
+                    >
+                      <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400 font-bold flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 shrink-0" />
+                        <span>أولاً: راجع التوجيه الخاص بهذا النشاط لتبدأ بوعي كامل</span>
+                      </div>
+                      
+                      <div className="bg-black/30 p-5 rounded-2xl border border-white/5 italic text-slate-300 text-sm leading-relaxed whitespace-pre-wrap min-h-[140px]">
+                        {activeGuidedActivity.guidance || "لا توجد توجيهات محددة لهذا النشاط، اتبع منهج السعي واقترب من المعرفة بثقة."}
+                      </div>
+
+                      {activeGuidedActivity.steps && activeGuidedActivity.steps.length > 0 && (
+                        <div className="space-y-2 mt-4">
+                          <h4 className="text-white text-xs font-black">خطوات التنفيذ المقترحة:</h4>
+                          {activeGuidedActivity.steps.map((st: any) => (
+                            <div key={st.id} className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5 text-xs text-slate-300">
+                              <div className="w-2 h-2 rounded-full bg-[#4D7FFF] shadow-[0_0_8px_#4d7fff]" />
+                              <span>{st.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {guideStep === 2 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="space-y-4 text-right"
+                    >
+                      <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-400 font-bold flex items-center gap-2">
+                        <BookOpen className="w-5 h-5 shrink-0" />
+                        <span>ثانياً: مصادر النشاط وتدوين أفكارك الصافية</span>
+                      </div>
+
+                      {/* Render Resources */}
+                      <div className="bg-white/5 p-4 rounded-xl border border-white/5 space-y-2">
+                        <h4 className="text-white text-xs font-bold">مصادر التعلم الداعمة للنشاط:</h4>
+                        {task?.learningResources ? (
+                          <div className="text-slate-300 text-xs bg-black/20 p-3 rounded-lg border border-white/5 font-mono whitespace-pre-wrap">
+                            {task.learningResources}
+                          </div>
+                        ) : (
+                          <p className="text-slate-500 text-xs italic">مصادر المهمة العامة متاحة لتمكينك المعرفي.</p>
+                        )}
+                        
+                        {(task?.youtubeUrl || task?.googleDriveUrl) && (
+                          <div className="flex flex-flow gap-2 pt-2">
+                            {task.youtubeUrl && (
+                              <a 
+                                href={task.youtubeUrl} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs rounded-lg font-bold border border-red-500/30 transition-all flex items-center gap-1.5 w-fit no-underline"
+                              >
+                                🎥 فيديو يوتيوب الداعم
+                              </a>
+                            )}
+                            {task.googleDriveUrl && (
+                              <a 
+                                href={task.googleDriveUrl} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-lg font-bold border border-blue-500/30 transition-all flex items-center gap-1.5 w-fit no-underline"
+                              >
+                                📂 مستندات جوجل درايف
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Notes area */}
+                      <div className="space-y-2">
+                        <h4 className="text-[#A0B4E8] text-xs font-black">محرر الملاحظات والأفكار:</h4>
+                        <textarea
+                          value={activityNotes}
+                          onChange={(e) => setActivityNotes(e.target.value)}
+                          placeholder="اكتب فكرة ملهمة، تلخيصاً سريعاً، أو مسودة عملك للنشاط هنا..."
+                          className="w-full h-32 p-4 rounded-2xl bg-black/40 border border-white/10 text-white placeholder-slate-500 font-sans text-xs focus:border-[#4D7FFF] focus:outline-none focus:ring-1 focus:ring-[#4D7FFF] outline-none transition-all leading-relaxed"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {guideStep === 3 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="space-y-4 text-right"
+                    >
+                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 font-bold flex items-center gap-2">
+                        <Target className="w-5 h-5 shrink-0" />
+                        <span>ثالثاً: غابة المعرفة - ما لذي تعلمته وتثبته الآن؟</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-slate-300 text-xs leading-relaxed font-bold">
+                          اغرس شتلة أثر جديدة في غابة معرفتك وتثبيتك الذاتي بالكتابة الآن. اكتب خلاصة الدروس، الحكمة الجوهرية، أو المخرج المعرفي الذي نلته من هذا النشاط:
+                        </p>
+                        <textarea
+                          value={activityLearnings}
+                          onChange={(e) => setActivityLearnings(e.target.value)}
+                          placeholder="مثال: من خلال هذا النشاط، أدركت أن الفهم الجوهري يبدأ بالتبسيط، وقمت بتثبيت كروت المراجعة لتكرار دوري متباعد..."
+                          className="w-full h-36 p-4 rounded-2xl bg-black/40 border border-[#10b981]/20 text-white placeholder-slate-500 font-sans text-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 outline-none transition-all leading-relaxed"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="flex gap-2 justify-end pt-4 border-t border-white/10">
+                  <button
+                    onClick={() => {
+                      vibrate(HAPITCS.MAJOR_CLICK);
+                      setActiveGuidedActivity(null);
+                    }}
+                    className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-xs font-bold border-none cursor-pointer"
+                  >
+                    خروج
+                  </button>
+
+                  {guideStep > 1 && (
+                    <button
+                      onClick={() => {
+                        vibrate(HAPITCS.MAJOR_CLICK);
+                        setGuideStep((prev) => (prev - 1) as any);
+                      }}
+                      className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all text-xs font-bold border border-white/10 cursor-pointer"
+                    >
+                      ← السابق
+                    </button>
+                  )}
+
+                  {guideStep < 3 ? (
+                    <button
+                      onClick={() => {
+                        vibrate(HAPITCS.MAJOR_CLICK);
+                        setGuideStep((prev) => (prev + 1) as any);
+                      }}
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] hover:brightness-110 text-white transition-all text-xs font-black shadow-lg cursor-pointer border-none"
+                    >
+                      التالي →
+                    </button>
+                  ) : (
+                    <button
+                      onClick={completeGuidedActivity}
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:brightness-110 text-white transition-all text-xs font-black shadow-lg cursor-pointer border-none animate-pulse"
+                    >
+                      تأكيد وإتمام النشاط والنمو المعرفي! 🏆
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <ConfirmDialog />
           {/* Background Gradients */}
           <div className="fixed inset-0 bg-slate-950/10 pointer-events-none" />
-          <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,#1e1b4b_0%,#020617_100%)] opacity-30 pointer-events-none" />
+          <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,#1A2B6B_0%,#0A0F2C_100%)] opacity-40 pointer-events-none" />
           <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-blue-900/5 rounded-full blur-[120px] pointer-events-none" />
           <div className="fixed bottom-0 left-0 w-[600px] h-[600px] bg-indigo-900/5 rounded-full blur-[150px] pointer-events-none" />
 
           {/* Header */}
-          <div className="sticky top-0 z-50 px-6 py-8 md:px-10 flex justify-between items-center bg-slate-950/40 backdrop-blur-xl border-b border-white/10">
+          <div className="sticky top-0 z-50 px-6 py-8 md:px-10 flex justify-between items-center bg-[#080d26]/80 backdrop-blur-xl border-b border-[#1A2B6B]/40">
             <div className="flex flex-col">
               <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
                  {selectedTarget ? 'تفاصيل مسار via' : 'مسار via 🛡️'}
               </h1>
-              <p className="text-slate-300 font-extrabold text-xs md:text-sm mt-1">
+              <p className="text-[#A0B4E8] font-extrabold text-xs md:text-sm mt-1">
                 {selectedTarget ? selectedTarget.title : 'تتبع رحلتك في مراجعة وتثبيت ما تعلمته عبر مسار via'}
               </p>
             </div>
@@ -133,7 +527,7 @@ export function ReviewPathSession({ visible, user, task, onClose, onStartSession
                   onClose(); 
                 }
               }}
-              className="w-12 h-12 rounded-2xl bg-white hover:bg-slate-50 text-slate-950 flex items-center justify-center transition-all border border-slate-200 shadow-lg shadow-black/10"
+              className="w-12 h-12 rounded-2xl bg-[#1A2B6B] hover:bg-[#2D52CC] text-[#A0B4E8] hover:text-white flex items-center justify-center transition-all border border-white/10 shadow-lg shadow-black/20 cursor-pointer"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -162,11 +556,11 @@ export function ReviewPathSession({ visible, user, task, onClose, onStartSession
                         transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                       />
                       <defs>
-                         <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#3b82f6" />
-                            <stop offset="50%" stopColor="#a855f7" />
-                            <stop offset="100%" stopColor="#ec4899" />
-                         </linearGradient>
+                          <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                             <stop offset="0%" stopColor="#3b82f6" />
+                             <stop offset="50%" stopColor="#a855f7" />
+                             <stop offset="100%" stopColor="#ec4899" />
+                          </linearGradient>
                       </defs>
                    </svg>
                 </div>
@@ -224,8 +618,11 @@ export function ReviewPathSession({ visible, user, task, onClose, onStartSession
                             )}
                             
                             {isCompleted && (
-                              <div className="mt-1 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                                <span className="text-[10px] md:text-[11px] font-black text-emerald-400">مكتمل ✅</span>
+                              <div className="mt-1 flex flex-col items-center gap-0.5">
+                                <div className="bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                                  <span className="text-[10px] md:text-[11px] font-black text-emerald-400">مكتمل ✅</span>
+                                </div>
+                                <span className="text-[9px] text-[#A0B4E8] font-bold opacity-80">خيارات التراجع ↩️</span>
                               </div>
                             )}
                           </button>
@@ -260,13 +657,13 @@ export function ReviewPathSession({ visible, user, task, onClose, onStartSession
                    {/* Custom Tab Switcher */}
                    <div className="flex bg-white/5 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 w-fit mx-auto mb-4">
                       <button 
-                        className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'info' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        className={`px-8 py-3 rounded-xl text-sm font-black transition-all cursor-pointer ${activeTab === 'info' ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-lg shadow-[#2D52CC]/25' : 'text-slate-400 hover:text-white'}`}
                         onClick={() => setActiveTab('info')}
                       >
                          بيانات المهمة
                       </button>
                       <button 
-                        className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'execution' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        className={`px-8 py-3 rounded-xl text-sm font-black transition-all cursor-pointer ${activeTab === 'execution' ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-lg shadow-[#2D52CC]/25' : 'text-slate-400 hover:text-white'}`}
                         onClick={() => setActiveTab('execution')}
                       >
                          الأنشطة التنفيذية
@@ -339,26 +736,77 @@ export function ReviewPathSession({ visible, user, task, onClose, onStartSession
                         >
                            <h3 className="text-white font-black text-xl mb-6 flex items-center gap-3">
                               <Zap className="w-6 h-6 text-yellow-400" />
-                              الأنشطة والخطوات التنفيذية
+                              الأنشطة والخطوات التنفيذية (انقر للإنجاز)
                            </h3>
-                           
-                           {task?.activities && task?.activities.length > 0 ? (
+
+                           {task?.isCompleted && (
+                             <div className="mb-6 p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-[24px] flex flex-col md:flex-row items-center justify-between gap-4">
+                               <div className="flex items-center gap-3 text-emerald-400 text-right">
+                                 <CheckCircle2 className="w-6 h-6 shrink-0" />
+                                 <div>
+                                   <div className="font-extrabold text-white text-base">رائع! هذه المهمة مكتملة بالكامل 🏆</div>
+                                   <div className="text-xs font-semibold text-[#A0B4E8]">أنجزت كافة الخطوات التنفيذية لتعزيز الفهم والتمكين.</div>
+                                 </div>
+                               </div>
+                               {onOpenReflection && (
+                                 <button
+                                   type="button"
+                                   onClick={() => {
+                                     vibrate(HAPITCS.MAJOR_CLICK);
+                                     onOpenReflection(task);
+                                   }}
+                                   className="bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white px-5 py-3 rounded-xl text-xs font-black shadow-xl shrink-0 transition-all active:scale-95 flex items-center gap-2 cursor-pointer border-none"
+                                 >
+                                   <Sparkles className="w-4 h-4" />
+                                   <span>قيم الانعكاس المعرفي الآن ✨</span>
+                                 </button>
+                               )}
+                             </div>
+                           )}
+
+                           {localActivities && localActivities.length > 0 ? (
                              <div className="space-y-4">
-                                {task.activities.map((act: any, idx: number) => (
-                                  <div key={act.id} className="bg-white/5 border border-white/5 rounded-2xl p-5 hover:bg-white/10 transition-colors">
+                                {localActivities.map((act: any, idx: number) => (
+                                  <div 
+                                    key={act.id} 
+                                    onClick={() => startGuidedActivity(act)}
+                                    className={`group/act relative cursor-pointer border rounded-2xl p-5 bg-white/5 transition-all duration-300 hover:bg-white/10 ${act.isCompleted ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-white/5'}`}
+                                  >
                                      <div className="flex justify-between items-start mb-3">
                                         <div className="flex items-center gap-3">
-                                           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-sm">
+                                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-all duration-300 ${act.isCompleted ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white'}`}>
                                               {idx + 1}
                                            </div>
-                                           <h4 className="text-white font-black text-base">{act.title}</h4>
+                                           <h4 className={`font-black text-base transition-colors ${act.isCompleted ? 'text-emerald-400 line-through' : 'text-white'}`}>{act.title}</h4>
                                         </div>
-                                        {act.duration && (
-                                          <div className="px-3 py-1 bg-white/10 rounded-full text-blue-400 text-[10px] font-black tracking-widest uppercase">
-                                             {act.duration} MINS
-                                          </div>
-                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            startGuidedActivity(act);
+                                          }}
+                                          className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all cursor-pointer ${act.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/30 hover:border-white/60 bg-white/5'}`}
+                                        >
+                                           {act.isCompleted && <CheckCircle2 className="w-4 h-4 text-white fill-emerald-500 shrink-0" />}
+                                        </button>
                                      </div>
+
+                                     {/* Notes and Knowledge Forest tags */}
+                                     {(act.notes || act.learnings) && (
+                                       <div className="flex gap-2 my-2">
+                                         {act.notes && (
+                                           <div className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">
+                                             📝 تم تدوين المفكرة
+                                           </div>
+                                         )}
+                                         {act.learnings && (
+                                           <div className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                                             🌳 غابة المعرفة: مكتمل
+                                           </div>
+                                         )}
+                                       </div>
+                                     )}
+
                                      {act.guidance && (
                                        <p className="text-slate-400 text-sm mb-4 bg-black/20 p-3 rounded-xl border border-white/5 italic">
                                           {act.guidance}
@@ -368,8 +816,8 @@ export function ReviewPathSession({ visible, user, task, onClose, onStartSession
                                        <div className="space-y-2">
                                           {act.steps.map((step: any) => (
                                             <div key={step.id} className="flex items-center gap-3 text-slate-300 text-xs py-1">
-                                               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                                               {step.title}
+                                               <div className={`w-1.5 h-1.5 rounded-full transition-colors ${step.isCompleted || act.isCompleted ? 'bg-emerald-400' : 'bg-blue-500'}`} />
+                                               <span className={act.isCompleted ? 'text-slate-500 line-through' : ''}>{step.title}</span>
                                             </div>
                                           ))}
                                        </div>
@@ -388,16 +836,44 @@ export function ReviewPathSession({ visible, user, task, onClose, onStartSession
                    </AnimatePresence>
 
                    <div className="flex flex-col gap-4 py-8">
-                      <button 
-                        onClick={() => confirmStartSession(selectedTarget)}
-                        className={`w-full py-6 rounded-[24px] bg-gradient-to-tr ${selectedTarget.color} text-white text-xl md:text-2xl font-black shadow-2xl transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-4 group`}
-                      >
-                         بدء الجلسة الآن 🚀
-                         <Play className="w-6 h-6 fill-white group-hover:translate-x-[-4px] transition-transform" />
-                      </button>
+                      {completedTargets.includes(selectedTarget.id) ? (
+                        <>
+                           <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-[20px] flex items-center gap-3 text-emerald-400 mb-2 justify-center">
+                             <CheckCircle2 className="w-5 h-5" />
+                             <span className="text-sm font-bold">لقد أكملت هذه المرحلة بنجاح! 🎉</span>
+                           </div>
+                           
+                           <button 
+                             onClick={() => {
+                               vibrate(HAPITCS.MAJOR_CLICK);
+                               setShowConfirmRevert(selectedTarget);
+                             }}
+                             className="w-full py-5 rounded-[24px] bg-gradient-to-r from-red-600/90 to-rose-600/90 text-white text-lg font-black shadow-2xl hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-3 cursor-pointer border-none"
+                           >
+                             <RotateCcw className="w-5 h-5 text-white" />
+                             <span>تراجع عن إكمال هذه المرحلة ↩️</span>
+                           </button>
+
+                           <button 
+                             onClick={() => confirmStartSession(selectedTarget)}
+                             className="w-full py-4 rounded-[20px] bg-white/5 text-[#A0B4E8] font-bold hover:text-white hover:bg-white/10 transition-all border border-white/5 flex items-center justify-center gap-2 cursor-pointer"
+                           >
+                             <Play className="w-4 h-4 fill-current" />
+                             <span>تصفح الجلسة وتفاصيلها مجدداً 🔗</span>
+                           </button>
+                        </>
+                      ) : (
+                        <button 
+                          onClick={() => confirmStartSession(selectedTarget)}
+                          className={`w-full py-6 rounded-[24px] bg-gradient-to-tr ${selectedTarget.color} text-white text-xl md:text-2xl font-black shadow-2xl transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-4 group cursor-pointer`}
+                        >
+                           بدء الجلسة الآن 🚀
+                           <Play className="w-6 h-6 fill-white group-hover:translate-x-[-4px] transition-transform" />
+                        </button>
+                      )}
                       <button 
                         onClick={() => setSelectedTarget(null)}
-                        className="w-full py-4 rounded-[20px] bg-white/5 text-slate-400 font-bold hover:text-white hover:bg-white/10 transition-all border border-white/5"
+                        className="w-full py-4 rounded-[20px] bg-white/5 text-slate-400 font-bold hover:text-white hover:bg-white/10 transition-all border border-white/5 cursor-pointer"
                       >
                          العودة للمسار
                       </button>
@@ -431,6 +907,7 @@ export function ReviewPathSession({ visible, user, task, onClose, onStartSession
           )}
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
