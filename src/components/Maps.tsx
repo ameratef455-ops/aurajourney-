@@ -1161,7 +1161,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       {/* Top Left User Custom Logo / Sidebar Trigger */}
       <div className="absolute top-6 left-6 z-40 flex flex-col items-center gap-3">
         <button
-          className="bg-white/90 backdrop-blur-md hover:bg-white text-blue-900 w-14 h-14 rounded-[1.25rem] border border-slate-200/50 shadow-sm shadow-blue-900/10 flex items-center justify-center transition-all active:scale-95 cursor-pointer overflow-hidden p-2.5"
+          className="bg-white backdrop-blur-md hover:bg-slate-50 text-blue-900 w-14 h-14 rounded-[1.25rem] border border-slate-200 shadow-lg shadow-blue-900/10 flex items-center justify-center transition-all active:scale-95 cursor-pointer overflow-hidden p-2.5"
           onClick={() => {
             vibrate(HAPITCS.MAJOR_CLICK);
             setMapsSidebarVisible(!mapsSidebarVisible);
@@ -1211,7 +1211,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       <div className="absolute top-6 right-6 z-40 flex items-center gap-3">
         {onBack && (
           <button
-            className="bg-slate-50/80 backdrop-blur-md hover:bg-white text-slate-600 hover:text-blue-600 w-12 h-12 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
+            className="bg-white backdrop-blur-md hover:bg-slate-50 text-slate-600 hover:text-blue-600 w-12 h-12 rounded-2xl border border-slate-200 shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
             onClick={() => {
               vibrate(HAPITCS.MAJOR_CLICK);
               onBack();
@@ -1433,12 +1433,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         header={
           <div className="flex items-center justify-between w-full pr-2">
             <div className="flex items-center gap-3 text-white font-black">
-              <i className="pi pi-compass p-2 bg-white/10 rounded-xl text-blue-200 text-sm shadow-inner shadow-white/5"></i>
+              <i className="pi pi-compass p-2 bg-white rounded-xl text-blue-900 text-sm shadow-md"></i>
               قائمة التحكم والمسار
             </div>
             <button 
               onClick={() => setIsSidebarPinned(!isSidebarPinned)}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isSidebarPinned ? 'bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isSidebarPinned ? 'bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-white text-slate-900 shadow-md border border-slate-100 hover:bg-slate-50'}`}
               title={isSidebarPinned ? "إلغاء التثبيت" : "تثبيت القائمة"}
             >
               <i className={`pi pi-thumbtack ${isSidebarPinned ? 'rotate-45' : ''}`}></i>
@@ -1754,6 +1754,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       <ReviewPathSession 
         visible={reviewPathVisible}
         user={user}
+        task={selectedTaskForVis}
         onClose={() => {
           setReviewPathVisible(false);
           setSelectedTaskForVis(null);
@@ -2298,98 +2299,32 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 الروابط والمصادر التي تعينك على التعلم في هذه الرحلة.
               </p>
 
-                <div className="bg-white border-2 border-slate-100 p-5 rounded-[32px] space-y-4 shadow-inner">
-                  <div className="flex items-center justify-between px-1">
-                    <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
-                       <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
-                       {editingNoteIndex !== null ? 'تعديل الخاطرة المختارة' : 'إضافة خاطرة جديدة للسجل'}
-                    </h4>
-                    {editingNoteIndex !== null && (
-                      <button 
-                        onClick={() => {
-                          setEditingNoteIndex(null);
-                          setEditingStationId(null);
-                          setNoteText("");
-                        }}
-                        className="text-[10px] font-bold text-rose-500 border-none bg-none cursor-pointer"
-                      >
-                        إلغاء التعديل
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-3">
-                  <input
-                    type="text"
-                    value={newResourceName}
-                    onChange={(e) => setNewResourceName(e.target.value)}
-                    placeholder="اسم الموقع أو المصدر (مثال: توثيق ريآكت)"
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all"
-                  />
-                  <input
-                    type="url"
-                    value={newResourceUrl}
-                    onChange={(e) => setNewResourceUrl(e.target.value)}
-                    placeholder="رابط الموقع (https://...)"
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all text-left"
-                    dir="ltr"
-                  />
-                  <Button
-                    label="إضافة المصدر"
-                    icon="pi pi-plus"
-                    className="w-full bg-blue-600 text-white rounded-xl py-3 text-xs font-black border-none hover:bg-blue-700 transition-all mt-1"
-                    disabled={!newResourceName.trim() || !newResourceUrl.trim()}
-                    onClick={async () => {
-                      if (!newResourceName.trim() || !newResourceUrl.trim()) return;
-                      try {
-                        const r = { name: newResourceName.trim(), url: newResourceUrl.trim() };
-                        const updatedResources = [...(user.resources || []), r];
-                        await db.userSettings.update(user.id, { resources: updatedResources });
-                        setNewResourceName("");
-                        setNewResourceUrl("");
-                        toast.current?.show({
-                          severity: "success",
-                          summary: "نجاح",
-                          detail: "تمت إضافة المصدر بنجاح",
-                          life: 3000
-                        });
-                      } catch (err) {
-                        toast.current?.show({
-                          severity: "error",
-                          summary: "خطأ",
-                          detail: "لم نتمكن من حفظ المصدر",
-                          life: 3000
-                        });
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1 no-scrollbar pb-4">
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 no-scrollbar pb-4">
                 {(!user.attachments?.length && !user.resources?.length) ? (
                   <div className="py-16 bg-slate-50 border border-dashed border-slate-200 rounded-[40px] text-center">
                     <i className="pi pi-link text-4xl text-slate-100 mb-4 block"></i>
                     <p className="text-sm text-slate-400 font-bold italic">لا توجد مصادر مضافة بعد.</p>
                   </div>
                 ) : (
-                  <>
+                  <div className="grid grid-cols-1 gap-3">
                     {(user.resources || []).map((res: any, idx: number) => (
                       <motion.div
                         key={`res-${idx}`}
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl hover:border-blue-400 hover:shadow-lg transition-all group"
+                        className="flex items-center justify-between p-4 bg-gradient-to-br from-indigo-950 via-blue-950 to-slate-900 border border-blue-900/40 rounded-[28px] hover:shadow-xl hover:shadow-blue-950/20 transition-all group overflow-hidden relative"
                       >
-                        <div className="flex-1 min-w-0 pr-1">
+                        <div className="absolute inset-0 bg-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="flex-1 min-w-0 pr-1 relative z-10">
                           <a href={res.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 flex-1 overflow-hidden">
-                            <div className="w-11 h-11 shrink-0 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                              <i className="pi pi-external-link text-lg"></i>
+                            <div className="w-12 h-12 shrink-0 rounded-2xl bg-white/10 text-blue-200 flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-600 transition-all">
+                              <i className="pi pi-external-link text-xl"></i>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-black text-blue-950 truncate mb-0.5">
+                              <p className="text-sm font-black text-white truncate mb-0.5">
                                 {res.name}
                               </p>
-                              <p className="text-[10px] text-slate-400 font-bold tracking-tight truncate" dir="ltr">
+                              <p className="text-[10px] text-blue-300 font-bold tracking-tight truncate opacity-80" dir="ltr">
                                 {res.url.replace(/https?:\/\/(www\.)?/, '')}
                               </p>
                             </div>
@@ -2397,32 +2332,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         </div>
                         <button 
                           onClick={async (e) => {
-                            e.preventDefault();
                             e.stopPropagation();
-                            if (!window.confirm("هل أنت متأكد من حذف هذا المصدر؟")) return;
-                            try {
-                              const updated = (user.resources || []).filter((_: any, i: number) => i !== idx);
-                              await db.userSettings.update(user.id, { resources: updated });
-                              toast.current?.show({ 
-                                severity: "info", 
-                                summary: "تم الحذف", 
-                                detail: "تم حذف المصدر بنجاح",
-                                life: 3000
-                              });
-                            } catch (err) {
-                              console.error("Delete Resource Error:", err);
-                              toast.current?.show({
-                                severity: "error",
-                                summary: "خطأ",
-                                detail: "لم نتمكن من حذف المصدر",
-                                life: 3000
-                              });
-                            }
+                            vibrate(HAPITCS.MAJOR_CLICK);
+                            const updatedResources = (user.resources || []).filter((_: any, i: number) => i !== idx);
+                            await db.userSettings.update(user.id, { resources: updatedResources });
+                            toastHot.success("تم حذف المصدر بنجاح");
                           }}
-                          className="w-10 h-10 shrink-0 flex items-center justify-center rounded-2xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all border border-rose-100 shadow-sm outline-none cursor-pointer z-10"
-                          title="حذف المصدر"
+                          className="w-9 h-9 flex items-center justify-center text-rose-400 border-none bg-white/5 rounded-xl cursor-pointer hover:bg-rose-500 hover:text-white transition-all relative z-10"
                         >
-                          <i className="pi pi-trash text-xs"></i>
+                          <i className="pi pi-trash text-[11px]" />
                         </button>
                       </motion.div>
                     ))}
@@ -2434,23 +2352,24 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         rel="noopener noreferrer"
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-3xl hover:border-blue-400 hover:shadow-lg transition-all group"
+                        className="flex items-center gap-4 p-4 bg-gradient-to-br from-indigo-950 via-blue-950 to-slate-900 border border-blue-900/40 rounded-[28px] hover:shadow-xl hover:shadow-blue-950/20 transition-all group overflow-hidden relative"
                       >
-                        <div className="w-12 h-12 shrink-0 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <div className="absolute inset-0 bg-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="w-12 h-12 shrink-0 rounded-2xl bg-white/10 text-blue-200 flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-600 transition-all relative z-10">
                           <i className="pi pi-link text-xl"></i>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-black text-blue-950 truncate mb-1" dir="ltr">
+                        <div className="flex-1 min-w-0 relative z-10">
+                          <p className="text-sm font-black text-white truncate mb-1" dir="ltr">
                             {url.replace(/https?:\/\/(www\.)?/, '')}
                           </p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                          <p className="text-[10px] text-blue-300 font-bold uppercase tracking-widest opacity-80">
                             رابط المرفقات الأولي
                           </p>
                         </div>
-                        <i className="pi pi-chevron-left text-slate-200 group-hover:text-blue-400 transition-colors"></i>
+                        <i className="pi pi-chevron-left text-blue-200 group-hover:translate-x-1 transition-transform relative z-10"></i>
                       </motion.a>
                     ))}
-                  </>
+                  </div>
                 )}
               </div>
 

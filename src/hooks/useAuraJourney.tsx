@@ -98,14 +98,9 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       <span className={`text-[10px] font-black mt-2 transition-all uppercase tracking-widest text-indigo-700 hidden sm:block ${options.selected ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0'}`}>
         {label}
       </span>
-      {options.selected && (
-        <motion.div 
-          layoutId="activeTabUnderline"
-          className="absolute -bottom-0.5 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-indigo-800 rounded-full"
-          initial={false}
-          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-        />
-      )}
+      <div 
+        className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-indigo-800 rounded-full transition-opacity duration-300 ${options.selected ? 'opacity-100' : 'opacity-0'}`}
+      />
     </div>
   );
 

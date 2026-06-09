@@ -824,29 +824,6 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
         )
       },
       command: handleStart
-    },
-    {
-      label: 'راجع رحلتك',
-      icon: 'pi pi-refresh',
-      template: (item: any, options: any) => {
-        return (
-          <button 
-            onClick={(e) => {
-              vibrate(HAPITCS.MAJOR_CLICK);
-              options.onClick(e);
-            }} 
-            className="w-full flex items-center justify-between gap-4 p-4 mb-2 bg-gradient-to-r from-amber-600 to-amber-800 text-white rounded-2xl border-none cursor-pointer hover:brightness-110 transition-all font-sans"
-          >
-            <span className="text-sm font-black tracking-tight">{item.label}</span>
-            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-              <i className={`${item.icon} text-xs`}></i>
-            </div>
-          </button>
-        )
-      },
-      command: () => {
-        setIsReviewDialogVisible(true);
-      }
     }
   ];
 

@@ -4,9 +4,107 @@
 @theme {
   --font-sans: "Tajawal", ui-sans-serif, system-ui, sans-serif;
   --font-fredoka: "Fredoka", sans-serif;
-  --color-primary: #1e3a8a; /* blue-900 */
-  --color-primary-light: #1e40af; 
-  --color-primary-dark: #172554; /* blue-950 */
+  --color-primary: var(--blue-mid);
+  --color-primary-light: var(--blue-light); 
+  --color-primary-dark: var(--blue-dark);
+  
+  /* Overriding standard blues globally to unify identity */
+  --color-slate-900: var(--blue-dark);
+  --color-slate-950: var(--blue-dark);
+  --color-blue-500: var(--blue-light);
+  --color-blue-600: var(--blue-light);
+  --color-blue-700: var(--blue-mid);
+  --color-blue-800: var(--blue-mid);
+  --color-blue-900: var(--blue-dark);
+  --color-blue-950: #05081c;
+  --color-indigo-600: var(--blue-light);
+  --color-indigo-700: var(--blue-mid);
+  --color-indigo-900: var(--blue-dark);
+  --color-indigo-950: #05081c;
+}
+
+:root {
+  /* الألوان الأساسية */
+  --blue-dark:    #0A0F2C;
+  --blue-mid:     #1A2B6B;
+  --blue-light:   #2D52CC;
+  --blue-glow:    #4D7FFF;
+  --white:        #FFFFFF;
+  --white-soft:   #F0F4FF;
+
+  /* Gradient الأساسي */
+  --gradient-main: linear-gradient(135deg, var(--blue-dark), var(--blue-mid), var(--blue-light));
+  --gradient-btn:  linear-gradient(135deg, var(--blue-light), var(--blue-glow));
+
+  /* نصوص */
+  --text-primary:   #FFFFFF;
+  --text-secondary: #A0B4E8;
+  --text-dark:      #0A0F2C;
+
+  /* مسافات ثابتة */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 32px;
+  --space-xl: 64px;
+}
+
+/* Custom transitions for removing framer-motion */
+@media (prefers-reduced-motion: no-preference) {
+  .css-side-panel {
+    transform: translateX(-30px);
+    opacity: 0;
+    animation: slideInSidePanel 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  .css-side-panel.is-closing {
+    animation: slideOutSidePanel 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .css-tab-content {
+    opacity: 0;
+    animation: fadeInTab 0.2s ease-in-out forwards;
+  }
+}
+
+@keyframes slideInSidePanel {
+  from {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutSidePanel {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeInTab {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* PrimeReact dialog fixes to prevent mobile overflow */
+.p-dialog {
+  max-width: 100vw !important;
+}
+
+.p-dialog-content {
+  overflow-x: hidden !important;
 }
 
 /* Ensure focus states are clean as requested */
@@ -324,13 +422,13 @@ body {
 }
 
 /* Smooth premium left sidebar slide-in transition */
-.p-sidebar-left, .custom-left-sidebar {
-    transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1) !important;
+.p-sidebar, .p-sidebar-left, .custom-left-sidebar {
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .p-sidebar-left.p-sidebar-enter-active,
 .p-sidebar-left.p-sidebar-leave-active {
-    transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Sidebar fully dark blue gradient styling overrides */

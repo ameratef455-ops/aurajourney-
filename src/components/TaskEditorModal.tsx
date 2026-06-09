@@ -5,6 +5,194 @@ import { Youtube, FileText, Sparkles, Plus, Trash2, X, AlertCircle } from "lucid
 import { safeRandomUUID } from "../lib/uuid";
 import { vibrate, HAPITCS } from "../lib/haptics";
 import { parseLearningResources, serializeLearningResources } from "../types";
+import { db } from "../db";
+import { useLiveQuery } from "dexie-react-hooks";
+import { toast } from "react-hot-toast";
+
+interface ActivityResourcesEditorProps {
+  activity: any;
+  onChangeField: (field: string, value: any) => void;
+  isSetupWizard?: boolean;
+}
+
+export function ActivityResourcesEditor({
+  activity,
+  onChangeField,
+  isSetupWizard = false,
+}: ActivityResourcesEditorProps) {
+  const [newResName, setNewResName] = useState("");
+  const [newResUrl, setNewResUrl] = useState("");
+  const [newResDesc, setNewResDesc] = useState("");
+
+  const getYoutubeId = (url: string) => {
+    if (!url) return null;
+    const regExp =
+      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return match && match[2].length === 11 ? match[2] : null;
+  };
+
+  const currentResources = parseLearningResources(activity.learningResources);
+
+  return (
+    <div className="mt-4 p-4 bg-slate-100/60 border border-slate-205 rounded-[20px] space-y-4">
+      <h5 className="text-[11px] font-black text-indigo-900 flex items-center gap-1.5 justify-start">
+        <i className="pi pi-link text-xs" />
+        <span>مراجع ومصادر هذا النشاط حصراً (مخصصة للنشاط لوحده)</span>
+      </h5>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-3">
+          {/* YouTube Video Link */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-black text-rose-600 px-1 flex items-center gap-1.5 justify-start">
+              <Youtube className="w-3.5 h-3.5" />
+              <span>فيديو يوتيوب مخصص للنشاط</span>
+            </label>
+            <input
+              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-left"
+              dir="ltr"
+              placeholder="https://youtube.com/watch?v=..."
+              value={activity.youtubeUrl || ""}
+              onChange={(e) => onChangeField("youtubeUrl", e.target.value)}
+            />
+          </div>
+
+          {/* Google Drive Link */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-black text-indigo-600 px-1 flex items-center gap-1.5 justify-start">
+              <FileText className="w-3.5 h-3.5" />
+              <span>رابط Google Drive أو مستند تجربة</span>
+            </label>
+            <input
+              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-left"
+              dir="ltr"
+              placeholder="https://drive.google.com/..."
+              value={activity.googleDriveUrl || ""}
+              onChange={(e) => onChangeField("googleDriveUrl", e.target.value)}
+            />
+          </div>
+
+          {/* YouGlish keyword */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-black text-amber-600 px-1 flex items-center gap-1.5 justify-start">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>كلمة بحث للنطق (YouGlish)</span>
+            </label>
+            <input
+              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-right"
+              placeholder="الكلمة الإنجليزية..."
+              value={activity.youglishKeyword || ""}
+              onChange={(e) => onChangeField("youglishKeyword", e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Video Preview Aspect */}
+        <div className="flex flex-col justify-center">
+          <div className="rounded-xl overflow-hidden border border-slate-200 aspect-video bg-slate-900 flex items-center justify-center relative">
+            {getYoutubeId(activity.youtubeUrl) ? (
+              <iframe
+                src={`https://www.youtube.com/embed/${getYoutubeId(activity.youtubeUrl)}`}
+                className="w-full h-full border-none"
+                allowFullScreen
+                title="video preview"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-1 text-slate-500">
+                <Youtube size={24} className="opacity-30" />
+                <p className="text-[9px] font-bold">لا توجد معاينة يوتيوب حالياً</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Suggested learning references */}
+      <div className="bg-white p-4 rounded-xl border border-slate-150 space-y-3">
+        <label className="text-[10px] font-black text-blue-900 flex items-center justify-between">
+          <span>📚 الروابط والمراجع المضافة لهذا النشاط</span>
+        </label>
+
+        {/* Inline Resource Inputs */}
+        <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="text"
+              value={newResName}
+              onChange={(e) => setNewResName(e.target.value)}
+              placeholder="اسم المرجع..."
+              className="w-full p-2 bg-white border border-slate-200 rounded text-[11px] font-bold"
+            />
+            <input
+              type="text"
+              value={newResUrl}
+              onChange={(e) => setNewResUrl(e.target.value)}
+              placeholder="الرابط الإلكتروني..."
+              className="w-full p-2 bg-white border border-slate-200 rounded text-[11px] font-bold text-left"
+              dir="ltr"
+            />
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newResDesc}
+              onChange={(e) => setNewResDesc(e.target.value)}
+              placeholder="وصف مبسط (اختياري)..."
+              className="w-full p-2 bg-white border border-slate-200 rounded text-[11px] font-bold flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (!newResName.trim() || !newResUrl.trim()) return;
+                vibrate(HAPITCS.SUCCESS);
+                const newItem = {
+                  id: safeRandomUUID(),
+                  name: newResName.trim(),
+                  url: newResUrl.trim(),
+                  description: newResDesc.trim() || undefined,
+                };
+                const updated = [...currentResources, newItem];
+                onChangeField("learningResources", serializeLearningResources(updated));
+                setNewResName("");
+                setNewResUrl("");
+                setNewResDesc("");
+              }}
+              className="px-3 py-1.5 bg-blue-900 hover:bg-blue-950 text-white font-black text-[10px] rounded border-none cursor-pointer whitespace-nowrap"
+            >
+              إضافة 🌐
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1">
+          {currentResources.map((item) => (
+            <div key={item.id} className="p-2 bg-gradient-to-r from-slate-900 to-indigo-950 text-blue-100 rounded-lg flex items-center justify-between text-right">
+              <div>
+                <a href={item.url} target="_blank" rel="noreferrer" className="text-[11px] font-black text-blue-200 hover:underline">{item.name}</a>
+                {item.description && <p className="text-[9px] text-slate-400 font-normal">{item.description}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  vibrate(HAPITCS.MAJOR_CLICK);
+                  const updated = currentResources.filter(x => x.id !== item.id);
+                  onChangeField("learningResources", serializeLearningResources(updated));
+                }}
+                className="bg-transparent border-none text-red-400 hover:text-red-300 font-bold cursor-pointer"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+          {currentResources.length === 0 && (
+            <p className="text-[9px] text-slate-400 text-center py-1">لا توجد مراجع تعليمية مضافة لهذا النشاط بعد.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface TaskEditorModalProps {
   visible: boolean;
@@ -24,11 +212,16 @@ export function TaskEditorModal({
   isSetupWizard = false,
 }: TaskEditorModalProps) {
   const [localTask, setLocalTask] = useState<any>(null);
+  const [selectedSubTaskForEdit, setSelectedSubTaskForEdit] = useState<any | null>(null);
 
-  // States to add custom resources interactively
-  const [newResName, setNewResName] = useState("");
-  const [newResUrl, setNewResUrl] = useState("");
-  const [newResDesc, setNewResDesc] = useState("");
+  const trips = useLiveQuery(() => db.userSettings.toArray()) || [];
+  const mainTrip = trips[0];
+  const planGoals = mainTrip?.planGoals || "";
+
+  const reviewPlans = useLiveQuery(() => {
+    if (!localTask?.id) return Promise.resolve([]);
+    return db.tasks.where("parentId").equals(localTask.id).toArray();
+  }, [localTask?.id]) || [];
 
   useEffect(() => {
     if (visible && task) {
@@ -47,7 +240,8 @@ export function TaskEditorModal({
     acts.push({
       id: safeRandomUUID(),
       title: "",
-      guidance: "",
+      guidance: "اكتب هنا كيفية القيام بالنشاط بوضوح للطلبة...",
+      resources: "مثال: مقال أو رابط فيديو...",
       duration: 15,
       isCompleted: false,
       steps: [],
@@ -156,7 +350,7 @@ export function TaskEditorModal({
     >
       <div className="flex flex-col gap-6 py-4 px-2" dir="rtl">
         <TabView className="custom-wizard-tabs">
-          <TabPanel header="📑 البيانات الأساسية">
+          <TabPanel header="📑 المهمة">
             <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
@@ -241,467 +435,424 @@ export function TaskEditorModal({
                   </select>
                 </div>
               )}
+
+              {/* Merged Goals and Outcomes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+                <div className="p-6 bg-emerald-50/20 border border-emerald-100 rounded-[24px] space-y-3">
+                  <label className="text-xs font-black text-emerald-900 px-1 flex items-center gap-2">
+                    <span className="text-lg">🎯</span>
+                    <span>الأهداف المستهدفة للمهمة</span>
+                  </label>
+                  <textarea
+                    rows={4}
+                    className="w-full p-4 bg-white border border-emerald-100 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-emerald-500/5 transition-all resize-none text-right"
+                    placeholder="مثال:&#10;1. فهم بنية الجداول وطرق الربط بوضوح.&#10;2. تطبيق عملي لإنشاء قاعدة بيانات مصغرة."
+                    value={localTask.taskGoals || ""}
+                    onChange={(e) => updateField("taskGoals", e.target.value)}
+                  />
+                </div>
+
+                <div className="p-6 bg-purple-50/20 border border-purple-100 rounded-[24px] space-y-3">
+                  <label className="text-xs font-black text-purple-900 px-1 flex items-center gap-2">
+                    <span className="text-lg">📈</span>
+                    <span>المخرجات والنتائج المتوقعة للمهمة</span>
+                  </label>
+                  <textarea
+                    rows={4}
+                    className="w-full p-4 bg-white border border-purple-100 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-purple-500/5 transition-all resize-none text-right"
+                    placeholder="مثال:&#10;- كتابة استعلامات JOIN دون أخطاء.&#10;- شرح المفاهيم لزميل آخر بثقة."
+                    value={localTask.taskOutcomes || ""}
+                    onChange={(e) => updateField("taskOutcomes", e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
           </TabPanel>
 
-          <TabPanel header="⚡ الأنشطة التنفيذية">
-            <div className="space-y-4 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center justify-between mb-2">
+          <TabPanel header="⚡ الأنشطة">
+            <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h4 className="text-base font-black text-blue-950 font-sans">
-                    خطوات التنفيذ العملي
+                  <h4 className="text-base font-black text-blue-955 font-sans">
+                    أنشطة الجلسة والتعلم اليومي
                   </h4>
-                  <p className="text-[10px] text-gray-400 font-bold">
-                    كل نشاط يحتوي على مجموعة من المهام الإجرائية المحددة
+                  <p className="text-xs text-gray-400 font-bold">
+                    أضف الأنشطة التعليمية المقترحة للمهمة وحدد مدة كل نشاط
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={addActivity}
-                  className="px-5 py-3 bg-blue-950 text-white rounded-2xl text-[11px] font-black shadow-lg hover:shadow-blue-900/20 transition-all flex items-center gap-2 border-none cursor-pointer active:scale-95"
+                  className="px-5 py-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-indigo-950 text-white rounded-2xl text-[11px] font-black shadow-lg hover:shadow-blue-900/40 transition-all flex items-center gap-2 border-none cursor-pointer active:scale-95 text-shadow-sm"
                 >
                   <Plus size={16} />
-                  <span>إضافة نشاط رئيسي</span>
+                  <span>إضافة نشاط جديد للغرض 💎</span>
                 </button>
               </div>
 
-              <div className="space-y-6 max-h-[450px] overflow-y-auto no-scrollbar pb-6 pr-1">
-                {localTask.activities?.map((act: any, aIdx: number) => (
-                  <div
-                    key={act.id}
-                    className="p-6 bg-slate-50/40 border-2 border-slate-100/50 rounded-[32px] relative group hover:border-blue-100/50 transition-colors"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => removeActivity(aIdx)}
-                      className="absolute -top-2 -left-2 w-8 h-8 rounded-full bg-rose-500 text-white shadow-lg flex items-center justify-center transition-all border-none cursor-pointer opacity-0 group-hover:opacity-100 hover:scale-110 z-10"
+              <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar pb-6 pr-1">
+                {localTask.activities && localTask.activities.length > 0 ? (
+                  localTask.activities.map((act: any, aIdx: number) => (
+                    <div
+                      key={act.id}
+                      className="p-5 bg-slate-50/60 border-2 border-slate-100 rounded-[24px] relative group hover:border-blue-100 transition-colors"
                     >
-                      <X size={14} />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => removeActivity(aIdx)}
+                        className="absolute -top-2 -left-2 w-10 h-10 rounded-2xl bg-white text-rose-500 shadow-xl border border-rose-100 flex flex-col items-center justify-center transition-all cursor-pointer hover:bg-rose-500 hover:text-white hover:scale-110 z-10 group/btn"
+                      >
+                        <Trash2 size={16} />
+                        <span className="text-[7px] font-black -mt-0.5">حذف</span>
+                      </button>
 
-                    <div className="flex flex-col gap-5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-blue-900 text-white flex items-center justify-center font-black flex-none">
-                          {aIdx + 1}
-                        </div>
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div className="md:col-span-2 flex flex-col gap-1">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
-                              عنوان النشاط الإجرائي
-                            </label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                        <div className="flex items-center gap-3 md:col-span-2">
+                          <div className="w-8 h-8 rounded-lg bg-blue-900 text-white flex items-center justify-center font-black text-sm">
+                            {aIdx + 1}
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-[10px] font-black text-slate-400">اسم النشاط</label>
                             <input
-                              className="w-full p-3 bg-white border-none rounded-xl text-xs font-black text-blue-950 outline-none shadow-3xs text-right"
-                              placeholder="ماذا سنفعل تحديداً؟"
+                              className="w-full p-2.5 bg-white border border-slate-250 rounded-xl text-xs font-black text-blue-955 outline-none"
+                              placeholder="مثال: قراءة الفصل الأول وفهم المفاهيم الرئيسية..."
                               value={act.title}
                               onChange={(e) =>
                                 updateActivity(aIdx, "title", e.target.value)
                               }
                             />
                           </div>
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
-                              المدة (دقائق)
-                            </label>
-                            <div className="relative">
-                              <input
-                                type="number"
-                                className="w-full p-3 bg-white border-none rounded-xl text-xs font-black text-blue-950 outline-none shadow-3xs text-center pl-8 text-right"
-                                value={act.duration}
-                                onChange={(e) =>
-                                  updateActivity(
-                                    aIdx,
-                                    "duration",
-                                    parseInt(e.target.value) || 0
-                                  )
-                                }
-                              />
-                              <i className="pi pi-clock absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-[10px]" />
-                            </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400">المدة بالدقائق</label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              className="w-full p-2.5 bg-white border border-slate-250 rounded-xl text-xs font-black text-blue-955 text-center"
+                              value={act.duration}
+                              onChange={(e) =>
+                                updateActivity(
+                                  aIdx,
+                                  "duration",
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                            />
+                            <i className="pi pi-clock absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-[10px]" />
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-1.5 bg-amber-50/30 p-4 rounded-[20px] border border-amber-100/50">
-                        <label className="text-[10px] font-black text-amber-600 flex items-center gap-1.5">
-                          <i className="pi pi-info-circle text-[10px]" />
-                          <span>توجيهات التنفيذ (How to Perform)</span>
-                        </label>
+                      {/* Integrated Activity Guidance & Resources inside card */}
+                      <div className="space-y-4 mt-4 pt-4 border-t border-slate-100/80">
+                        {/* Guidance text area */}
+                        <div className="space-y-1.5 text-right w-full">
+                          <label className="text-[10px] font-black text-amber-600 flex items-center gap-1.5 justify-start">
+                            <i className="pi pi-compass text-[11px]" />
+                            <span>التوجيهات والإرشادات للنشاط (Guidance)</span>
+                          </label>
+                          <textarea
+                            rows={3}
+                            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-amber-300 resize-none text-right"
+                            placeholder="كيف ينبغي على الطالب أداء وتطبيق هذا النشاط؟..."
+                            value={act.guidance || ""}
+                            onChange={(e) =>
+                              updateActivity(aIdx, "guidance", e.target.value)
+                            }
+                          />
+                        </div>
+
+                        {/* Interactive Activity-level Resources Manager */}
+                        <ActivityResourcesEditor
+                          activity={act}
+                          onChangeField={(field, val) => updateActivity(aIdx, field, val)}
+                          isSetupWizard={isSetupWizard}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-20 text-slate-400 font-bold bg-slate-50 border-2 border-dashed border-slate-100 rounded-2xl">
+                    <p>يرجى إضافة الأنشطة أولاً في علامة تبويب "الأنشطة"</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabPanel>
+
+          <TabPanel header="🔄 خطط المراجعة" leftIcon="pi pi-refresh mr-2 ml-2">
+            <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-h-[50vh] overflow-y-auto px-1">
+              <div className="p-4 bg-gradient-to-r from-blue-900/10 via-indigo-950/15 to-slate-900/5 border border-indigo-500/20 rounded-3xl space-y-2 text-right">
+                <div className="flex items-center gap-2 text-blue-900">
+                  <span className="text-base text-indigo-700 font-extrabold">🎯</span>
+                  <h4 className="text-xs font-black text-indigo-950">أهداف خطة المراجعة الاستراتيجية للمسار (من معالج التأسيس)</h4>
+                </div>
+                <p className="text-xs text-indigo-900 font-bold bg-white/65 p-3 rounded-2xl border border-slate-150 leading-relaxed">
+                  {planGoals || "الوصول للإتقان الكامل للمفاهيم الأساسية وتحقيق مخرجات التعلم المستهدفة وتحطيم منحنى النسيان."}
+                </p>
+              </div>
+
+              <div className="flex justify-between items-center bg-indigo-50/50 p-4 rounded-3xl border border-indigo-150/45 my-2">
+                <span className="text-xs font-black text-indigo-950">إجراءات المراجعة الدائرية المقترحة:</span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    vibrate(HAPITCS.COMPLETE);
+                    const taskTitle = localTask.title || "المهمة";
+                    const stationId = localTask.stationId;
+
+                    const plan1 = {
+                      id: "rev-1-" + Date.now(),
+                      stationId,
+                      parentId: localTask.id,
+                      title: `المراجعة 1: الفهم الاستيعابي والتدوين الجريء لـ (${taskTitle}) 🧠`,
+                      type: "main" as const,
+                      isCompleted: false,
+                      dueDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+                      description: `تركز هذه الخطة الأولى على جلاء الغموض والاستدعاء النشط للمفاهيم الأساسية والأفكار الجوهرية الخاصة بمهارة "${taskTitle}" لكسر سرعة منحنى النسيان.`,
+                      learningResources: localTask.learningResources || "كتيب الملاحظات والروابط المنظمة المضافة.",
+                      youtubeUrl: localTask.youtubeUrl || "",
+                      googleDriveUrl: localTask.googleDriveUrl || "",
+                      youglishKeyword: localTask.youglishKeyword || "",
+                      activities: [
+                        {
+                          id: "act-1-1-" + Date.now(),
+                          title: "جلسة التدوين الذهبي والاستذكار الفعال غيباً",
+                          duration: 15,
+                          isCompleted: false,
+                          steps: [{ id: "step-1-1-1", title: "كتابة الخلاصة المفاهيمية الأساسية للموضوع غيباً تماماً ومقارنتها بالمرجع", isCompleted: false }]
+                        }
+                      ]
+                    };
+
+                    const plan2 = {
+                      id: "rev-2-" + Date.now(),
+                      stationId,
+                      parentId: localTask.id,
+                      title: `المراجعة 2: التلميع التطبيقي وصقل المنتج التنفيذي لـ (${taskTitle}) 🛠️`,
+                      type: "main" as const,
+                      isCompleted: false,
+                      dueDate: new Date(Date.now() + 172800000).toISOString().slice(0, 10),
+                      description: `تهدف هذه الخطة العملية لتفقد المخرجات التشغيلية وصناعة مخرجات عملية صلبة تؤكد تمكنك التام من تطبيق "${taskTitle}".`,
+                      learningResources: localTask.learningResources || "مجلد المشاريع والتمرينات التطبيقية للمحطة السابقة.",
+                      youtubeUrl: localTask.youtubeUrl || "",
+                      googleDriveUrl: localTask.googleDriveUrl || "",
+                      youglishKeyword: localTask.youglishKeyword || "",
+                      activities: [
+                        {
+                          id: "act-2-1-" + Date.now(),
+                          title: "إعادة بناء وتحديث الكود أو المخرج السابق وتجويده",
+                          duration: 25,
+                          isCompleted: false,
+                          steps: [{ id: "step-2-1-1", title: "مراجعة الكفاءة وتعديل عيوب التشغيل والسرعة مع إثبات فاعليتها", isCompleted: false }]
+                        }
+                      ]
+                    };
+
+                    const plan3 = {
+                      id: "rev-3-" + Date.now(),
+                      stationId,
+                      parentId: localTask.id,
+                      title: `المراجعة 3: تدوين الدروس والتمكين الأسبوعي والأثر لـ (${taskTitle}) 🌟`,
+                      type: "main" as const,
+                      isCompleted: false,
+                      dueDate: new Date(Date.now() + 259200000).toISOString().slice(0, 10),
+                      description: `مخصصة لتقييم الوعي بالصعوبات، غلق ملف مراجعة "${taskTitle}" وحصاد الجهد وتعديل المسار بمزيد من الثقة.`,
+                      learningResources: localTask.learningResources || "استمارة غلق الفجوات المعرفية وملاحظات التفكر.",
+                      youtubeUrl: localTask.youtubeUrl || "",
+                      googleDriveUrl: localTask.googleDriveUrl || "",
+                      youglishKeyword: localTask.youglishKeyword || "",
+                      activities: [
+                        {
+                          id: "act-3-1-" + Date.now(),
+                          title: "تفكر ذاتي متعمق وكتابة استبصار الدروس",
+                          duration: 15,
+                          isCompleted: false,
+                          steps: [{ id: "step-3-1-1", title: "تسجيل فقرة واحدة متينة في سعي اليوم تلخص أين أجدت وأين تعثرت", isCompleted: false }]
+                        }
+                      ]
+                    };
+
+                    await db.tasks.put(plan1);
+                    await db.tasks.put(plan2);
+                    await db.tasks.put(plan3);
+                    toast.success("تم تشييد 3 خطط مراجعة دائرية بنجاح! 🚀");
+                  }}
+                  className="px-4 py-2.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-indigo-950 hover:opacity-90 text-white font-black text-xs rounded-xl border-none cursor-pointer shadow flex items-center gap-1.5 transition-all active:scale-95"
+                >
+                  <Plus size={14} />
+                  <span>توليد وإضافة 3 خطط مراجعة دائرية 🔄</span>
+                </button>
+              </div>
+
+              {reviewPlans.length === 0 ? (
+                <div className="p-8 bg-slate-50 border border-slate-150 rounded-[32px] text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-950 flex items-center justify-center mx-auto text-xl">
+                    <i className="pi pi-refresh" />
+                  </div>
+                  <h4 className="text-sm font-black text-blue-950">لم يتم تشييد خطط المراجعة الثلاث لهذه المهمة بعد</h4>
+                  <p className="text-xs text-slate-500 font-bold max-w-sm mx-auto leading-relaxed">
+                    إنشاء خطط المراجعة الثلاث في وقتها المناسب من شأنه لجم سرعة النسيان وتعزيز تخزين المعارف في الذاكرة طويلة المدى.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      vibrate(HAPITCS.COMPLETE);
+                      const taskTitle = localTask.title || "المهمة";
+                      const stationId = localTask.stationId;
+
+                      const plan1 = {
+                        id: "rev-1-" + Date.now(),
+                        stationId,
+                        parentId: localTask.id,
+                        title: `المراجعة 1: الفهم الاستيعابي والتدوين الجريء لـ (${taskTitle}) 🧠`,
+                        type: "main" as const,
+                        isCompleted: false,
+                        dueDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+                        description: `تركز هذه الخطة الأولى على جلاء الغموض والاستدعاء النشط للمفاهيم الأساسية والأفكار الجوهرية الخاصة بمهارة "${taskTitle}" لكسر سرعة منحنى النسيان.`,
+                        learningResources: localTask.learningResources || "كتيب الملاحظات والروابط المنظمة المضافة.",
+                        youtubeUrl: localTask.youtubeUrl || "",
+                        googleDriveUrl: localTask.googleDriveUrl || "",
+                        youglishKeyword: localTask.youglishKeyword || "",
+                        activities: [
+                          {
+                            id: "act-1-1-" + Date.now(),
+                            title: "جلسة التدوين الذهبي والاستذكار الفعال غيباً",
+                            duration: 15,
+                            isCompleted: false,
+                            steps: [{ id: "step-1-1-1", title: "كتابة الخلاصة المفاهيمية الأساسية للموضوع غيباً تماماً ومقارنتها بالمرجع", isCompleted: false }]
+                          }
+                        ]
+                      };
+
+                      const plan2 = {
+                        id: "rev-2-" + Date.now(),
+                        stationId,
+                        parentId: localTask.id,
+                        title: `المراجعة 2: التلميع التطبيقي وصقل المنتج التنفيذي لـ (${taskTitle}) 🛠️`,
+                        type: "main" as const,
+                        isCompleted: false,
+                        dueDate: new Date(Date.now() + 172800000).toISOString().slice(0, 10),
+                        description: `تهدف هذه الخطة العملية لتفقد المخرجات التشغيلية وصناعة مخرجات عملية صلبة تؤكد تمكنك التام من تطبيق "${taskTitle}".`,
+                        learningResources: localTask.learningResources || "مجلد المشاريع والتمرينات التطبيقية للمحطة السابقة.",
+                        youtubeUrl: localTask.youtubeUrl || "",
+                        googleDriveUrl: localTask.googleDriveUrl || "",
+                        youglishKeyword: localTask.youglishKeyword || "",
+                        activities: [
+                          {
+                            id: "act-2-1-" + Date.now(),
+                            title: "إعادة بناء وتحديث الكود أو المخرج السابق وتجويده",
+                            duration: 25,
+                            isCompleted: false,
+                            steps: [{ id: "step-2-1-1", title: "مراجعة الكفاءة وتعديل عيوب التشغيل والسرعة مع إثبات فاعليتها", isCompleted: false }]
+                          }
+                        ]
+                      };
+
+                      const plan3 = {
+                        id: "rev-3-" + Date.now(),
+                        stationId,
+                        parentId: localTask.id,
+                        title: `المراجعة 3: تدوين الدروس والتمكين الأسبوعي والأثر لـ (${taskTitle}) 🌟`,
+                        type: "main" as const,
+                        isCompleted: false,
+                        dueDate: new Date(Date.now() + 259200000).toISOString().slice(0, 10),
+                        description: `مخصصة لتقييم الوعي بالصعوبات، غلق ملف مراجعة "${taskTitle}" وحصاد الجهد وتعديل المسار بمزيد من الثقة.`,
+                        learningResources: localTask.learningResources || "استمارة غلق الفجوات المعرفية وملاحظات التفكر.",
+                        youtubeUrl: localTask.youtubeUrl || "",
+                        googleDriveUrl: localTask.googleDriveUrl || "",
+                        youglishKeyword: localTask.youglishKeyword || "",
+                        activities: [
+                          {
+                            id: "act-3-1-" + Date.now(),
+                            title: "تفكر ذاتي متعمق وكتابة استبصار الدروس",
+                            duration: 15,
+                            isCompleted: false,
+                            steps: [{ id: "step-3-1-1", title: "تسجيل فقرة واحدة متينة في سعي اليوم تلخص أين أجدت وأين تعثرت", isCompleted: false }]
+                          }
+                        ]
+                      };
+
+                      await db.tasks.put(plan1);
+                      await db.tasks.put(plan2);
+                      await db.tasks.put(plan3);
+                    }}
+                    className="px-6 py-4 bg-gradient-to-r from-blue-905 to-indigo-905 text-white font-black text-xs rounded-2xl border-none cursor-pointer hover:shadow-xl transition-all"
+                  >
+                     توليد وتخطيط المراجعات الثلاث المقترحة لهذا المسار 🚀
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviewPlans.map((plan: any, pIdx: number) => (
+                    <div key={plan.id} className="p-5 bg-slate-50 border border-slate-200 rounded-[24px] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-indigo-900 bg-indigo-50 border border-indigo-150 px-2.5 py-1 rounded-lg">
+                          المراجعة الدورية {pIdx + 1}
+                        </span>
+                        <input
+                          type="date"
+                          className="p-1 px-2 border border-slate-200 rounded-lg text-xs font-black text-slate-700 leading-none outline-none"
+                          value={plan.dueDate || ""}
+                          onChange={async (e) => {
+                            await (db.tasks as any).update(plan.id, { dueDate: e.target.value });
+                          }}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 block">عنوان خطة المراجعة</label>
+                        <input
+                          type="text"
+                          className="w-full p-3 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-800 outline-none"
+                          value={plan.title || ""}
+                          onChange={async (e) => {
+                            await (db.tasks as any).update(plan.id, { title: e.target.value });
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 block">الوصف وأهداف المراجعة الخاصة</label>
                         <textarea
                           rows={2}
-                          className="w-full p-2 bg-transparent border-none rounded-xl text-[10px] font-bold text-amber-950 outline-none resize-none placeholder-amber-400/50 text-right"
-                          placeholder="صفات النشاط وكيفية تنفيذه بأفضل شكل لتحقيق أفضل نتيجة..."
-                          value={act.guidance}
-                          onChange={(e) =>
-                            updateActivity(aIdx, "guidance", e.target.value)
-                          }
+                          className="w-full p-3 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-800 outline-none resize-none text-right"
+                          value={plan.description || ""}
+                          onChange={async (e) => {
+                            await (db.tasks as any).update(plan.id, { description: e.target.value });
+                          }}
                         />
                       </div>
 
-                      <div className="space-y-3 bg-white/50 p-4 rounded-[20px] border border-slate-100">
-                        <div className="flex items-center justify-between px-1">
-                          <label className="text-[10px] font-black text-indigo-500 flex items-center gap-2">
-                            <i className="pi pi-list text-[10px]" />
-                            <span>خطوات العمل المحددة (List of Actions)</span>
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => addStep(aIdx)}
-                            className="text-[9px] font-black text-indigo-600 hover:text-white hover:bg-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1 transition-all cursor-pointer"
-                          >
-                            + إضافة خطوة تنفيذية
-                          </button>
-                        </div>
-                        <div className="space-y-2">
-                          {act.steps?.map((step: any, sIdx: number) => (
-                            <div
-                              key={step.id}
-                              className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-300"
-                            >
-                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 flex-none" />
-                              <input
-                                className="flex-1 p-2.5 bg-white border border-slate-100 rounded-xl text-[10px] font-bold text-slate-700 outline-none focus:border-indigo-200 transition-all shadow-3xs text-right"
-                                placeholder="خطوة محددة..."
-                                value={step.title}
-                                onChange={(e) =>
-                                  updateStep(aIdx, sIdx, e.target.value)
-                                }
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeStep(aIdx, sIdx)}
-                                className="w-7 h-7 flex items-center justify-center text-rose-300 hover:text-rose-500 transition-all bg-transparent border-none cursor-pointer"
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          ))}
-                          {(!act.steps || act.steps.length === 0) && (
-                            <p className="text-[9px] text-slate-300 italic text-center py-2">
-                              لا توجد خطوات مضافة لهذا النشاط بعد.
-                            </p>
-                          )}
-                        </div>
+                      <div className="pt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            vibrate(HAPITCS.MAJOR_CLICK);
+                            setSelectedSubTaskForEdit(plan);
+                          }}
+                          className="px-3 py-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-black text-xs rounded-xl border-none cursor-pointer flex items-center gap-1.5 transition-all"
+                        >
+                          <i className="pi pi-cog text-[10px]" />
+                          <span>تعديل المراجعة بالكامل عبر المحرر الشامل ⚙️</span>
+                        </button>
                       </div>
                     </div>
-                  </div>
-                ))}
-
-                {(!localTask.activities || localTask.activities.length === 0) && (
-                  <div className="text-center py-16 text-slate-400 font-bold border-4 border-dashed border-slate-50 rounded-[40px] flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center">
-                      <i className="pi pi-inbox text-2xl text-slate-200" />
-                    </div>
-                    <p>هل نبدأ بإضافة أول نشاط تنفيذي لهذه المهمة؟</p>
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </TabPanel>
 
-          <TabPanel header="🔗 مصادر العامة">
-            <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-6">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-black text-rose-600 px-1 flex items-center gap-2">
-                      <Youtube className="w-4 h-4" />
-                      <span>رابط فيديو يوتيوب (Embedded)</span>
-                    </label>
-                    <input
-                      className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-[20px] font-bold outline-none focus:ring-4 ring-rose-500/5 focus:bg-white focus:border-rose-100 transition-all text-blue-950 text-xs placeholder-slate-300"
-                      placeholder="ألصق رابط الفيديو هنا..."
-                      value={localTask.youtubeUrl || ""}
-                      onChange={(e) => updateField("youtubeUrl", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-black text-indigo-600 px-1 flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      <span>رابط Google Drive أو ملف خارجي</span>
-                    </label>
-                    <input
-                      className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-[20px] font-bold outline-none focus:ring-4 ring-indigo-500/5 focus:bg-white focus:border-indigo-100 transition-all text-blue-950 text-xs placeholder-slate-300"
-                      placeholder="رابط ملف الدرايف أو المصدر النصي..."
-                      value={localTask.googleDriveUrl || ""}
-                      onChange={(e) =>
-                        updateField("googleDriveUrl", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-black text-amber-600 px-1 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" />
-                      <span>كلمة بحث YouGlish (للنطق واللكنة)</span>
-                    </label>
-                    <input
-                      className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-[20px] font-bold outline-none focus:ring-4 ring-amber-500/5 focus:bg-white focus:border-amber-100 transition-all text-blue-950 text-xs placeholder-slate-300"
-                      placeholder="الكلمة التي تود سماعها من متحدثين حقيقيين..."
-                      value={localTask.youglishKeyword || ""}
-                      onChange={(e) =>
-                        updateField("youglishKeyword", e.target.value)
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="text-xs font-black text-rose-300 px-1 mb-2 block">
-                    معاينة مرئية للمصدر
-                  </label>
-                  <div className="rounded-[24px] overflow-hidden border-2 border-slate-50 aspect-video bg-slate-900 flex items-center justify-center relative">
-                    {getYoutubeId(localTask.youtubeUrl) ? (
-                      <iframe
-                        src={`https://www.youtube.com/embed/${getYoutubeId(
-                          localTask.youtubeUrl
-                        )}`}
-                        className="w-full h-full border-none"
-                        allowFullScreen
-                        title="video preview"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center gap-3 text-slate-600">
-                        <Youtube size={48} className="opacity-20" />
-                        <p className="text-[10px] font-bold">
-                          لا يوجد معاينة مرئية يوتيوب حالياً
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-5 bg-white border-2 border-slate-50 rounded-[24px] flex items-center gap-4">
-                    <div
-                      className={`w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center ${
-                        localTask.googleDriveUrl
-                          ? "text-indigo-600"
-                          : "text-slate-200"
-                      }`}
-                    >
-                      <FileText size={24} />
-                    </div>
-                    <div className="text-right">
-                      <h5 className="text-[11px] font-black text-slate-800">
-                        المصدر المرفق العام
-                      </h5>
-                      <p className="text-[9px] text-slate-400 font-bold truncate max-w-[150px]">
-                        {localTask.googleDriveUrl || "لم يتم إرفاق ملف بعد"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="md:col-span-2 space-y-4 mt-4 pt-4 border-t border-slate-100/50 text-right" dir="rtl">
-                <label className="text-sm font-black text-blue-900 px-1 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <i className="pi pi-book text-lg text-blue-500" />
-                    <span>📚 مصادر ومراجع التعلم المقترحة للمهمة</span>
-                  </div>
-                  {isSetupWizard && (
-                    <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-black border border-emerald-100">تحرير نشط في المعالج</span>
-                  )}
-                </label>
-
-                {/* If isSetupWizard is true, we display the inputs to add new resources */}
-                {isSetupWizard ? (
-                  <div className="bg-slate-50 border border-slate-100 p-5 rounded-[24px] space-y-4">
-                    <h5 className="text-xs font-black text-slate-800">➕ إضافة مصدر تعلم جديد للمهمة:</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5 text-right">
-                        <label className="text-[10px] font-black text-slate-500">اسم المرجع/المصدر:</label>
-                        <input
-                          type="text"
-                          value={newResName}
-                          onChange={(e) => setNewResName(e.target.value)}
-                          placeholder="مثال: مقال مدرسة الحكمة لقواعد البيانات"
-                          className="w-full py-2.5 px-3 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/15"
-                        />
-                      </div>
-                      <div className="space-y-1.5 text-right">
-                        <label className="text-[10px] font-black text-slate-500">رابط المصدر:</label>
-                        <input
-                          type="text"
-                          value={newResUrl}
-                          onChange={(e) => setNewResUrl(e.target.value)}
-                          placeholder="https://example.com/resource"
-                          className="w-full py-2.5 px-3 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/15 text-left"
-                          dir="ltr"
-                        />
-                      </div>
-                      <div className="space-y-1.5 md:col-span-2 text-right">
-                        <label className="text-[10px] font-black text-slate-500">الوصف التوضيحي للمصدر (اختياري/يظهر للطلاب):</label>
-                        <input
-                          type="text"
-                          value={newResDesc}
-                          onChange={(e) => setNewResDesc(e.target.value)}
-                          placeholder="اكتب نبذة أو وصفاً مختصراً يوضح فائدة هذا المصدر..."
-                          className="w-full py-2.5 px-3 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/15 text-right"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!newResName.trim() || !newResUrl.trim()) return;
-                        vibrate(HAPITCS.SUCCESS);
-                        const current = parseLearningResources(localTask.learningResources);
-                        const newItem = {
-                          id: safeRandomUUID(),
-                          name: newResName.trim(),
-                          url: newResUrl.trim(),
-                          description: newResDesc.trim() || undefined,
-                        };
-                        const updated = [...current, newItem];
-                        updateField("learningResources", serializeLearningResources(updated));
-                        setNewResName("");
-                        setNewResUrl("");
-                        setNewResDesc("");
-                      }}
-                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition-all border-none cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <span>تثبيت المصدر وإضافته للائحة 🌐</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-amber-500/5 border border-amber-500/15 rounded-2xl flex items-center gap-2.5 text-amber-800 text-[11px] font-bold">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
-                    <span>إضافة أو تعديل المصادر العامة مخصص ومشروط فقط داخل معالج التثبيت (Setup Wizard) لحماية تماسك الخطط المنهجية.</span>
-                  </div>
-                )}
-
-                {/* Display existing learning resources in Dark Gradient Blue Cards! */}
-                <div className="space-y-3 mt-3">
-                  <h5 className="text-xs font-black text-slate-700">📚 قائمة المصادر المرفقة الحالية:</h5>
-                  {parseLearningResources(localTask.learningResources).length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {parseLearningResources(localTask.learningResources).map((item) => {
-                        const isUrl = item.url.startsWith('http://') || item.url.startsWith('https://');
-                        const displayName = item.name.trim() || item.url;
-                        return (
-                          <div
-                            key={item.id}
-                            className="p-4.5 bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 border border-blue-500/20 text-blue-100 rounded-2xl flex flex-col justify-between gap-1.5 group transition-all duration-300 hover:border-blue-400 shadow-md shadow-blue-955/20"
-                          >
-                            <div className="flex items-center justify-between">
-                              <a
-                                href={isUrl ? item.url : undefined}
-                                target={isUrl ? "_blank" : undefined}
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2.5 text-xs font-black text-slate-150 hover:text-blue-300 transition-colors"
-                              >
-                                <i className={`pi ${isUrl ? 'pi-external-link' : 'pi-bookmark'} text-[10px] text-blue-400`}></i>
-                                <span>{displayName}</span>
-                              </a>
-
-                              {isSetupWizard && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    vibrate(HAPITCS.MAJOR_CLICK);
-                                    const current = parseLearningResources(localTask.learningResources);
-                                    const updated = current.filter(x => x.id !== item.id);
-                                    updateField("learningResources", serializeLearningResources(updated));
-                                  }}
-                                  className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-350 transition-colors flex items-center justify-center border-none cursor-pointer"
-                                  title="حذف هذا المصدر"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                            
-                            {item.description && (
-                              <p className="text-[10px] text-slate-300 font-normal leading-relaxed overflow-hidden font-sans mt-1 pr-2 border-r-2 border-blue-500/30">
-                                {item.description}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 text-slate-400 text-xs font-bold border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
-                      لا توجد مصادر مضافة حالياً لهذه المهمة.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </TabPanel>
-
-          <TabPanel header="💬 ملاحظات الموجه العامة">
-            <div className="space-y-4 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="p-6 bg-indigo-50/40 border-2 border-indigo-100/30 rounded-[32px] space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black">
-                     💬
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-black text-slate-800">توجيهات وملاحظات الموجه العامة للمهمة</h4>
-                    <p className="text-[10px] text-slate-400">إرشادات تخصصية وإضافات يمليها الموجه لتفادي العقبات وتسريع الفهم والتحصيل العفوي.</p>
-                  </div>
-                </div>
-
-                <textarea
-                  rows={6}
-                  className="w-full p-5 bg-white border border-indigo-100 rounded-[24px] text-sm font-bold text-indigo-950 outline-none focus:ring-4 ring-indigo-500/10 transition-all resize-y text-right"
-                  placeholder="اكتب توجيهات الموجه الخاصة بهذه المحطة، أو نصائح المذاكرة الذهبية وطرق المراجعة الشغولة الفردية..."
-                  value={localTask.mentorNotes || ""}
-                  onChange={(e) => updateField("mentorNotes", e.target.value)}
-                />
-              </div>
-            </div>
-          </TabPanel>
-
-          <TabPanel header="🎯 الأهداف والمخرجات المستهدفة للمهمة">
-            <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Outlines: goals */}
-                <div className="p-6 bg-emerald-50/40 border-2 border-emerald-100/30 rounded-[32px] space-y-3">
-                  <label className="text-xs font-black text-emerald-900 px-1 flex items-center gap-2">
-                    <span className="text-lg">🎯</span>
-                    <span>الأهداف المستهدفة للمهمة</span>
-                  </label>
-                  <p className="text-[10px] text-slate-400">ما هي الغايات والمهام الفرعية التي يسعى المتعلم لإتمامها في هذه المهمة؟</p>
-                  <textarea
-                    rows={6}
-                    className="w-full p-4 bg-white border border-emerald-150 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-emerald-500/5 transition-all resize-none text-right"
-                    placeholder="مثال:&#10;1. فهم بنية الجداول وطرق الربط بوضوح.&#10;2. تطبيق عملي لإنشاء قاعدة بيانات مصغرة.&#10;3. التمكن من صياغة استعلامات البحث الحيوية."
-                    value={localTask.taskGoals || ""}
-                    onChange={(e) => updateField("taskGoals", e.target.value)}
-                  />
-                </div>
-
-                {/* Outcomes */}
-                <div className="p-6 bg-purple-50/40 border-2 border-purple-100/30 rounded-[32px] space-y-3">
-                  <label className="text-xs font-black text-purple-900 px-1 flex items-center gap-2">
-                    <span className="text-lg">📈</span>
-                    <span>المخرجات والنتائج المتوقعة للمهمة</span>
-                  </label>
-                  <p className="text-[10px] text-slate-400">المهارات الملموسة والنتائج القابلة للقياس التي سيتقنها المتعلم بعد إتمام المهمة.</p>
-                  <textarea
-                    rows={6}
-                    className="w-full p-4 bg-white border border-purple-150 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-purple-500/5 transition-all resize-none text-right"
-                    placeholder="مثال:&#10;- القدرة على تصميم رسم تخطيطي (ERD) للمشروع بمهارة.&#10;- كتابة استعلامات JOIN دون أخطاء برمجية.&#10;- شرح المفاهيم لزميل آخر بثقة تامة."
-                    value={localTask.taskOutcomes || ""}
-                    onChange={(e) => updateField("taskOutcomes", e.target.value)}
-                  />
-                </div>
-
-              </div>
-            </div>
-          </TabPanel>
-
-          <TabPanel header="🧩 لغز المحطة والتعلم الفائق" leftIcon="pi pi-key mr-2 ml-2">
+          <TabPanel header="🧩 لغز المهمة" leftIcon="pi pi-key mr-2 ml-2">
             <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-h-[50vh] overflow-y-auto px-1">
               <div className="p-4 bg-amber-50/60 border border-amber-150/40 rounded-2xl flex items-center gap-3">
                 <span className="text-2xl">🧩</span>
                 <div>
-                  <h5 className="text-xs font-black text-amber-950">ألغاز المحطة الكبرى (The Station Riddles Engine)</h5>
+                  <h5 className="text-xs font-black text-amber-950">ألغاز المهمة وتمكين الاستيعاب الفائق (Task Riddle Engine)</h5>
                   <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
-                    من هنا يمكنك نسج تحديات ألغاز فكرية وربطها بمفاتيح كبسولات المعرفة الفائقة. لا يمكن فتح الكنز أو الكشف الكامل لروابط المصادر الخفية التابعة إلا بحل هذا التحدي الفكري المحبوك.
+                    من هنا يمكنك نسج تحديات ألغاز فكرية خاصة بهذه المهمة فقط لفتح مصادرها المعرفية الفريدة.
                   </p>
                 </div>
               </div>
@@ -711,9 +862,9 @@ export function TaskEditorModal({
                 <div className="p-6 bg-amber-50/10 border-2 border-amber-100/30 rounded-[32px] space-y-3">
                   <label className="text-xs font-black text-amber-900 px-1 flex items-center gap-2">
                     <span className="text-sm">❓</span>
-                    <span>تفاصيل ومنطوق اللغز العام للمهمة</span>
+                    <span>تفاصيل ومنطوق اللغز الخاص بهذه المهمة فقط</span>
                   </label>
-                  <p className="text-[9px] text-slate-400">اطرح سؤلاً فكرياً أو تحدياً برمجياً يحفز ذهن المستهدف للمحاولة المكررة.</p>
+                  <p className="text-[9px] text-slate-400">اطرح سؤلاً فكرياً أو تحدياً برمجياً مخصصاً لهذه المهمة.</p>
                   <textarea
                     rows={4}
                     className="w-full p-4 bg-white border border-amber-150/50 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-amber-500/5 transition-all text-right"
@@ -728,9 +879,9 @@ export function TaskEditorModal({
                   <div>
                     <label className="text-xs font-black text-teal-900 px-1 flex items-center gap-2">
                       <span className="text-sm">🔑</span>
-                      <span>كلمة المرور / حل اللغز المعتمد</span>
+                      <span>إجابة لغز المهمة المعتمدة</span>
                     </label>
-                    <p className="text-[9px] text-slate-400">الإجابة الدقيقة أو الكلمة المفتاحية التي تفك تشفير المحطة وتمنح وسام النجاح.</p>
+                    <p className="text-[9px] text-slate-400">الإجابة الدقيقة لفك تشفير تفاصيل المهمة وتخطي اللغز.</p>
                     <input
                       type="text"
                       className="w-full p-4 bg-white border border-teal-150/50 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-teal-500/5 transition-all text-right"
@@ -742,12 +893,12 @@ export function TaskEditorModal({
                   <div>
                     <label className="text-xs font-black text-amber-600 px-1 mt-2 flex items-center gap-2">
                       <span className="text-sm">💡</span>
-                      <span>تلميح اللغز العام للمهمة (Hint)</span>
+                      <span>تلميح لغز المهمة (Hint)</span>
                     </label>
                     <input
                       type="text"
                       className="w-full p-4 bg-white border border-amber-100/50 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-amber-500/5 transition-all text-right mt-1"
-                      placeholder="اكتب تلميحاً يوجه انتباه الطالب للحل دون تبسيطه المفرط..."
+                      placeholder="اكتب تلميحاً يوجه الطالب للحل..."
                       value={localTask.riddleHint || ""}
                       onChange={(e) => updateField("riddleHint", e.target.value)}
                     />
@@ -762,8 +913,8 @@ export function TaskEditorModal({
                     🔮
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-slate-800">اللغز الخفي الخاص بالمصادر الخفية</h4>
-                    <p className="text-[10px] text-slate-400">لغز إضافي مخصص للمصادر والمستندات الخفية المودعة بالخطة.</p>
+                    <h4 className="text-sm font-black text-slate-800">اللغز الخفي الخاص بالمصادر الخفية للمهمة</h4>
+                    <p className="text-[10px] text-slate-400">لغز إضافي مخصص للمصادر والمستندات الخفية المودعة بالمهمة.</p>
                   </div>
                 </div>
 
@@ -773,14 +924,14 @@ export function TaskEditorModal({
                     <textarea
                       rows={3}
                       className="w-full p-5 bg-white border border-purple-100 rounded-[24px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right resize-y"
-                      placeholder="اكتب لغز المصادر الخفية الذي يتعين على الطالب حله لرؤية المصار الكاملة الفائقة لهذه المحطة..."
+                      placeholder="اكتب لغز المصادر الخفية الذي يتعين على الطالب حله لرؤية المصار الكاملة الخاصة بهذه المهمة..."
                       value={localTask.hiddenRiddleDetails || ""}
                       onChange={(e) => updateField("hiddenRiddleDetails", e.target.value)}
                     />
                   </div>
                   <div className="space-y-3 flex flex-col justify-between">
                     <div>
-                      <label className="text-xs font-black text-slate-700 block">إجابة اللغز الخفي المعتمدة:</label>
+                      <label className="text-xs font-black text-slate-700 block">إجابة اللغز الخفي المعتمدة للمهمة:</label>
                       <input
                         type="text"
                         className="w-full p-4.5 bg-white border border-purple-100 rounded-[20px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right"
@@ -790,7 +941,7 @@ export function TaskEditorModal({
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-black text-slate-700 block mt-1">تلميح اللغز الخفي (Hint):</label>
+                      <label className="text-xs font-black text-slate-700 block mt-1">تلميح اللغز الخفي للمهمة (Hint):</label>
                       <input
                         type="text"
                         className="w-full p-4.5 bg-white border border-purple-100 rounded-[20px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right"
@@ -858,6 +1009,18 @@ export function TaskEditorModal({
           padding: 0;
         }
       `}</style>
+      {selectedSubTaskForEdit && (
+        <TaskEditorModal
+          visible={!!selectedSubTaskForEdit}
+          onHide={() => setSelectedSubTaskForEdit(null)}
+          task={selectedSubTaskForEdit}
+          onSave={async (updatedTask) => {
+            await db.tasks.put(updatedTask);
+            setSelectedSubTaskForEdit(null);
+            toast.success("تم تشييد التعديلات على خطة المراجعة بنجاح! 💾 (0 XP)");
+          }}
+        />
+      )}
     </Dialog>
   );
 }

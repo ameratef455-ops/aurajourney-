@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Dialog } from "primereact/dialog";
 import { TabView, TabPanel } from "primereact/tabview";
 import { Button } from "primereact/button";
-import { motion, AnimatePresence } from "motion/react";
 import { LAYERS } from "../constants/layers";
 import { vibrate, HAPITCS } from "../lib/haptics";
 import { GrowthTree } from "./GrowthTree";
@@ -374,14 +373,9 @@ export function GamificationSidebar({
         </div>
       }
     >
-      <AnimatePresence>
         {gamificationSidebar && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 30 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 30 }}
-            transition={{ type: "spring", damping: 22, stiffness: 300 }}
-            className="space-y-4 pt-1 text-right font-sans text-black animate-fade-in" 
+          <div 
+            className="space-y-4 pt-1 text-right font-sans text-black css-side-panel" 
             dir="rtl"
           >
             <TabView
@@ -423,10 +417,8 @@ export function GamificationSidebar({
                           <span className="bg-gradient-to-r from-blue-700 to-indigo-600 bg-clip-text text-transparent font-extrabold">{xpInCurrentLevel}/300 XP ({Math.round(xpPercent)}%)</span>
                         </div>
                         <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${xpPercent}%` }}
-                            transition={{ duration: 1, ease: "easeOut" }}
+                          <div 
+                            style={{ width: `${xpPercent}%`, transition: 'width 1s ease-out' }}
                             className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-indigo-700 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.3)]"
                           />
                         </div>
@@ -456,10 +448,8 @@ export function GamificationSidebar({
                           <span className="bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent font-extrabold">{gData.keys}/{keysTarget} مفاتيح ({Math.round(keysPercent)}%)</span>
                         </div>
                         <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${keysPercent}%` }}
-                            transition={{ duration: 1, ease: "easeOut" }}
+                          <div 
+                            style={{ width: `${keysPercent}%`, transition: 'width 1s ease-out' }}
                             className="h-full bg-gradient-to-r from-sky-500 to-blue-600 rounded-full shadow-[0_0_8px_rgba(14,165,233,0.3)]"
                           />
                         </div>
@@ -489,10 +479,8 @@ export function GamificationSidebar({
                           <span className="bg-gradient-to-r from-rose-600 to-orange-500 bg-clip-text text-transparent font-extrabold">{gData.streak || 0}/{streakTarget} يوم ({Math.round(streakPercent)}%)</span>
                         </div>
                         <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${streakPercent}%` }}
-                            transition={{ duration: 1, ease: "easeOut" }}
+                          <div 
+                            style={{ width: `${streakPercent}%`, transition: 'width 1s ease-out' }}
                             className="h-full bg-gradient-to-r from-orange-500 via-rose-550 to-red-600 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.3)]"
                           />
                         </div>
@@ -522,10 +510,8 @@ export function GamificationSidebar({
                           <span className="bg-gradient-to-r from-purple-600 to-amber-600 bg-clip-text text-transparent font-extrabold">{Math.min(100, Math.round((achievements.filter(ach => claimedAchievements.includes(ach.id)).length / achievements.length) * 100))}%</span>
                         </div>
                         <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${Math.min(100, Math.round((achievements.filter(ach => claimedAchievements.includes(ach.id)).length / achievements.length) * 100))}%` }}
-                            transition={{ duration: 1, ease: "easeOut" }}
+                          <div 
+                            style={{ width: `${Math.min(100, Math.round((achievements.filter(ach => claimedAchievements.includes(ach.id)).length / achievements.length) * 100))}%`, transition: 'width 1s ease-out' }}
                             className="h-full bg-gradient-to-r from-purple-500 via-indigo-500 to-amber-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
                           />
                         </div>
@@ -985,9 +971,8 @@ export function GamificationSidebar({
                 </div>
               </TabPanel>
             </TabView>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </Dialog>
   );
 }

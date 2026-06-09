@@ -1,7 +1,6 @@
 import React from 'react';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { Dialog } from 'primereact/dialog';
-import { motion, AnimatePresence } from 'motion/react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { Brain, Trophy, Activity, Wrench, Sparkles } from 'lucide-react';
@@ -169,13 +168,9 @@ export function ReflectionSidebar({
       <div className="bg-slate-50 p-4 rounded-3xl">
         <TabView activeIndex={reflectionActiveTab} onTabChange={(e) => setReflectionActiveTab(e.index)} className="reflection-tabs custom-spaced-tabs reflection-compact" dir="rtl">
         <TabPanel headerTemplate={createTabHeader("pi-chart-bar", "التحليلات والمؤشرات")}>
-          <AnimatePresence mode="wait">
             {reflectionSidebar && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="space-y-6 pt-6 px-2 text-right font-sans" 
+              <div 
+                className="space-y-6 pt-6 px-2 text-right font-sans css-tab-content" 
                 dir="rtl"
               >
             {/* Header intro card with visual glow */}
@@ -411,20 +406,14 @@ export function ReflectionSidebar({
               )}
 
             </div>
-
-          </motion.div>
+              </div>
             )}
-          </AnimatePresence>
         </TabPanel>
 
         <TabPanel headerTemplate={createTabHeader("pi-exclamation-triangle", "سجل التعثرات ⚠️")}>
-          <AnimatePresence mode="wait">
             {reflectionSidebar && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="pt-6 px-2 space-y-6 text-right font-sans"
+              <div 
+                className="pt-6 px-2 space-y-6 text-right font-sans css-tab-content"
                 dir="rtl"
               >
                 <div className="bg-rose-50/50 border border-rose-100 rounded-[32px] p-6 space-y-3">
@@ -474,19 +463,14 @@ export function ReflectionSidebar({
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
         </TabPanel>
 
         <TabPanel headerTemplate={createTabHeader("pi-history", "سجل المراجعات والوعي")}>
-          <AnimatePresence mode="wait">
             {reflectionSidebar && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="pt-6 px-2 space-y-6 text-right font-sans"
+              <div 
+                className="pt-6 px-2 space-y-6 text-right font-sans css-tab-content"
                 dir="rtl"
               >
                 <div className="bg-indigo-50/50 border border-indigo-100 rounded-[32px] p-6 space-y-3">
@@ -607,9 +591,8 @@ export function ReflectionSidebar({
                       </div>
                    )}
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
         </TabPanel>
       </TabView>
       </div>

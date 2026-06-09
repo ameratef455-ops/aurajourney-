@@ -7,7 +7,7 @@ import {
   parseLearningResources,
   serializeLearningResources,
 } from "../types";
-import { Plus, X, Sparkles, Youtube, FileText } from "lucide-react";
+import { Plus, X, Sparkles, Youtube, FileText, Trash2 } from "lucide-react";
 import { TabMenu } from "primereact/tabmenu";
 import { TabView, TabPanel } from "primereact/tabview";
 import { Button } from "primereact/button";
@@ -1050,6 +1050,39 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                           <p className="text-[10px] text-slate-400 line-clamp-1">
                             {t.description || "أضف وصفاً مختصراً للمهمة..."}
                           </p>
+                          
+                          {/* Display activities summary with deletion capability */}
+                          {t.activities && t.activities.length > 0 && (
+                            <div className="mt-3 space-y-1.5 border-t border-slate-50 pt-2">
+                              {t.activities.map((act: any, actIdx: number) => (
+                                <div key={act.id} className="flex items-center justify-between bg-slate-50/50 p-1.5 px-2 rounded-lg group/act">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                    <span className="text-[9px] font-bold text-slate-600 truncate max-w-[120px]">
+                                      {act.title || "نشاط جديد"}
+                                    </span>
+                                    <span className="text-[8px] text-slate-400 font-medium">({act.duration}د)</span>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      vibrate(HAPITCS.MAJOR_CLICK);
+                                      const arr = [...state.stations];
+                                      const stIdx = selectedStation;
+                                      const taskIdx = absoluteIdx;
+                                      arr[stIdx].tasks[taskIdx].activities = arr[stIdx].tasks[taskIdx].activities.filter((_: any, i: number) => i !== actIdx);
+                                      setState({ ...state, stations: arr });
+                                    }}
+                                    className="flex items-center gap-1 p-1.5 px-2 bg-white hover:bg-rose-50 text-rose-500 rounded-lg border border-rose-100 transition-all cursor-pointer shadow-sm group/del"
+                                    title="حذف هذا النشاط"
+                                  >
+                                    <Trash2 size={10} />
+                                    <span className="text-[8px] font-black">حذف</span>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
@@ -1121,6 +1154,35 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                           <h4 className="text-xs font-black text-indigo-950">
                             {t.title || "عنوان المهمة الفرعية..."}
                           </h4>
+                          
+                          {/* Display activities summary with deletion capability for sub tasks */}
+                          {t.activities && t.activities.length > 0 && (
+                            <div className="mt-2 space-y-1 bg-indigo-50/30 p-2 rounded-xl">
+                              {t.activities.map((act: any, actIdx: number) => (
+                                <div key={act.id} className="flex items-center justify-between group/subact">
+                                  <div className="flex items-center gap-1.5 overflow-hidden">
+                                    <div className="w-1 h-1 rounded-full bg-indigo-400" />
+                                    <span className="text-[8px] font-bold text-indigo-700 truncate max-w-[100px]">
+                                      {act.title || "نشاط فرعي"}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      vibrate(HAPITCS.MAJOR_CLICK);
+                                      const arr = [...state.stations];
+                                      arr[selectedStation].tasks[absoluteIdx].activities = arr[selectedStation].tasks[absoluteIdx].activities.filter((_: any, i: number) => i !== actIdx);
+                                      setState({ ...state, stations: arr });
+                                    }}
+                                    className="flex items-center gap-1 p-1 px-1.5 bg-white hover:bg-rose-50 text-rose-500 rounded-lg border border-rose-100 transition-all cursor-pointer shadow-sm group/subdel"
+                                  >
+                                    <Trash2 size={9} />
+                                    <span className="text-[7px] font-black">حذف</span>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button

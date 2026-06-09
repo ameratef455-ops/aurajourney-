@@ -10,7 +10,6 @@ import { ConfirmPopup, confirmPopup } from "primereact/confirmpopup";
 import { Toast } from "primereact/toast";
 import { Calendar } from "primereact/calendar";
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import confetti from 'canvas-confetti';
 import { ListChecks, Target, Trophy, Clock, Plus, Trash2, ChevronRight, ChevronDown, CheckCircle2, Circle, Edit2, MoreVertical, Info, Briefcase, Sparkles } from "lucide-react";
 import { LAYERS } from "../constants/layers";
@@ -554,11 +553,8 @@ export function EvaluationSidebar({
         modal={true}
         baseZIndex={LAYERS.EVALUATION_LOG}
       >
-        <motion.div 
-          initial={{ opacity: 0, y: 20, scale: 0.99 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col h-[85vh] md:h-[70vh] mb-0 mx-2 md:mx-auto bg-slate-50/100 rounded-t-[2.5rem] md:rounded-[2.5rem] overflow-hidden border border-white/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] relative" 
+        <div 
+          className="flex flex-col h-[85vh] md:h-[70vh] mb-0 mx-2 md:mx-auto bg-slate-50/100 rounded-t-[2.5rem] md:rounded-[2.5rem] overflow-hidden border border-white/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] relative css-side-panel" 
           dir="rtl"
         >
           {/* Header */}
@@ -583,10 +579,8 @@ export function EvaluationSidebar({
           <div className="flex-1 overflow-y-auto px-4 py-6 bg-white">
             <TabView className="custom-evaluation-tabs">
               <TabPanel header="" leftIcon={<Target className="w-5 h-5" />}>
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4 pt-4"
+                <div 
+                  className="space-y-4 pt-4 css-tab-content"
                 >
                   {mainTasks.length > 0 ? mainTasks.map((task) => {
                     const station = stations.find(s => s.id === task.stationId);
@@ -605,14 +599,12 @@ export function EvaluationSidebar({
                       />
                     );
                   }) : <EmptyState message="لا توجد مهام رئيسية حالياً" />}
-                </motion.div>
+                </div>
               </TabPanel>
 
               <TabPanel header="" leftIcon={<Clock className="w-5 h-5" />}>
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4 pt-4"
+                <div 
+                  className="space-y-4 pt-4 css-tab-content"
                 >
                   {sideTasks.length > 0 ? sideTasks.map((task) => {
                     const station = stations.find(s => s.id === task.stationId);
@@ -631,14 +623,12 @@ export function EvaluationSidebar({
                       />
                     );
                   }) : <EmptyState message="لا توجد مهام جانبية حالياً" />}
-                </motion.div>
+                </div>
               </TabPanel>
 
               <TabPanel header="" leftIcon={<ListChecks className="w-5 h-5" />}>
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4 pt-4"
+                <div 
+                  className="space-y-4 pt-4 css-tab-content"
                 >
                   {subTasks.length > 0 ? subTasks.map((task) => {
                     const station = stations.find(s => s.id === task.stationId);
@@ -659,14 +649,12 @@ export function EvaluationSidebar({
                       />
                     );
                   }) : <EmptyState message="لا توجد مهام فرعية حالياً" />}
-                </motion.div>
+                </div>
               </TabPanel>
 
               <TabPanel header="" leftIcon={<Briefcase className="w-5 h-5" />}>
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4 pt-4"
+                <div 
+                  className="space-y-4 pt-4 css-tab-content"
                 >
                   {/* Part 1: Standalone custom practical tasks */}
                   {practicalTasks.length > 0 && (
@@ -733,11 +721,11 @@ export function EvaluationSidebar({
                       )}
                     </div>
                   ) : (practicalTasks.length === 0 ? <EmptyState message="لا توجد مهام تطبيقية حالياً" /> : null)}
-                </motion.div>
+                </div>
               </TabPanel>
             </TabView>
           </div>
-        </motion.div>
+        </div>
 
         <style>{`
           .custom-evaluation-tabs .p-tabview-nav {
@@ -1178,30 +1166,13 @@ function ActivityNode({ node, onToggle, onDelete, onEdit, onAddSub, isPostponeMo
                 : (node.isCompleted ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-white border border-slate-200 text-slate-300 group-hover:bg-slate-50')
             }`}
           >
-            <AnimatePresence mode="wait">
-              {isPostponeMode ? (
-                isSelectedForPostpone ? (
-                  <motion.div
-                    key="selected"
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.5, opacity: 0 }}
-                  >
-                    <CheckCircle2 className="w-5 h-5" />
-                  </motion.div>
-                ) : null
-              ) : (
-                  <motion.div
-                    key={node.isCompleted ? 'completed' : 'pending'}
-                    initial={{ scale: 0.5, rotate: -45, opacity: 0 }}
-                    animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                    exit={{ scale: 0.5, opacity: 0 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-                  >
-                    {node.isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                  </motion.div>
-              )}
-            </AnimatePresence>
+            {isPostponeMode ? (
+              isSelectedForPostpone ? (
+                <CheckCircle2 className="w-5 h-5 transition-transform duration-200" />
+              ) : null
+            ) : (
+                node.isCompleted ? <CheckCircle2 className="w-5 h-5 transition-transform duration-200" /> : <Circle className="w-5 h-5 transition-transform duration-200" />
+            )}
           </button>
           
           {node.children && node.children.length > 0 && (
