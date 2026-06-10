@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VIA</title>
+    <link rel="icon" type="image/svg+xml" href="/viahub/pwa-icon.svg" />
+    <link rel="apple-touch-icon" href="/viahub/pwa-icon.svg" />
+    <link rel="manifest" href="/viahub/manifest.json" />
+    <meta name="theme-color" content="#091024" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+            .catch(err => console.error('Service Worker registration failed:', err));
+        });
+      }
+    </script>
+    <script type="module" crossorigin src="/viahub/assets/index-Ny3V_F8F.js"></script>
+    <link rel="stylesheet" crossorigin href="/viahub/assets/index-Cu__C-TK.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+
