@@ -5,6 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: '/viahub/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
