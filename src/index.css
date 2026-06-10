@@ -436,7 +436,7 @@ body {
     background: linear-gradient(to bottom right, #0a0f24, #111827, #1e1b4b) !important;
     background-size: cover !important;
     color: #f8fafc !important;
-    border-right: 1px solid rgba(99, 102, 241, 0.2) !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 .custom-left-sidebar .p-sidebar-header,

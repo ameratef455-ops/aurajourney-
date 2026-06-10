@@ -341,7 +341,7 @@ export function GamificationSidebar({
     });
 
     hotToast.custom((t) => (
-      <div className={`p-5 bg-slate-900 border border-purple-500 rounded-3xl flex flex-col gap-2 max-w-sm text-right text-white shadow-2xl ${t.visible ? 'animate-in fade-in zoom-in-95' : 'animate-out fade-out'}`} dir="rtl">
+      <div className={`p-5 bg-slate-900 border border-purple-500 rounded-3xl flex flex-col gap-2 max-w-sm text-right text-white shadow-2xl ${t.visible ? 'animate-in fade-in zoom-in-95' : 'animate-out'}`} dir="rtl">
         <div className="flex items-center gap-3">
           <span className="text-3xl">🧪</span>
           <div>
@@ -361,23 +361,49 @@ export function GamificationSidebar({
       onHide={() => setGamificationSidebar(false)}
       className="font-sans"
       style={{ borderRadius: '28px' }}
-      maskClassName="backdrop-blur-md bg-blue-950/20"
+      maskClassName="backdrop-blur-md bg-blue-950/40"
       closable
       dismissableMask
       header={
-        <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
-          <div className="p-2 bg-gradient-to-br from-blue-900 to-indigo-950 rounded-xl border border-blue-900 shadow-sm">
+        <div className="flex items-center gap-3 text-white font-black pr-4 text-2xl font-sans" dir="rtl">
+          <div className="p-2 bg-white/10 rounded-xl border border-white/20 shadow-sm animate-pulse">
             <i className="pi pi-trophy text-white text-lg"></i>
           </div>
-          <span className="font-black text-black tracking-tight">المحرك وجوائز الأداء 🏆</span>
+          <span className="font-black text-white tracking-tight">المحرك وجوائز الأداء 🏆</span>
         </div>
       }
+      headerStyle={{ 
+        background: 'var(--blue-dark)', 
+        color: '#ffffff', 
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)', 
+        padding: '24px' 
+      }}
+      contentStyle={{ 
+        background: 'var(--gradient-main)', 
+        color: '#ffffff', 
+        padding: '24px' 
+      }}
     >
         {gamificationSidebar && (
           <div 
-            className="space-y-4 pt-1 text-right font-sans text-black css-side-panel" 
+            className="space-y-4 pt-1 text-right font-sans text-white css-side-panel" 
             dir="rtl"
           >
+            <style>{`
+              /* Make PrimeReact TabView navigation links visible & readable on dark bg */
+              .custom-spaced-tabs .p-tabview-nav-link {
+                color: rgba(255, 255, 255, 0.6) !important;
+              }
+              .custom-spaced-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+                color: #ffffff !important;
+                border-bottom-color: #3b82f6 !important;
+              }
+              .custom-spaced-tabs .p-tabview-panels {
+                background: transparent !important;
+                border: none !important;
+                color: #ffffff !important;
+              }
+            `}</style>
             <TabView
               activeIndex={gamificationActiveTab}
               onTabChange={(e) => setGamificationActiveTab(e.index)}
@@ -395,124 +421,124 @@ export function GamificationSidebar({
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     
                     {/* XP Card - Deep Ocean Blue */}
-                    <div className="bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-6 rounded-3xl border border-blue-200/60 shadow-[0_12px_28px_-4px_rgba(59,130,246,0.06)] flex flex-col justify-between hover:shadow-lg hover:scale-[1.01] transition-all duration-300">
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-3xl shadow-[0_12px_28px_-4px_rgba(59,130,246,0.1)] flex flex-col justify-between hover:border-blue-500/35 hover:bg-white/8 hover:scale-[1.01] transition-all duration-300">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-900 to-indigo-950 flex items-center justify-center shadow-md border border-blue-800">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-900 to-indigo-950 flex items-center justify-center shadow-md border border-white/10">
                             <span className="text-2xl select-none">🪙</span>
                           </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">نقاط الخبرة الكلية</p>
-                            <div className="text-4xl font-extrabold bg-gradient-to-br from-blue-700 via-indigo-700 to-indigo-900 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
-                              {gData.xp} <span className="text-xs font-black text-indigo-500 font-sans">XP</span>
+                            <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">نقاط الخبرة الكلية</p>
+                            <div className="text-4xl font-extrabold bg-gradient-to-r from-blue-300 via-sky-300 to-indigo-300 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
+                              {gData.xp} <span className="text-xs font-black text-indigo-300 font-sans">XP</span>
                             </div>
                           </div>
                         </div>
-                        <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full select-none shadow-xs">المستوى {Math.floor(gData.xp / 300) + 1}</span>
+                        <span className="text-[10px] font-black text-indigo-300 bg-indigo-950/45 border border-indigo-500/25 px-3 py-1 rounded-full select-none shadow-xs">المستوى {Math.floor(gData.xp / 300) + 1}</span>
                       </div>
                       
                       <div className="space-y-2 mt-2">
-                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-300">
                           <span>طريق الترقية للمستوى التالي</span>
-                          <span className="bg-gradient-to-r from-blue-700 to-indigo-600 bg-clip-text text-transparent font-extrabold">{xpInCurrentLevel}/300 XP ({Math.round(xpPercent)}%)</span>
+                          <span className="text-blue-300 font-extrabold">{xpInCurrentLevel}/300 XP ({Math.round(xpPercent)}%)</span>
                         </div>
-                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
+                        <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/5">
                           <div 
                             style={{ width: `${xpPercent}%`, transition: 'width 1s ease-out' }}
-                            className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-indigo-700 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.3)]"
+                            className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-indigo-700 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Keys Card - Electric Blue */}
-                    <div className="bg-gradient-to-br from-cyan-50 via-white to-blue-50 p-6 rounded-3xl border border-sky-200/60 shadow-[0_12px_28px_-4px_rgba(14,165,233,0.06)] flex flex-col justify-between hover:shadow-lg hover:scale-[1.01] transition-all duration-300">
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-3xl shadow-[0_12px_28px_-4px_rgba(14,165,233,0.1)] flex flex-col justify-between hover:border-sky-400/35 hover:bg-white/8 hover:scale-[1.01] transition-all duration-300">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-800 to-sky-900 flex items-center justify-center shadow-md border border-blue-700">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-800 to-sky-900 flex items-center justify-center shadow-md border border-white/10">
                             <span className="text-2xl select-none">🔑</span>
                           </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">مفاتيح التركيز الحالية</p>
-                            <div className="text-4xl font-extrabold bg-gradient-to-br from-sky-500 via-cyan-600 to-blue-700 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
-                              {gData.keys} <span className="text-xs font-black text-sky-500 font-sans">مفاتيح</span>
+                            <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">مفاتيح التركيز الحالية</p>
+                            <div className="text-4xl font-extrabold bg-gradient-to-r from-sky-400 via-cyan-350 to-blue-350 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
+                              {gData.keys} <span className="text-xs font-black text-sky-400 font-sans">مفاتيح</span>
                             </div>
                           </div>
                         </div>
-                        <span className="text-[10px] font-black text-sky-700 bg-sky-50 border border-sky-100 px-3 py-1 rounded-full select-none shadow-xs">رصيد الفك</span>
+                        <span className="text-[10px] font-black text-sky-300 bg-sky-950/45 border border-sky-500/25 px-3 py-1 rounded-full select-none shadow-xs">رصيد الفك</span>
                       </div>
                       
                       <div className="space-y-2 mt-2">
-                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-300">
                           <span>الهدف لفتح المحطات القادمة</span>
-                          <span className="bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent font-extrabold">{gData.keys}/{keysTarget} مفاتيح ({Math.round(keysPercent)}%)</span>
+                          <span className="text-sky-300 font-extrabold">{gData.keys}/{keysTarget} مفاتيح ({Math.round(keysPercent)}%)</span>
                         </div>
-                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
+                        <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/5">
                           <div 
                             style={{ width: `${keysPercent}%`, transition: 'width 1s ease-out' }}
-                            className="h-full bg-gradient-to-r from-sky-500 to-blue-600 rounded-full shadow-[0_0_8px_rgba(14,165,233,0.3)]"
+                            className="h-full bg-gradient-to-r from-sky-500 to-blue-600 rounded-full shadow-[0_0_8px_rgba(14,165,233,0.6)]"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Streak Card - Royal Cobalt Blue */}
-                    <div className="bg-gradient-to-br from-indigo-50 via-white to-rose-50 p-6 rounded-3xl border border-indigo-200/60 shadow-[0_12px_28px_-4px_rgba(139,92,246,0.06)] flex flex-col justify-between hover:shadow-lg hover:scale-[1.01] transition-all duration-300">
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-3xl shadow-[0_12px_28px_-4px_rgba(244,63,94,0.1)] flex flex-col justify-between hover:border-rose-450/35 hover:bg-white/8 hover:scale-[1.01] transition-all duration-300">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-950 via-amber-955 to-orange-955 flex items-center justify-center shadow-md border border-orange-850">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-950 via-amber-955 to-orange-955 flex items-center justify-center shadow-md border border-white/10">
                             <span className="text-2xl select-none">🔥</span>
                           </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">عدد الأيام المتواصلة</p>
-                            <div className="text-4xl font-extrabold bg-gradient-to-br from-orange-500 via-rose-500 to-red-650 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
-                              {gData.streak || 0} <span className="text-xs font-black text-rose-500 font-sans">يوم</span>
+                            <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">عدد الأيام المتواصلة</p>
+                            <div className="text-4xl font-extrabold bg-gradient-to-r from-orange-400 via-rose-350 to-red-400 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
+                              {gData.streak || 0} <span className="text-xs font-black text-rose-400 font-sans">يوم</span>
                             </div>
                           </div>
                         </div>
-                        <span className="text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-100 px-3 py-1 rounded-full select-none shadow-xs">الستريك الحالي</span>
+                        <span className="text-[10px] font-black text-rose-300 bg-rose-950/45 border border-rose-500/25 px-3 py-1 rounded-full select-none shadow-xs">الستريك الحالي</span>
                       </div>
                       
                       <div className="space-y-2 mt-2">
-                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-300">
                           <span>الهدف الشهري للالتزام</span>
-                          <span className="bg-gradient-to-r from-rose-600 to-orange-500 bg-clip-text text-transparent font-extrabold">{gData.streak || 0}/{streakTarget} يوم ({Math.round(streakPercent)}%)</span>
+                          <span className="text-rose-300 font-extrabold">{gData.streak || 0}/{streakTarget} يوم ({Math.round(streakPercent)}%)</span>
                         </div>
-                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
+                        <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/5">
                           <div 
                             style={{ width: `${streakPercent}%`, transition: 'width 1s ease-out' }}
-                            className="h-full bg-gradient-to-r from-orange-500 via-rose-550 to-red-600 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.3)]"
+                            className="h-full bg-gradient-to-r from-orange-500 via-rose-550 to-red-600 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)]"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Medals Collection Card - Warm Lavender and Amber */}
-                    <div className="bg-gradient-to-br from-purple-50 via-white to-amber-50 p-6 rounded-3xl border border-purple-200/60 shadow-[0_12px_28px_-4px_rgba(168,85,247,0.06)] flex flex-col justify-between hover:shadow-lg hover:scale-[1.01] transition-all duration-350">
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-3xl shadow-[0_12px_28px_-4px_rgba(168,85,247,0.1)] flex flex-col justify-between hover:border-purple-450/35 hover:bg-white/8 hover:scale-[1.01] transition-all duration-350">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-800 to-indigo-950 flex items-center justify-center shadow-md border border-purple-700">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-800 to-indigo-950 flex items-center justify-center shadow-md border border-white/10">
                             <span className="text-2xl select-none">🏅</span>
                           </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">معدل اكتمال خزانة الأوسمة</p>
-                            <div className="text-4xl font-extrabold bg-gradient-to-br from-purple-600 via-indigo-650 to-amber-600 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
-                              {achievements.filter(ach => claimedAchievements.includes(ach.id)).length}/{achievements.length} <span className="text-xs font-black text-purple-500 font-sans">وسام</span>
+                            <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">معدل اكتمال خزانة الأوسمة</p>
+                            <div className="text-4xl font-extrabold bg-gradient-to-r from-purple-400 via-indigo-305 to-amber-400 bg-clip-text text-transparent font-sans tracking-tight leading-none mt-1">
+                              {achievements.filter(ach => claimedAchievements.includes(ach.id)).length}/{achievements.length} <span className="text-xs font-black text-purple-400 font-sans">وسام</span>
                             </div>
                           </div>
                         </div>
-                        <span className="text-[10px] font-black text-purple-700 bg-purple-50 border border-purple-100 px-3 py-1 rounded-full select-none shadow-xs">خزانة الأوسمة</span>
+                        <span className="text-[10px] font-black text-purple-300 bg-purple-950/45 border border-purple-500/25 px-3 py-1 rounded-full select-none shadow-xs">خزانة الأوسمة</span>
                       </div>
                       
                       <div className="space-y-2 mt-2">
-                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-300">
                           <span>نسبة حيازة شارات الفخر والامتياز</span>
-                          <span className="bg-gradient-to-r from-purple-600 to-amber-600 bg-clip-text text-transparent font-extrabold">{Math.min(100, Math.round((achievements.filter(ach => claimedAchievements.includes(ach.id)).length / achievements.length) * 100))}%</span>
+                          <span className="text-purple-300 font-extrabold">{Math.min(100, Math.round((achievements.filter(ach => claimedAchievements.includes(ach.id)).length / achievements.length) * 100))}%</span>
                         </div>
-                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/20">
+                        <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/5">
                           <div 
                             style={{ width: `${Math.min(100, Math.round((achievements.filter(ach => claimedAchievements.includes(ach.id)).length / achievements.length) * 100))}%`, transition: 'width 1s ease-out' }}
-                            className="h-full bg-gradient-to-r from-purple-500 via-indigo-500 to-amber-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
+                            className="h-full bg-gradient-to-r from-purple-500 via-indigo-500 to-amber-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.6)]"
                           />
                         </div>
                       </div>
@@ -545,27 +571,27 @@ export function GamificationSidebar({
                           key={ach.id} 
                           className={`p-5 rounded-3xl border transition-all duration-350 flex items-center justify-between group relative overflow-hidden ${
                             isClaimed 
-                              ? "bg-slate-50/70 border-slate-200" 
+                              ? "bg-white/5 border-white/5 opacity-60 text-slate-300" 
                               : isCompleted 
-                              ? "bg-gradient-to-br from-emerald-50/20 via-white to-indigo-50/10 border-emerald-200 shadow-sm hover:shadow-md" 
-                              : "bg-white border-slate-100"
+                              ? "bg-gradient-to-br from-emerald-950/40 via-emerald-900/30 to-blue-950/20 border-emerald-500/50 shadow-md shadow-emerald-500/5 hover:border-emerald-450" 
+                              : "bg-white/5 border-white/10 hover:bg-white/8 hover:border-indigo-500/30"
                           }`}
                         >
                           <div className="flex items-center gap-4">
                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg shadow-2xs border ${
                               isClaimed 
-                                ? "bg-slate-100 border-slate-200 text-slate-400" 
+                                ? "bg-white/5 border-white/10 text-slate-500 animate-none" 
                                 : isCompleted 
-                                ? "bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-emerald-400" 
-                                : "bg-slate-50 text-slate-350 border-slate-100"
+                                ? "bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-emerald-400 shadow-lg shadow-emerald-500/20 animate-pulse" 
+                                : "bg-white/5 text-slate-400 border-white/10"
                             }`}>
                               <i className={`pi ${ach.icon}`} />
                             </div>
                             <div className="space-y-0.5">
-                              <span className={`font-black text-sm block ${isClaimed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                              <span className={`font-black text-sm block ${isClaimed ? 'text-slate-500 line-through' : 'text-white'}`}>
                                 {ach.title}
                               </span>
-                              <p className="text-[11px] text-slate-400 font-light max-w-sm leading-snug">
+                              <p className={`text-[11px] font-light max-w-sm leading-snug ${isClaimed ? 'text-slate-500' : 'text-slate-300'}`}>
                                 {ach.description}
                               </p>
                             </div>
@@ -574,22 +600,22 @@ export function GamificationSidebar({
                           <div className="shrink-0 flex flex-col items-end gap-2">
                             <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
                               isClaimed 
-                                ? "bg-slate-100 text-slate-400" 
+                                ? "bg-white/5 text-slate-500 border border-white/5" 
                                 : isCompleted 
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
-                                : "bg-indigo-50/50 text-indigo-600 border border-indigo-100"
+                                ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30" 
+                                : "bg-indigo-950/40 text-indigo-300 border border-indigo-500/20"
                             }`}>
                               {ach.rewardText}
                             </span>
 
                             {isClaimed ? (
-                              <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                              <span className="text-[10px] text-slate-550 font-bold flex items-center gap-1">
                                 <i className="pi pi-check text-[8px]" /> تم الاستلام
                               </span>
                             ) : isCompleted ? (
                               <Button
                                 label="استلم المكافأة 🎁"
-                                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded-xl border-none text-[10px] cursor-pointer shadow-sm active:scale-95 transition-all text-center"
+                                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded-xl border-none text-[10px] cursor-pointer shadow-md active:scale-95 transition-all text-center"
                                 onClick={() => handleClaimAchievement(ach)}
                               />
                             ) : (
@@ -612,33 +638,33 @@ export function GamificationSidebar({
                     <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-600 to-indigo-800 text-white flex items-center justify-center text-3xl shadow-lg mb-4 animate-bounce">
                       🔮
                     </div>
-                    <h3 className="font-extrabold text-slate-900 text-xl">صندوق طالع السعي اليومي ونبوءة العزم</h3>
-                    <p className="text-xs text-slate-400 mt-2 max-w-sm">
+                    <h3 className="font-extrabold text-white text-xl">صندوق طالع السعي اليومي ونبوءة العزم</h3>
+                    <p className="text-xs text-slate-300 mt-2 max-w-sm">
                       انقر مرة واحدة كل 24 ساعة لكشف طالع نجاحك اليومي، وتلقّي التحدي الفكري الخاص بك واحصل على فوز ممتد كلياً بمقدار **+25 XP** كهدية عزم!
                     </p>
 
                     <div className="mt-8 w-full">
                       {alreadyClaimedOracle ? (
                         <div className="space-y-4">
-                          <div className="p-6 rounded-3xl bg-slate-50 border border-slate-150 text-right space-y-3">
-                            <span className="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-100 font-extrabold px-2.5 py-1 rounded-full">نبوءة اليوم المستكشفة 🌟</span>
-                            <blockquote className="text-sm font-bold text-slate-700 leading-relaxed italic">
+                          <div className="p-6 rounded-3xl bg-white/5 border border-white/10 text-white text-right space-y-3">
+                            <span className="text-[9px] bg-indigo-950/40 text-indigo-300 border border-indigo-500/20 font-extrabold px-2.5 py-1 rounded-full inline-block">نبوءة اليوم المستكشفة 🌟</span>
+                            <blockquote className="text-sm font-bold text-slate-200 leading-relaxed italic mt-2">
                               &quot;{activeOracleQuote?.text || "التركيز ليس مجرد عمل، بل هو صلاة السعي الشمولية تجاه حلمك الأكبر."}&quot;
                             </blockquote>
-                            <div className="border-t border-slate-100 pt-3 flex flex-col gap-1.5">
-                              <span className="text-[10px] font-black text-emerald-600">🎯 تحدي اليوم المقترح:</span>
-                              <span className="text-xs font-semibold text-slate-600">{activeOracleQuote?.challenge || "أنجز إحدى المهام الرئيسية لتثبت جدارتك واستحقاقك العملي!"}</span>
+                            <div className="border-t border-white/10 pt-3 flex flex-col gap-1.5">
+                              <span className="text-[10px] font-black text-emerald-400">🎯 تحدي اليوم المقترح:</span>
+                              <span className="text-xs font-semibold text-slate-300">{activeOracleQuote?.challenge || "أنجز إحدى المهام الرئيسية لتثبت جدارتك واستحقاقك العملي!"}</span>
                             </div>
                           </div>
                           
-                          <div className="bg-indigo-50/30 text-indigo-700 border border-indigo-100/30 p-4 rounded-2xl flex items-center justify-center gap-2 text-xs font-black">
+                          <div className="bg-indigo-950/30 text-indigo-300 border border-indigo-500/10 p-4 rounded-2xl flex items-center justify-center gap-2 text-xs font-black">
                             <i className="pi pi-clock-circle" /> لقد كشفت طالع اليوم مسبقاً! عود غداً لمعرفة نبوءتك القادمة والمطالبة بالجائزة.
                           </div>
                         </div>
                       ) : (
                         <Button
                           label="أكشف نبوءة طالع اليوم واحصل على +25 XP! 🔮"
-                          className="w-full bg-gradient-to-r from-purple-700 via-indigo-700 to-blue-800 text-white font-extrabold py-4 px-6 rounded-2xl border-none shadow-md shadow-purple-600/20 hover:brightness-110 active:scale-95 transition-all text-xs outline-none cursor-pointer"
+                          className="w-full bg-gradient-to-r from-purple-700 via-indigo-700 to-blue-800 text-white font-extrabold py-4 px-6 rounded-2xl border-none shadow-md shadow-purple-650/20 hover:brightness-110 active:scale-95 transition-all text-xs outline-none cursor-pointer"
                           onClick={handleRevealOracle}
                         />
                       )}
@@ -681,33 +707,33 @@ export function GamificationSidebar({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     
                     {/* Option 1: 5 Keys */}
-                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-blue-100 hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
+                    <div className="bg-white/5 p-5 rounded-3xl border border-white/10 shadow-sm hover:border-blue-500/35 hover:bg-white/8 hover:scale-[1.02] hover:shadow-md transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/[0.02] rounded-full blur-2xl" />
                       <div className="space-y-4">
-                        <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+                        <div className="flex justify-between items-center border-b border-white/10 pb-3">
                           <div className="flex items-center gap-2">
-                             <div className="w-10 h-10 rounded-xl bg-blue-400/5 border border-blue-300/10 flex items-center justify-center text-lg shadow-3xs select-none">🧠</div>
+                             <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-lg shadow-3xs select-none">🧠</div>
                             <div>
-                              <span className="font-black text-slate-800 text-sm block">حزمة مبتدئ للتركيز</span>
-                              <span className="text-[9px] text-slate-400 font-extrabold uppercase">الباقة البسيطة</span>
+                              <span className="font-black text-white text-sm block">حزمة مبتدئ للتركيز</span>
+                              <span className="text-[9px] text-slate-350 font-extrabold uppercase">الباقة البسيطة</span>
                             </div>
                           </div>
-                          <span className="text-xs font-black text-blue-600 bg-blue-50/80 border border-blue-100 px-3 py-1 rounded-xl">5 مفاتيح</span>
+                          <span className="text-xs font-black text-blue-300 bg-blue-950/45 border border-blue-500/25 px-3 py-1 rounded-xl">5 مفاتيح</span>
                         </div>
-                        <p className="text-xs text-slate-500 font-light leading-relaxed">
+                        <p className="text-xs text-slate-305 font-light leading-relaxed">
                           خيار مرن وسريع يمنحك 5 مفاتيح تركيز فورا لفك قفل المحطة أو الأقسام الجزئية في رحلتك الدافعة بنقاط مقدور عليها.
                         </p>
                       </div>
 
-                      <div className="mt-6 pt-3 border-t border-slate-50 flex flex-col gap-3">
+                      <div className="mt-6 pt-3 border-t border-white/10 flex flex-col gap-3">
                         <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
                           <span>تكلفة المبادلة</span>
-                          <span className="text-blue-700 font-extrabold">60 XP</span>
+                          <span className="text-blue-300 font-extrabold">60 XP</span>
                         </div>
                         <Button
                           label={`مقايضة: 5 مفاتيح بـ 60 XP`}
                           icon="pi pi-sync"
-                          className="w-full justify-center py-3.5 rounded-2xl font-black bg-slate-100 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white text-slate-700 border border-slate-120 hover:border-transparent transition-all text-xs outline-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-3xs group-hover:border-blue-200/50"
+                          className="w-full justify-center py-3.5 rounded-2xl font-black bg-white/10 hover:bg-gradient-to-r hover:from-blue-500 hover:to-indigo-500 text-white border border-white/10 hover:border-transparent transition-all text-xs outline-none cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed shadow-md shadow-indigo-600/5"
                           disabled={gData.xp < 60}
                           onClick={() => {
                             vibrate(HAPITCS.MAJOR_CLICK);
@@ -718,29 +744,29 @@ export function GamificationSidebar({
                     </div>
 
                     {/* Option 2: 10 Keys */}
-                    <div className="bg-white p-5 rounded-3xl border-2 border-indigo-100 bg-indigo-50/5 shadow-sm hover:shadow-lg hover:border-indigo-300 hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
+                    <div className="bg-gradient-to-br from-indigo-950/60 to-blue-950/40 p-5 rounded-3xl border-2 border-indigo-500/50 shadow-md hover:shadow-lg hover:border-indigo-400 hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
                       <div className="absolute top-0 right-1 w-24 h-24 bg-indigo-500/[0.04] rounded-full blur-2xl" />
                       <div className="absolute top-3 left-3 bg-gradient-to-r from-indigo-600 to-blue-700 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full shadow-sm">المميزة والأقوى ⭐</div>
                       <div className="space-y-4">
-                        <div className="flex justify-between items-center border-b border-indigo-50/50 pb-3">
+                        <div className="flex justify-between items-center border-b border-indigo-500/20 pb-3">
                           <div className="flex items-center gap-2">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-lg shadow-3xs select-none">⚡</div>
+                            <div className="w-10 h-10 rounded-xl bg-indigo-900/20 border border-indigo-500/30 flex items-center justify-center text-lg shadow-3xs select-none">⚡</div>
                             <div>
-                              <span className="font-black text-indigo-950 text-sm block">الحزمة القياسية الكبرى</span>
-                              <span className="text-[9px] text-indigo-400 font-extrabold uppercase">التبادل الأقصى</span>
+                              <span className="font-black text-white text-sm block">الحزمة القياسية الكبرى</span>
+                              <span className="text-[9px] text-indigo-305 font-extrabold uppercase">التبادل الأقصى</span>
                             </div>
                           </div>
-                          <span className="text-xs font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-xl">10 مفاتيح</span>
+                          <span className="text-xs font-black text-indigo-300 bg-indigo-900/40 border border-indigo-500/30 px-3 py-1 rounded-xl">10 مفاتيح</span>
                         </div>
-                        <p className="text-xs text-slate-500 font-light leading-relaxed">
+                        <p className="text-xs text-slate-305 font-light leading-relaxed">
                           القيمة الموفرة والأمثل لك، تمنحك 10 مفاتيح تركيز كدفعة واحدة تتيح لك حرية التنقل وفتح محطات متكاملة وجانبية فورا.
                         </p>
                       </div>
 
-                      <div className="mt-6 pt-3 border-t border-indigo-50 flex flex-col gap-3">
+                      <div className="mt-6 pt-3 border-t border-indigo-500/20 flex flex-col gap-3">
                         <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
                           <span>تكلفة المبادلة</span>
-                          <span className="text-indigo-900 font-bold">120 XP (دون زيادة)</span>
+                          <span className="text-indigo-300 font-bold">120 XP (دون زيادة)</span>
                         </div>
                         <Button
                           label={`مقايضة: 10 مفاتيح بـ 120 XP`}
@@ -758,29 +784,29 @@ export function GamificationSidebar({
                   </div>
 
                   {/* Capsules Store Section */}
-                  <div className="border-t border-slate-100 pt-8 mt-8 space-y-6">
+                  <div className="border-t border-white/10 pt-8 mt-8 space-y-6">
                     <div className="flex items-center gap-2">
                       <span className="text-xl">💊</span>
-                      <h4 className="font-extrabold text-slate-900 text-lg">صيدلية السعي والكبسولات الذهنية 🧪</h4>
+                      <h4 className="font-extrabold text-white text-lg">صيدلية السعي والكبسولات الذهنية 🧪</h4>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       
                       {/* Capsule 1: focusClarity */}
-                      <div className="bg-gradient-to-br from-indigo-50/20 via-white to-blue-50/20 p-5 rounded-3xl border border-blue-100/60 shadow-xs flex flex-col justify-between hover:shadow-md transition-all divide-y divide-slate-50">
+                      <div className="bg-white/5 p-5 rounded-3xl border border-white/10 shadow-xs flex flex-col justify-between hover:border-blue-450/45 hover:bg-white/10 hover:shadow-md transition-all divide-y divide-white/10">
                         <div>
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-2 pb-2">
                             <span className="text-2xl">🧘‍♂️</span>
-                            <span className="font-black text-slate-800 text-xs text-right">كبسولة صفاء الذهن</span>
+                            <span className="font-black text-white text-xs text-right">كبسولة صفاء الذهن</span>
                           </div>
-                          <p className="text-[10px] text-slate-400 font-bold leading-relaxed mb-3 font-sans">
+                          <p className="text-[10px] text-slate-300 font-bold leading-relaxed mb-3 font-sans">
                             تضمن الكبسولة وضع درع حماية لتجميد الستريك (السلسلة) تلقائياً لمدة 48 ساعة متواصلة لحمايتها كلياً من الانقطاع حتى لو لم تسجل حضوراً.
                           </p>
                         </div>
                         <div className="className-wrapper pt-3 mt-auto flex flex-col gap-2">
                           <div className="flex justify-between items-center text-[9px] font-bold">
                             <span className="text-slate-400">التكلفة</span>
-                            <span className="text-indigo-600">100 XP</span>
+                            <span className="text-indigo-300 font-extrabold">100 XP</span>
                           </div>
                           <Button 
                             label="شراء الكبسولة 🪙" 
@@ -792,20 +818,20 @@ export function GamificationSidebar({
                       </div>
 
                       {/* Capsule 2: hyperLearning */}
-                      <div className="bg-gradient-to-br from-purple-50/20 via-white to-pink-50/20 p-5 rounded-3xl border border-purple-100/60 shadow-xs flex flex-col justify-between hover:shadow-md transition-all divide-y divide-slate-50">
+                      <div className="bg-white/5 p-5 rounded-3xl border border-white/10 shadow-xs flex flex-col justify-between hover:border-purple-450/45 hover:bg-white/10 hover:shadow-md transition-all divide-y divide-white/10">
                         <div>
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-2 pb-2">
                             <span className="text-2xl">📚</span>
-                            <span className="font-black text-slate-800 text-xs text-right">كبسولة علم ومعرفة فائقة</span>
+                            <span className="font-black text-white text-xs text-right">كبسولة علم ومعرفة فائقة</span>
                           </div>
-                          <p className="text-[10px] text-slate-400 font-light leading-relaxed mb-3 font-sans">
+                          <p className="text-[10px] text-slate-300 font-light leading-relaxed mb-3 font-sans">
                             تنشيط فوري لروابط مساعدة ومصادر تعليمية ذكية إضافية غنية بالمحطات لتحفيز الفهم الشغوف.
                           </p>
                         </div>
                         <div className="className-wrapper pt-3 mt-auto flex flex-col gap-2">
                           <div className="flex justify-between items-center text-[9px] font-bold">
                             <span className="text-slate-400">التكلفة</span>
-                            <span className="text-purple-600">150 XP</span>
+                            <span className="text-purple-300 font-extrabold">150 XP</span>
                           </div>
                           <Button 
                             label="شراء الكبسولة 🪙" 
@@ -820,67 +846,67 @@ export function GamificationSidebar({
                   </div>
 
                   {/* Precious Treasures Section (Bought with Keys) */}
-                  <div className="border-t border-slate-100 pt-8 mt-8 space-y-6">
+                  <div className="border-t border-white/10 pt-8 mt-8 space-y-6">
                     <div className="flex items-center gap-2">
                       <span className="text-xl">🏆</span>
-                      <h4 className="font-extrabold text-slate-900 text-lg">خزنة الكنوز الأسطورية (حصرية بالمفاتيح) 🗝️</h4>
+                      <h4 className="font-extrabold text-white text-lg">خزنة الكنوز الأسطورية (حصرية بالمفاتيح) 🗝️</h4>
                     </div>
                     
-                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/50 rounded-3xl p-6 relative overflow-hidden">
-                       <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/10 rounded-full blur-3xl"></div>
-                       <p className="text-xs text-amber-900/70 font-bold mb-5 relative z-10 font-sans leading-relaxed">
+                    <div className="bg-gradient-to-r from-blue-950/40 via-indigo-900/10 to-indigo-950/20 border border-blue-500/25 rounded-3xl p-6 relative overflow-hidden">
+                       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-400/10 rounded-full blur-3xl"></div>
+                       <p className="text-xs text-blue-300/80 font-bold mb-5 relative z-10 font-sans leading-relaxed">
                          المفاتيح ليست فقط لفتح المحطات! يمكنك استغلالها للحصول على مقتنيات ثمينة وكنوز تذكارية تضاف إلى ملفك الشخصي كأوسمة نادرة للأبد.
                        </p>
                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 relative z-10">
                           
                           {/* Treasure 1 */}
-                          <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-amber-100 flex flex-col items-center text-center gap-3 hover:scale-105 transition-transform group">
-                             <div className="w-14 h-14 bg-gradient-to-br from-amber-300 to-yellow-500 rounded-full flex items-center justify-center text-2xl shadow-lg shadow-amber-500/30 group-hover:rotate-12 transition-transform">
+                          <div className="bg-white/5 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-white/10 flex flex-col items-center text-center gap-3 hover:scale-105 hover:bg-white/10 transition-all group">
+                             <div className="w-14 h-14 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-2xl shadow-lg shadow-cyan-500/30 group-hover:rotate-12 transition-transform">
                                 📜
                              </div>
                              <div>
-                               <h5 className="font-black text-amber-950 text-sm">وثيقة الحكمة الخالدة</h5>
-                               <p className="text-[9px] text-slate-500 mt-1 font-bold">تذكار رقمي يرمز لصبرك في التعلم المستمر.</p>
+                               <h5 className="font-black text-cyan-300 text-sm">وثيقة الحكمة الخالدة</h5>
+                               <p className="text-[9px] text-slate-300 mt-1 font-bold">تذكار رقمي يرمز لصبرك في التعلم المستمر.</p>
                              </div>
                              <Button 
                                label="15 مفتاح 🗝️" 
                                disabled={gData.keys < 15}
                                onClick={() => buyTreasure('wisdomScroll', 15)}
-                               className="w-full text-[10px] font-black mt-2 py-2 border-none bg-amber-100 text-amber-700 hover:bg-amber-200 cursor-pointer rounded-xl transition-colors"
+                               className="w-full text-[10px] font-black mt-2 py-2 border-none bg-cyan-950/50 text-cyan-300 hover:bg-cyan-900/60 border border-cyan-500/20 cursor-pointer rounded-xl transition-colors"
                              />
                           </div>
 
                           {/* Treasure 2 */}
-                          <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-amber-100 flex flex-col items-center text-center gap-3 hover:scale-105 transition-transform group">
-                             <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-full flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/30 group-hover:-rotate-12 transition-transform">
+                          <div className="bg-white/5 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-white/10 flex flex-col items-center text-center gap-3 hover:scale-105 hover:bg-white/10 transition-all group">
+                             <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center text-2xl shadow-lg shadow-blue-500/30 group-hover:-rotate-12 transition-transform">
                                 🌱
                              </div>
                              <div>
-                               <h5 className="font-black text-emerald-950 text-sm">بذرة الإلهام المتجذرة</h5>
-                               <p className="text-[9px] text-slate-500 mt-1 font-bold">نبتة أسطورية تزين حديقتك المعرفية.</p>
+                               <h5 className="font-black text-blue-300 text-sm">بذرة الإلهام المتجذرة</h5>
+                               <p className="text-[9px] text-slate-300 mt-1 font-bold">نبتة أسطورية تزين حديقتك المعرفية.</p>
                              </div>
                              <Button 
                                label="25 مفتاح 🗝️" 
                                disabled={gData.keys < 25}
                                onClick={() => buyTreasure('inspirationSeed', 25)}
-                               className="w-full text-[10px] font-black mt-2 py-2 border-none bg-emerald-100 text-emerald-700 hover:bg-emerald-200 cursor-pointer rounded-xl transition-colors"
+                               className="w-full text-[10px] font-black mt-2 py-2 border-none bg-blue-950/50 text-blue-300 hover:bg-blue-900/60 border border-blue-500/20 cursor-pointer rounded-xl transition-colors"
                              />
                           </div>
 
                           {/* Treasure 3 */}
-                          <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-amber-100 flex flex-col items-center text-center gap-3 hover:scale-105 transition-transform group">
-                             <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center text-2xl shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                          <div className="bg-white/5 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-white/10 flex flex-col items-center text-center gap-3 hover:scale-105 hover:bg-white/10 transition-all group">
+                             <div className="w-14 h-14 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-full flex items-center justify-center text-2xl shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
                                 👑
                              </div>
                              <div>
-                               <h5 className="font-black text-blue-950 text-sm">تاج التفوق الموسيقي</h5>
-                               <p className="text-[9px] text-slate-500 mt-1 font-bold">الجوهرة الأعظم. لا يقدر بثمن إلا للذين وصلوا للقمة.</p>
+                               <h5 className="font-black text-indigo-300 text-sm">تاج التفوق الموسيقي</h5>
+                               <p className="text-[9px] text-slate-300 mt-1 font-bold">الجوهرة الأعظم. لا يقدر بثمن إلا للذين وصلوا للقمة.</p>
                              </div>
                              <Button 
                                label="50 مفتاح 🗝️" 
                                disabled={gData.keys < 50}
                                onClick={() => buyTreasure('crownOfExcellence', 50)}
-                               className="w-full text-[10px] font-black mt-2 py-2 border-none bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer rounded-xl transition-colors"
+                               className="w-full text-[10px] font-black mt-2 py-2 border-none bg-indigo-950/50 text-indigo-300 hover:bg-indigo-900/60 border border-indigo-500/20 cursor-pointer rounded-xl transition-colors"
                              />
                           </div>
                        </div>
@@ -888,24 +914,24 @@ export function GamificationSidebar({
                   </div>
 
                   {/* Redesigned Bag Inventory Section */}
-                  <div className="border-t border-slate-100 pt-8 mt-8 space-y-4">
-                    <div className="flex justify-between items-center">
+                  <div className="border-t border-white/10 pt-8 mt-8 space-y-4">
+                    <div className="flex justify-between items-center pb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xl">🎒</span>
-                        <h4 className="font-extrabold text-slate-900 text-base">حقيبة كبسولاتك والجرعات المخزنة</h4>
+                        <h4 className="font-extrabold text-white text-base">حقيبة كبسولاتك والجرعات المخزنة</h4>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full">استهلك وجرّب المفعول فوراً 🧪</span>
+                      <span className="text-[10px] font-bold text-slate-300 bg-white/5 border border-white/10 px-3 py-1 rounded-full">استهلك وجرّب المفعول فوراً 🧪</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                       
                       {/* Inv 1 */}
-                      <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-200/50 text-right" dir="rtl">
+                      <div className="bg-white/5 p-4 rounded-2xl flex items-center justify-between border border-white/10 text-right hover:bg-white/10 transition-all" dir="rtl">
                         <div className="flex items-center gap-2.5">
                           <span className="text-xl">🧘‍♂️</span>
                           <div>
-                            <span className="text-xs font-black text-slate-800 block">صفاء الذهن</span>
-                            <span className="text-[10px] text-slate-400">المقتنى: {((user?.gameData as any)?.ownedCapsules?.focusClarity) || 0}</span>
+                            <span className="text-xs font-black text-white block">صفاء الذهن</span>
+                            <span className="text-[10px] text-slate-300">المقتنى: {((user?.gameData as any)?.ownedCapsules?.focusClarity) || 0}</span>
                           </div>
                         </div>
                         { (Number((user?.gameData as any)?.ownedCapsules?.focusClarity) || 0) > 0 && (
@@ -918,12 +944,12 @@ export function GamificationSidebar({
                       </div>
 
                       {/* Inv 2 */}
-                      <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-200/50 text-right" dir="rtl">
+                      <div className="bg-white/5 p-4 rounded-2xl flex items-center justify-between border border-white/10 text-right hover:bg-white/10 transition-all" dir="rtl">
                         <div className="flex items-center gap-2.5">
                           <span className="text-xl">📚</span>
                           <div>
-                            <span className="text-xs font-black text-slate-800 block">المعرفة الفائقة</span>
-                            <span className="text-[10px] text-slate-400">المقتنى: {((user?.gameData as any)?.ownedCapsules?.hyperLearning) || 0}</span>
+                            <span className="text-xs font-black text-white block">المعرفة الفائقة</span>
+                            <span className="text-[10px] text-slate-300">المقتنى: {((user?.gameData as any)?.ownedCapsules?.hyperLearning) || 0}</span>
                           </div>
                         </div>
                         { (Number((user?.gameData as any)?.ownedCapsules?.hyperLearning) || 0) > 0 && (
@@ -939,28 +965,28 @@ export function GamificationSidebar({
                     
                     {/* Treasure Inventory (Static rendering of owned treasures) */}
                     {Object.keys(((user?.gameData as any)?.ownedTreasures || {})).length > 0 && (
-                      <div className="mt-8 pt-4 border-t border-slate-100 mb-4">
-                        <h4 className="font-extrabold text-amber-950 text-sm mb-4">💎 كنوزي الأسطورية المستخرجة</h4>
+                      <div className="mt-8 pt-4 border-t border-white/10 mb-4">
+                        <h4 className="font-extrabold text-blue-300 text-sm mb-4">💎 كنوزي الأسطورية المستخرجة</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           {((user?.gameData as any)?.ownedTreasures?.wisdomScroll) > 0 && (
-                            <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-2xl border border-amber-200 text-center shadow-sm">
+                            <div className="bg-cyan-950/30 p-4 rounded-2xl border border-cyan-500/20 text-center shadow-sm">
                               <span className="text-3xl block mb-1">📜</span>
-                              <span className="text-xs font-black text-amber-900 block">وثيقة الحكمة</span>
-                              <span className="text-[10px] text-amber-700 font-bold">العدد: {((user?.gameData as any)?.ownedTreasures?.wisdomScroll)}</span>
+                              <span className="text-xs font-black text-cyan-300 block">وثيقة الحكمة</span>
+                              <span className="text-[10px] text-cyan-400 font-bold">العدد: {((user?.gameData as any)?.ownedTreasures?.wisdomScroll)}</span>
                             </div>
                           )}
                           {((user?.gameData as any)?.ownedTreasures?.inspirationSeed) > 0 && (
-                            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-2xl border border-emerald-200 text-center shadow-sm">
+                            <div className="bg-blue-950/30 p-4 rounded-2xl border border-blue-500/20 text-center shadow-sm">
                               <span className="text-3xl block mb-1">🌱</span>
-                              <span className="text-xs font-black text-emerald-900 block">بذرة الإلهام</span>
-                              <span className="text-[10px] text-emerald-700 font-bold">العدد: {((user?.gameData as any)?.ownedTreasures?.inspirationSeed)}</span>
+                              <span className="text-xs font-black text-blue-300 block">بذرة الإلهام</span>
+                              <span className="text-[10px] text-blue-400 font-bold">العدد: {((user?.gameData as any)?.ownedTreasures?.inspirationSeed)}</span>
                             </div>
                           )}
                           {((user?.gameData as any)?.ownedTreasures?.crownOfExcellence) > 0 && (
-                            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-2xl border border-blue-200 text-center shadow-sm">
+                            <div className="bg-indigo-950/30 p-4 rounded-2xl border border-indigo-500/20 text-center shadow-sm">
                               <span className="text-3xl block mb-1">👑</span>
-                              <span className="text-xs font-black text-blue-900 block">تاج التفوق</span>
-                              <span className="text-[10px] text-blue-700 font-bold">العدد: {((user?.gameData as any)?.ownedTreasures?.crownOfExcellence)}</span>
+                              <span className="text-xs font-black text-indigo-300 block">تاج التفوق</span>
+                              <span className="text-[10px] text-indigo-400 font-bold">العدد: {((user?.gameData as any)?.ownedTreasures?.crownOfExcellence)}</span>
                             </div>
                           )}
                         </div>

@@ -20,7 +20,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { toast as toastHot } from "react-hot-toast";
 import { 
   Atom, BookOpen, Cpu, Brain, Globe, Compass, Music, Palette, Calculator, Code, Rocket, Landmark, Microscope, Telescope, Languages, Binary, Lightbulb, Sigma, Trophy, History, TrendingUp, Calendar, Info, FileText,
-  Sparkles, Volume2, MessageSquare, Mic, Plus, Clock, Target, Trees, Play, ChevronRight
+  Sparkles, Volume2, MessageSquare, Mic, Plus, Clock, Target, Trees, Play, ChevronRight, ChevronLeft
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import confetti from "canvas-confetti";
@@ -543,6 +543,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [evaluationSidebarVisible, setEvaluationSidebarVisible] = useState(false);
   const [selectedTaskForEvaluation, setSelectedTaskForEvaluation] = useState<any>(null);
   const [selectedTaskForAnalytics, setSelectedTaskForAnalytics] = useState<any>(null);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
   const [taskReflectionData, setTaskReflectionData] = useState<any>(null);
   
   const [reviewingTask, setReviewingTask] = useState<any>(null);
@@ -671,15 +672,21 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const openTaskAnalytics = async (task: any) => {
     vibrate(HAPITCS.MAJOR_CLICK);
     setSelectedTaskForAnalytics(task);
-    if (db.reflections) {
-      const refs = await db.reflections.where("taskId").equals(task.id).toArray();
-      const sorted = refs.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      
-      // If there's an initial and review, return both. If only one, return it as array.
-      setTaskReflectionData(sorted.length > 0 ? sorted : null);
-    } else {
-      setTaskReflectionData(null);
-    }
+    setIsAnalyticsLoading(true);
+    setTaskReflectionData(null);
+    
+    setTimeout(async () => {
+      if (db.reflections) {
+        const refs = await db.reflections.where("taskId").equals(task.id).toArray();
+        const sorted = refs.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        
+        // If there's an initial and review, return both. If only one, return it as array.
+        setTaskReflectionData(sorted.length > 0 ? sorted : null);
+      } else {
+        setTaskReflectionData(null);
+      }
+      setIsAnalyticsLoading(false);
+    }, 700);
   };
 
   const handleSaveStumble = async () => {
@@ -753,10 +760,19 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const treeNodeTemplate = (node: any) => {
     const t = node.data;
     const isSub = t.type === 'sub';
+    const isMain = t.type === 'main';
     const totalSubs = node.children ? node.children.length : 0;
     const completedSubs = node.children ? node.children.filter((c: any) => c.data.isCompleted).length : 0;
     
-    const hasReflection = reflections.some(r => r.taskId === t.id);
+    const hasInitialReflection = reflections.some((r: any) => r.taskId === t.id && r.type === 'initial');
+    const reviewPlansForTask = tasks.filter((p: any) => p.parentId === t.id && (p.title.includes("المراجعة") || p.title.includes("خطة المراجعة")));
+    
+    const completedReviewsCount = reviewPlansForTask.filter((p: any) => p.isCompleted).length;
+    // Always assume 1 initial evaluation + 3 reviews for main task progress (total = 4)
+    const totalVisSteps = 4;
+    const completedVisSteps = (hasInitialReflection ? 1 : 0) + completedReviewsCount;
+    // Cap at 100% in case there are somehow more reviews, though we only expect 3
+    const visPct = Math.min((completedVisSteps / totalVisSteps) * 100, 100);
 
     return (
       <div 
@@ -788,113 +804,47 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0 cursor-pointer
                 ${
                   t.isCompleted
-                    ? (isSub ? "bg-indigo-600 border-indigo-600 shadow-md shadow-indigo-600/20" : "bg-blue-900 border-blue-900 shadow-md shadow-blue-900/20") + " text-white"
-                    : (isSub ? "border-indigo-200" : "border-blue-200") + " bg-white hover:border-blue-400"
+                    ? (isSub ? "bg-indigo-500 border-indigo-500 shadow-md shadow-indigo-500/20" : "bg-blue-500 border-blue-500 shadow-md shadow-blue-500/20")
+                    : (isSub ? "border-indigo-400/40" : "border-blue-400/40") + " bg-[#0a0f2c]/40 hover:border-blue-400"
                 }
               `}
           >
             {t.isCompleted && (
-              <i className="pi pi-check text-[8px] font-black scale-110"></i>
+              <div className="w-1.5 h-1.5 rounded-full bg-white opacity-85" />
             )}
           </div>
-          <div className="flex flex-col gap-0.5 justify-center">
+          <div className="flex flex-col gap-1 justify-center flex-1">
             <span
               className={`font-bold transition-all leading-tight
-                   ${t.isCompleted 
-                      ? "text-slate-400 line-through opacity-65" 
-                      : (isSub ? "text-slate-700 text-xs" : "text-blue-950 text-sm")
+                   ${(isMain ? visPct === 100 : t.isCompleted)
+                      ? "text-slate-400 opacity-50 line-through" 
+                      : (isSub ? "text-slate-200 text-xs" : "text-white text-sm")
                    }`}
             >
               {t.title}
             </span>
             {t.description && (
-              <span className={`text-[10px] font-sans transition-all leading-tight ${t.isCompleted ? 'text-slate-300 line-through opacity-50' : 'text-slate-500 font-medium'}`}>
+              <span className={`text-[10px] font-sans transition-all leading-tight ${t.isCompleted ? 'text-slate-500 opacity-50' : 'text-slate-300 font-medium'}`}>
                 {t.description}
               </span>
             )}
+            {isMain && (
+              <div className="flex flex-col gap-1 mt-2 font-sans w-full max-w-md">
+                <div className="flex justify-between items-center text-[9px] text-indigo-300 font-black">
+                  <span>مسار التمكين والتقييمات {completedVisSteps}/{totalVisSteps}</span>
+                  {visPct === 100 && <span className="text-emerald-400 font-bold">مكتمل ✨</span>}
+                </div>
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden border border-white/5 relative">
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-indigo-700 transition-all duration-500 rounded-full"
+                    style={{ width: `${visPct}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
-          <div className="mr-auto relative flex items-center flex-row-reverse gap-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                vibrate(HAPITCS.GUIDANCE);
-                setActiveTaskActionId(activeTaskActionId === t.id ? null : t.id);
-              }}
-              className={`p-1.5 rounded-full transition-all duration-300 z-10 
-                ${activeTaskActionId === t.id 
-                  ? 'bg-rose-50 text-rose-600 rotate-45 border border-rose-100' 
-                  : 'bg-indigo-600 text-white shadow-md hover:scale-110 active:scale-90'}`}
-              title="خيارات المهمة"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-
-            <div className={`flex items-center gap-1.5 transition-all duration-300 ${activeTaskActionId === t.id ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
-              {!hasReflection && t.isCompleted && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    vibrate(HAPITCS.MAJOR_CLICK);
-                    setReviewingTask(t);
-                    setInitialReflectionVisible(true);
-                    setActiveTaskActionId(null);
-                  }}
-                  className="p-1.5 bg-amber-500 border border-amber-600 text-white transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-md hover:scale-110 gap-1.5 px-3 animate-pulse"
-                  title="قيم المهمة"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span className="text-[9px] font-black">قيم المهمة</span>
-                </button>
-              )}
-              {t.isCompleted && (
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setReviewingTask(t);
-                      setActiveTaskActionId(null);
-                    }}
-                    className="p-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs"
-                    title="راجع"
-                  >
-                    <i className="pi pi-compass text-[11px]"></i>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setFlashcardTask(t);
-                      setActiveTaskActionId(null);
-                    }}
-                    className="p-1.5 bg-sky-50 border border-sky-100 hover:bg-sky-100 text-sky-700 transition-all rounded-lg flex items-center justify-center cursor-pointer shadow-3xs"
-                    title="كروت"
-                  >
-                    <i className="pi pi-clone text-[11px]"></i>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openTaskAnalytics(t);
-                      setActiveTaskActionId(null);
-                    }}
-                    className="p-1.5 bg-slate-50 border border-slate-200 text-indigo-600 hover:bg-indigo-50 rounded-lg flex items-center justify-center cursor-pointer shadow-3xs"
-                    title="تحليلات"
-                  >
-                    <i className="pi pi-chart-bar text-[11px]"></i>
-                  </button>
-                </>
-              )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openReviewPath(t);
-                  setActiveTaskActionId(null);
-                }}
-                className="p-1.5 bg-indigo-50/70 border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all duration-300 rounded-lg flex items-center justify-center cursor-pointer shadow-3xs hover:scale-110 active:scale-95"
-                title="VIS Session"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-              </button>
-            </div>
+          <div className="mr-auto flex items-center text-slate-400 group-hover:text-indigo-450 transition-all duration-300">
+            <ChevronLeft className="w-5 h-5" />
           </div>
       </div>
     );
@@ -902,7 +852,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
   const isMainTasksFullyCompleted = useMemo(() => {
     if (!selectedStation || !tasks) return false;
-    const stTasks = tasks.filter(t => t.stationId === selectedStation && t.type === 'main');
+    const stTasks = tasks.filter(t => 
+      t.stationId === selectedStation && 
+      t.type === 'main' && 
+      !t.parentId && 
+      !t.title.includes("المراجعة") && 
+      !t.title.includes("خطة المراجعة")
+    );
     if (stTasks.length === 0) return true;
     return stTasks.every(t => t.isCompleted);
   }, [selectedStation, tasks]);
@@ -1057,13 +1013,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   };
 
   const SIDEBAR_APPS = [
-    { id: 'calendar', title: 'الخطة والمهام', icon: 'pi pi-calendar-plus', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', solidColor: 'bg-emerald-500', action: () => { setShowJourneyIntroPopup(true); } },
-    { id: 'awards', title: 'المحرك والجوائز', icon: 'pi pi-trophy', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', solidColor: 'bg-amber-500', action: () => { setGamificationActiveTab(0); setGamificationSidebar(true); } },
-    { id: 'notes', title: 'التدوين والملاحظات', icon: 'pi pi-pencil', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20', solidColor: 'bg-orange-500', action: () => { if(activeStationId) setActiveNoteStationId(activeStationId); setShowNotesPopup(true); } },
-    { id: 'analytics', title: 'التحليلات والمراجعة', icon: 'pi pi-chart-line', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', solidColor: 'bg-indigo-500', action: () => { setReflectionForceStationId(null); setReflectionActiveTab(0); setReflectionSidebar(true); } },
-    { id: 'links', title: 'المصادر', icon: 'pi pi-book', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', solidColor: 'bg-blue-500', action: () => { setShowLinksPopup(true); } },
-    { id: 'forest', title: 'غابة المعرفة', icon: 'pi pi-sitemap', color: 'bg-green-500/10 text-green-400 border-green-500/20', solidColor: 'bg-green-500', action: () => { setLearningRepoVisible(true); } },
-    { id: 'compass', title: 'البوصلة والتوجيه', icon: 'pi pi-compass', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20', solidColor: 'bg-sky-500', action: () => { setShowCompassPopup(true); } },
+    { id: 'calendar', title: 'الخطة والمهام', icon: 'pi pi-calendar-plus', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setShowJourneyIntroPopup(true); } },
+    { id: 'awards', title: 'المحرك والجوائز', icon: 'pi pi-trophy', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setGamificationActiveTab(0); setGamificationSidebar(true); } },
+    { id: 'notes', title: 'التدوين والملاحظات', icon: 'pi pi-pencil', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { if(activeStationId) setActiveNoteStationId(activeStationId); setShowNotesPopup(true); } },
+    { id: 'analytics', title: 'التحليلات والمراجعة', icon: 'pi pi-chart-line', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setReflectionForceStationId(null); setReflectionActiveTab(0); setReflectionSidebar(true); } },
+    { id: 'links', title: 'المصادر', icon: 'pi pi-book', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setShowLinksPopup(true); } },
+    { id: 'forest', title: 'غابة المعرفة', icon: 'pi pi-sitemap', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setLearningRepoVisible(true); } },
+    { id: 'compass', title: 'البوصلة والتوجيه', icon: 'pi pi-compass', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setShowCompassPopup(true); } },
   ];
 
   if (!stations || !tasks || !user) return null;
@@ -1432,22 +1388,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         onHide={() => setMapsSidebarVisible(false)}
         position="left"
         modal={!isSidebarPinned}
-        className="w-full md:w-[360px] font-sans bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 border-r border-indigo-500/20 shadow-2xl custom-left-sidebar"
-        header={
-          <div className="flex items-center justify-between w-full pr-2">
-            <div className="flex items-center gap-3 text-white font-black">
-              <i className="pi pi-compass p-2 bg-white rounded-xl text-blue-900 text-sm shadow-md"></i>
-              قائمة التحكم والمسار
-            </div>
-            <button 
-              onClick={() => setIsSidebarPinned(!isSidebarPinned)}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isSidebarPinned ? 'bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-white text-slate-900 shadow-md border border-slate-100 hover:bg-slate-50'}`}
-              title={isSidebarPinned ? "إلغاء التثبيت" : "تثبيت القائمة"}
-            >
-              <i className={`pi pi-thumbtack ${isSidebarPinned ? 'rotate-45' : ''}`}></i>
-            </button>
-          </div>
-        }
+        showCloseIcon={false}
+        className="w-full md:w-[360px] font-sans bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 border-l border-white/10 shadow-2xl custom-left-sidebar"
       >
         <div className="h-full flex flex-col pt-2" dir="rtl">
           <TabView className="custom-spaced-tabs flex-1" dir="rtl">
@@ -1769,11 +1711,46 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           if (user && user.id) {
             const currentProgress = user.reviewSessionProgress || [];
             const updatedProgress = currentProgress.filter((p: string) => p !== type);
+            const currentTask = selectedTaskForVis ? tasks.find(x => x.id === selectedTaskForVis.id) : null;
+            
+            let reflectionsDeleted = false;
+            if (currentTask) {
+              if (type === 'original') {
+                const deletedCount = await db.reflections.where({ taskId: currentTask.id, type: 'initial' }).delete();
+                if (deletedCount > 0) reflectionsDeleted = true;
+              } else {
+                const taskReviews = await db.reflections.where({ taskId: currentTask.id, type: 'review' }).toArray();
+                taskReviews.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                let delIdx = -1;
+                if (type === 'review1') delIdx = 0;
+                else if (type === 'review2') delIdx = 1;
+                else if (type === 'review3') delIdx = 2;
+                
+                if (delIdx >= 0 && delIdx < taskReviews.length) {
+                  await db.reflections.delete(taskReviews[delIdx].id);
+                  reflectionsDeleted = true;
+                }
+              }
+            }
+
+            // Deduct 30 XP if a reflection was actually deleted or reverted
+            let xpDeductedMsg = "";
+            let newXp = user.gameData?.xp || 0;
+            if (reflectionsDeleted) {
+              newXp = Math.max(0, newXp - 30);
+              xpDeductedMsg = " وتم خصم 30 XP وإلغاء تسجيل التقييم في التحليلات.";
+            }
+
+            const currentGData = user.gameData || { xp: 0, fuel: 100, keys: 0, lastReflectionDate: "" };
+
             await db.userSettings.update(user.id, {
-              reviewSessionProgress: updatedProgress
+              reviewSessionProgress: updatedProgress,
+              gameData: {
+                ...currentGData,
+                xp: newXp
+              }
             });
             
-            const currentTask = selectedTaskForVis ? tasks.find(x => x.id === selectedTaskForVis.id) : null;
             if (currentTask) {
               const resetActivities = (currentTask.activities || []).map((act: any) => ({
                 ...act,
@@ -1784,9 +1761,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 activities: resetActivities,
                 isCompleted: false
               });
-              toastHot.success("تم التراجع وإلغاء إتمام الأنشطة بنجاح ↩️");
+              toastHot.success(`تم التراجع وإلغاء إتمام الأنشطة بنجاح${xpDeductedMsg} ↩️`);
             } else {
-              toastHot.success("تم التراجع عن إكمال هذه المرحلة بنجاح ↩️");
+              toastHot.success(`تم التراجع عن إكمال هذه المرحلة بنجاح${xpDeductedMsg} ↩️`);
             }
           }
         }}
@@ -2313,36 +2290,41 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         visible={showLinksPopup}
         onHide={() => setShowLinksPopup(false)}
         header={
-          <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
-            <i className="pi pi-book text-blue-600 border-2 border-blue-950/10 p-1.5 rounded-lg"></i>
-            <span className="font-black text-blue-950 tracking-tight">مصادر التعلم 📚</span>
+          <div className="flex items-center gap-3 pr-2 text-right w-full" dir="rtl">
+            <i className="pi pi-book text-blue-400 text-2xl animate-pulse"></i>
+            <span className="text-xl font-black text-white">مصادر التعلم 📚</span>
           </div>
         }
-        className="w-[98vw] max-w-2xl font-sans text-xl topmost-dialog"
+        className="w-[98vw] max-w-2xl font-sans text-xl topmost-dialog border-none shadow-2xl"
+        contentClassName="bg-gradient-to-br from-[#090e1a] to-[#03050a] p-6 text-white"
+        headerClassName="bg-[#090e1a] border-b border-white/5 pb-4"
         closable
         dismissableMask
         baseZIndex={30000}
-        maskClassName="topmost-mask"
+        maskClassName="topmost-mask backdrop-blur-sm"
       >
         <AnimatePresence>
           {showLinksPopup && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.7, y: 40 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.7, y: 40 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", damping: 20, stiffness: 350 }}
-              className="space-y-6 pt-4 text-right font-sans" 
+              className="space-y-6 pt-2 text-right font-sans" 
               dir="rtl"
             >
-              <p className="text-slate-400 font-medium text-xs -mt-2 leading-relaxed">
+              <p className="text-slate-400 font-medium text-xs leading-relaxed">
                 الروابط والمصادر التي تعينك على التعلم في هذه الرحلة.
               </p>
 
               <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 no-scrollbar pb-4">
                 {(!user.attachments?.length && !user.resources?.length) ? (
-                  <div className="py-16 bg-slate-50 border border-dashed border-slate-200 rounded-[40px] text-center">
-                    <i className="pi pi-link text-4xl text-slate-100 mb-4 block"></i>
-                    <p className="text-sm text-slate-400 font-bold italic">لا توجد مصادر مضافة بعد.</p>
+                  <div className="flex flex-col items-center justify-center p-12 text-center gap-4 bg-blue-950/20 rounded-3xl border-2 border-dashed border-blue-900/40 mt-4">
+                    <i className="pi pi-link text-4xl text-blue-300"></i>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-blue-200">لا توجد مصادر مضافة بعد</p>
+                      <p className="text-[10px] text-slate-400 font-medium">ابدأ بإضافة الروابط والملفات المهمة من صفحة الإعداد!</p>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-3">
@@ -2706,15 +2688,17 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         onHide={() => setShowNotesPopup(false)}
         header={
           <div
-            className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans"
+            className="flex items-center gap-3 text-white font-black pr-4 text-2xl font-sans"
             dir="rtl"
           >
-            <i className="pi pi-book text-blue-900 border-2 border-blue-950/10 p-1.5 rounded-lg"></i>
+            <i className="pi pi-book text-indigo-400 border-2 border-indigo-500/20 bg-indigo-500/10 p-1.5 rounded-lg"></i>
             <span>دفتر اليوميات ✍️</span>
           </div>
         }
         className="w-screen h-screen font-sans m-0 p-0 rounded-none border-none"
         style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0 }}
+        contentClassName="bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 p-0"
+        headerClassName="bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 border-b border-white/5"
         maximized
         closable
         dismissableMask
@@ -2726,27 +2710,27 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.7, y: 40 }}
               transition={{ type: "spring", damping: 20, stiffness: 350 }}
-              className="space-y-6 pt-4 text-right font-sans" 
+              className="space-y-6 pt-4 text-right font-sans h-full" 
               dir="rtl"
             >
               <div className="h-full flex flex-col px-4 md:px-8 py-6 pb-20 relative font-sans text-right" dir="rtl">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
-                  <h3 className="text-base font-black text-blue-950 flex items-center gap-2">
-                    <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    <span className="w-1.5 h-6 bg-indigo-500 rounded-full"></span>
                     سجل الذكريات والتطور ⏳
                   </h3>
 
                   {/* Note Filters */}
                   <div className="flex flex-wrap gap-2">
                     <select 
-                      className="p-2 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-black outline-none text-blue-900 cursor-pointer"
+                      className="p-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black outline-none text-white cursor-pointer"
                       value={noteFilterPriority}
                       onChange={(e) => setNoteFilterPriority(e.target.value)}
                     >
-                      <option value="all">كل الأولويات</option>
-                      <option value="high">عالية 🔥</option>
-                      <option value="medium">متوسطة 🟡</option>
-                      <option value="low">منخفضة ⚪</option>
+                      <option value="all" className="text-slate-900">كل الأولويات</option>
+                      <option value="high" className="text-slate-900">عالية 🔥</option>
+                      <option value="medium" className="text-slate-900">متوسطة 🟡</option>
+                      <option value="low" className="text-slate-900">منخفضة ⚪</option>
                     </select>
                   </div>
                 </div>
@@ -2871,9 +2855,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         visible={showAddNoteForm}
         onHide={() => setShowAddNoteForm(false)}
         header={
-          <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
-            <div className="p-2 bg-blue-50 rounded-xl border border-blue-100 shadow-inner">
-              <i className={`pi ${editingNoteIndex !== null ? 'pi-pencil' : 'pi-plus'} text-blue-600`}></i>
+          <div className="flex items-center gap-3 text-white font-black pr-4 text-2xl font-sans" dir="rtl">
+            <div className="p-2 bg-indigo-500/20 rounded-xl border border-indigo-500/30">
+              <i className={`pi ${editingNoteIndex !== null ? 'pi-pencil' : 'pi-plus'} text-indigo-400`}></i>
             </div>
             <span className="font-black tracking-tight">
               {editingNoteIndex !== null ? 'تعديل التدوينة' : 'إضافة تدوينة جديدة للرحلة'}
@@ -2882,6 +2866,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         }
         className="w-[95vw] max-w-lg font-sans"
         style={{ borderRadius: '24px' }}
+        contentClassName="bg-[#020617] p-6 text-white"
+        headerClassName="bg-[#020617] border-b border-white/5"
         maskClassName="backdrop-blur-xl bg-blue-950/20"
         closable
         dismissableMask
@@ -2900,15 +2886,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 {/* Station Selection if not active station */}
                 {!activeNoteStationId && !editingStationId && (
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-1">الخطة التابعة لها:</label>
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">الخطة التابعة لها:</label>
                     <select
-                      className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-[20px] font-bold outline-none focus:bg-white focus:border-blue-100 transition-all text-blue-950 text-sm cursor-pointer appearance-none"
+                      className="w-full p-4 bg-white/5 border border-white/10 rounded-[20px] font-bold outline-none focus:bg-white/10 focus:border-indigo-400 transition-all text-white text-sm cursor-pointer appearance-none"
                       onChange={(e) => setEditingStationId(e.target.value)}
                       value={editingStationId || ""}
                     >
-                      <option value="">-- اختر المسار أو الخطة --</option>
+                      <option className="text-slate-900" value="">-- اختر المسار أو الخطة --</option>
                       {stations.map(st => (
-                        <option key={st.id} value={st.id}>{st.name}</option>
+                        <option className="text-slate-900" key={st.id} value={st.id}>{st.name}</option>
                       ))}
                     </select>
                   </div>
@@ -2916,7 +2902,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
                 {/* Priority Selection (Improved Droplist) */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-1">مستوى الأولوية:</label>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">مستوى الأولوية:</label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { id: 'high', label: 'عالية 🔥', color: 'rose' },
@@ -2931,8 +2917,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         }}
                         className={`p-3 rounded-2xl border-2 font-black text-[10px] transition-all flex flex-col items-center gap-1.5 cursor-pointer
                           ${notePriority === p.id 
-                            ? `bg-${p.color}-50 border-${p.color}-500 text-${p.color}-700 shadow-md scale-105` 
-                            : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                            ? `bg-${p.color}-500/20 border-${p.color}-500 text-${p.color}-300 shadow-md scale-105` 
+                            : 'bg-white/5 border-white/10 text-slate-400 hover:border-white/20'}`}
                       >
                          <span>{p.label}</span>
                       </button>
@@ -2941,9 +2927,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-1">محتوى التدوينة:</label>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">محتوى التدوينة:</label>
                   <textarea
-                    className="w-full p-5 bg-slate-50 border-2 border-transparent rounded-[24px] font-bold outline-none focus:bg-white focus:border-blue-100 transition-all text-blue-950 text-sm resize-none min-h-[160px] shadow-inner"
+                    className="w-full p-5 bg-white/5 border border-white/10 rounded-[24px] font-bold outline-none focus:bg-white/10 focus:border-indigo-400 transition-all text-white text-sm resize-none min-h-[160px] shadow-inner placeholder:text-slate-500"
                     placeholder="ماذا يجول في خاطرك الآن بخصوص رحلة التعلم؟"
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
@@ -3155,46 +3141,113 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
       {/* Task Analytics Dialog */}
       <Dialog
+        maximized
         visible={!!selectedTaskForAnalytics}
         onHide={() => {
           setSelectedTaskForAnalytics(null);
           setTaskReflectionData(null);
         }}
         header={
-          <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
-            <i className="pi pi-chart-line text-indigo-600 border-2 border-indigo-950/10 p-1.5 rounded-lg"></i>
-            <span className="font-black text-blue-950 tracking-tight">تحليلات وإنجازات المهمة 📊</span>
+          <div className="flex items-center gap-3 text-white font-black pr-4 text-2xl font-sans" dir="rtl">
+            <i className="pi pi-chart-line text-white border-2 border-white/15 p-2 rounded-2xl bg-white/10 shadow-lg"></i>
+            <span className="font-black tracking-tight drop-shadow-sm">تحليلات وإنجازات المهمة 📊</span>
           </div>
         }
-        className="w-[98vw] max-w-2xl font-sans"
+        className="w-screen h-screen font-sans border-0 rounded-none bg-transparent"
+        style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0, border: 'none' }}
+        headerStyle={{ 
+          background: 'var(--blue-dark)', 
+          color: '#ffffff', 
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)', 
+          padding: '24px' 
+        }}
+        contentClassName="no-scrollbar"
+        contentStyle={{ 
+          background: 'var(--gradient-main)', 
+          color: '#ffffff', 
+          padding: '24px', 
+          overflowY: 'auto' 
+        }}
         closable
         dismissableMask
-        maskClassName="backdrop-blur-md bg-blue-950/20"
+        maskClassName="backdrop-blur-md bg-[#0A0F2C]/40"
         baseZIndex={LAYERS.ANALYTICS_DIALOG}
       >
         <AnimatePresence>
           {selectedTaskForAnalytics && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 30 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 30 }}
-              transition={{ type: "spring", damping: 20, stiffness: 350 }}
-              className="space-y-6 pt-2 text-right font-sans"
-              dir="rtl"
-            >
-              <div className="border bg-slate-50/50 border-slate-100 p-4 rounded-2xl flex flex-col justify-between items-start gap-2">
-                <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 font-extrabold px-2.5 py-1 rounded-full uppercase">المهمة المنجزة</span>
-                <h3 className="font-black text-blue-950 text-base leading-snug">{selectedTaskForAnalytics.title}</h3>
+            isAnalyticsLoading ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-6 pt-2 text-right font-sans max-w-5xl mx-auto pb-16 animate-pulse"
+                dir="rtl"
+              >
+                {/* Header Card skeleton */}
+                <div className="bg-white/5 border border-white/10 p-5 rounded-3xl flex flex-col justify-between items-start gap-3 backdrop-blur-xl shadow-lg">
+                  <div className="h-4 bg-white/10 rounded-full w-24"></div>
+                  <div className="h-6 bg-gradient-to-r from-blue-400/20 via-blue-200/10 to-blue-400/20 rounded-lg w-1/2"></div>
+                </div>
+
+                {/* Tab layout skeleton */}
+                <div className="flex gap-2 p-1.5 bg-white/4 rounded-2xl border border-white/10 mb-4 shadow">
+                  <div className="px-4 py-2 rounded-2xl h-8 bg-white/10 w-32"></div>
+                  <div className="px-4 py-2 rounded-2xl h-8 bg-white/5 w-32"></div>
+                </div>
+
+                {/* Main Glass metrics container skeleton */}
+                <div className="space-y-6 bg-white/5 backdrop-blur-xl p-6 rounded-[32px] border border-white/10 shadow-2xl">
+                  {/* Focus & Mastery metrics grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/20 p-6 rounded-[28px] h-40 flex flex-col items-center justify-center text-center shadow-xl">
+                      <div className="h-3.5 bg-indigo-950/10 rounded-full w-24 mb-3"></div>
+                      <div className="h-10 bg-gradient-to-r from-[#030712]/10 via-blue-950/5 to-[#0F172A]/10 rounded-lg w-20"></div>
+                      <div className="flex gap-1 mt-4">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <div key={s} className="w-2.5 h-2.5 rounded-full bg-indigo-950/15" />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/20 p-6 rounded-[28px] h-40 flex flex-col items-center justify-center text-center shadow-xl">
+                      <div className="h-3.5 bg-amber-950/10 rounded-full w-32 mb-3"></div>
+                      <div className="h-10 bg-gradient-to-r from-[#030712]/10 via-blue-950/5 to-[#0F172A]/10 rounded-lg w-20"></div>
+                      <div className="w-32 h-2 bg-indigo-950/15 rounded-full mt-4"></div>
+                    </div>
+                  </div>
+
+                  {/* Reflection Notes section */}
+                  <div className="p-6 bg-white/5 border border-white/10 rounded-[28px] space-y-3.5">
+                    <div className="h-3.5 bg-white/10 rounded-full w-36"></div>
+                    <div className="space-y-2">
+                      <div className="h-3 bg-white/10 rounded-md w-full"></div>
+                      <div className="h-3 bg-white/10 rounded-md w-[95%]"></div>
+                      <div className="h-3 bg-white/10 rounded-md w-[80%]"></div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 30 }}
+                transition={{ type: "spring", damping: 22, stiffness: 300 }}
+                className="space-y-6 pt-2 text-right font-sans max-w-5xl mx-auto pb-16"
+                dir="rtl"
+              >
+              <div className="bg-white/5 border border-white/10 p-5 rounded-3xl flex flex-col justify-between items-start gap-2 backdrop-blur-xl shadow-lg">
+                <span className="text-[10px] bg-white/10 text-slate-200 border border-white/10 font-extrabold px-3 py-1 rounded-full uppercase">المهمة المنجزة</span>
+                <h3 className="font-black text-white text-base leading-snug">{selectedTaskForAnalytics.title}</h3>
               </div>
 
-              <TabView className="mt-4" dir="rtl" pt={{ nav: { className: "flex gap-2 p-1 bg-slate-100 rounded-2xl border-none mb-4" } }}>
+              <TabView className="mt-4" dir="rtl" pt={{ nav: { className: "flex gap-2 p-1.5 bg-white/5 rounded-2xl border border-white/10 mb-4 shadow" } }}>
                 <TabPanel
                   headerTemplate={(options) => (
                     <div
-                      className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                      className={`px-4 py-2 rounded-2xl text-xs font-black cursor-pointer transition-all ${
                         options.selected
-                          ? "bg-white text-indigo-600 shadow-sm border border-slate-200"
-                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                          ? "bg-gradient-to-r from-white/95 to-blue-50/95 text-[#0A0F2C] shadow-lg scale-105 border border-white/20"
+                          : "text-slate-300 hover:text-white hover:bg-white/10"
                       }`}
                       onClick={options.onClick}
                     >
@@ -3206,28 +3259,28 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   <div className="space-y-6">
                     {taskReflectionData && taskReflectionData.length > 0 ? (
                       [taskReflectionData[0]].map((refData: any, idx: number) => (
-                        <div key={idx} className="space-y-5 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative">
+                        <div key={idx} className="space-y-5 bg-white/5 backdrop-blur-xl p-6 rounded-[32px] border border-white/10 shadow-2xl relative">
                           {/* Type Badge */}
-                          <div className="absolute -top-3 right-6 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-sm border-2 border-white">
+                          <div className="absolute -top-3 right-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md border border-white/20">
                              التقييم الأصلي 📝
                           </div>
 
                           {/* Focus & Mastery metrics row */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                             {/* Focus metric */}
-                            <div className="bg-gradient-to-br from-indigo-50/70 to-blue-50/50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center justify-center text-center">
-                              <p className="text-[10px] text-indigo-950/70 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/25 p-6 rounded-[28px] flex flex-col items-center justify-center text-center shadow-xl">
+                              <p className="text-[10px] text-indigo-950/80 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
                                 <Brain className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> تركيزك أثناء المهمة:
                               </p>
-                              <div className="text-3xl font-black text-indigo-700 font-mono">
-                                {refData.focus} <span className="text-xs font-bold text-indigo-400">/ 5</span>
+                              <div className="text-4xl font-black bg-gradient-to-r from-[#030712] via-blue-950 to-[#0F172A] bg-clip-text text-transparent font-mono">
+                                {refData.focus} <span className="text-xs font-extrabold text-[#0A0F2C]/70">/ 5</span>
                               </div>
                               <div className="flex gap-1 mt-2.5">
                                 {[1, 2, 3, 4, 5].map((s) => (
                                   <div
                                     key={s}
                                     className={`w-2.5 h-2.5 rounded-full ${
-                                      s <= refData.focus ? "bg-indigo-600" : "bg-indigo-100"
+                                      s <= refData.focus ? "bg-indigo-600 shadow-sm" : "bg-indigo-950/15"
                                     }`}
                                   />
                                 ))}
@@ -3235,16 +3288,16 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                             </div>
 
                             {/* Mastery metric */}
-                            <div className="bg-gradient-to-br from-amber-50/70 to-yellow-50/50 p-4 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center">
-                              <p className="text-[10px] text-amber-950/75 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/25 p-6 rounded-[28px] flex flex-col items-center justify-center text-center shadow-xl">
+                              <p className="text-[10px] text-amber-950/90 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
                                 <Trophy className="w-3.5 h-3.5 text-amber-600" /> مستوى الإتقان والفهم:
                               </p>
-                              <div className="text-3xl font-black text-amber-700 font-mono">
-                                {refData.mastery} <span className="text-xs font-bold text-amber-400">/ 10</span>
+                              <div className="text-4xl font-black bg-gradient-to-r from-[#030712] via-blue-950 to-[#0F172A] bg-clip-text text-transparent font-mono">
+                                {refData.mastery} <span className="text-xs font-extrabold text-[#0A0F2C]/70">/ 10</span>
                               </div>
-                              <div className="w-32 h-2 bg-amber-200/50 rounded-full overflow-hidden mt-3 p-0.5">
+                              <div className="w-32 h-2 bg-indigo-950/15 rounded-full overflow-hidden mt-3 p-0.5">
                                 <div
-                                  className="h-full bg-amber-600 rounded-full"
+                                  className="h-full bg-amber-500 rounded-full shadow-xs"
                                   style={{ width: `${(refData.mastery / 10) * 100}%` }}
                                 />
                               </div>
@@ -3252,51 +3305,51 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                           </div>
 
                           {/* Date Badge */}
-                          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 text-slate-500 rounded-xl w-fit text-[11px] font-bold border border-slate-100">
-                            <i className="pi pi-calendar text-[11px] text-slate-400"></i>
+                          <div className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-300 rounded-xl w-fit text-[11px] font-bold border border-white/10">
+                            <i className="pi pi-calendar text-[11px] text-indigo-400"></i>
                             <span>تاريخ تسجيل الإنجاز: {new Date(refData.createdAt).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                           </div>
 
                           {/* Strengths & Weaknesses */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {/* Strengths */}
-                            <div className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 flex flex-col gap-1.5">
-                              <p className="text-[10px] text-emerald-800 font-black tracking-widest uppercase flex items-center gap-1.5">
-                                <span className="text-emerald-500">💪</span> نقاط القوة المسجلة:
+                            <div className="bg-emerald-950/20 p-4 rounded-2xl border border-emerald-500/10 flex flex-col gap-1.5">
+                              <p className="text-[10px] text-emerald-300 font-black tracking-widest uppercase flex items-center gap-1.5">
+                                <span className="text-emerald-400">💪</span> نقاط القوة المسجلة:
                               </p>
-                              <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-emerald-50/30 font-medium leading-relaxed">
+                              <p className="text-xs text-emerald-100/90 bg-emerald-900/15 p-3.5 rounded-xl border border-emerald-500/10 font-bold leading-relaxed">
                                 {refData.strengths || "لم يتم تدوين نقاط قوة معينة."}
                               </p>
                             </div>
 
                             {/* Weaknesses */}
-                            <div className="bg-rose-50/30 p-4 rounded-2xl border border-rose-100 flex flex-col gap-1.5">
-                              <p className="text-[10px] text-rose-800 font-black tracking-widest uppercase flex items-center gap-1.5">
-                                <span className="text-rose-500">🧨</span> مجالات التحسين (الضعف):
+                            <div className="bg-rose-950/25 p-4 rounded-2xl border border-rose-500/10 flex flex-col gap-1.5">
+                              <p className="text-[10px] text-rose-300 font-black tracking-widest uppercase flex items-center gap-1.5">
+                                <span className="text-rose-400">🧨</span> مجالات التحسين (الضعف):
                               </p>
-                              <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-rose-50/30 font-medium leading-relaxed">
+                              <p className="text-xs text-rose-100/90 bg-rose-900/15 p-3.5 rounded-xl border border-rose-500/10 font-bold leading-relaxed">
                                 {refData.weaknesses || "لم يتم تدوين مجالات تحسين معينة."}
                               </p>
                             </div>
                           </div>
 
                           {/* Key Learnings */}
-                          <div className="bg-blue-50/30 p-5 rounded-2xl border border-blue-100/60 flex flex-col gap-2">
-                            <p className="text-[11px] text-blue-900 font-black tracking-widest uppercase flex items-center gap-2">
-                              <Lightbulb className="w-4 h-4 text-amber-500" /> أهم الخلاصات والأفكار المسجلة:
+                          <div className="bg-blue-950/30 p-5 rounded-2xl border border-blue-500/10 flex flex-col gap-2">
+                            <p className="text-[11px] text-blue-300 font-black tracking-widest uppercase flex items-center gap-2">
+                              <Lightbulb className="w-4 h-4 text-amber-400 animate-pulse" /> أهم الخلاصات والأفكار المسجلة:
                             </p>
-                            <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-blue-50/60 leading-relaxed font-bold">
+                            <p className="text-xs text-blue-100/90 bg-blue-900/15 p-4 rounded-xl border border-blue-500/10 leading-relaxed font-bold">
                               {refData.learnings || "لم تنشأ خلاصات مدونة."}
                             </p>
                           </div>
 
                           {/* Practical aspect */}
                           {refData.didPractical && (
-                            <div className="bg-teal-50/30 p-5 rounded-2xl border border-teal-100 flex flex-col gap-2">
-                              <p className="text-[11px] text-teal-900/80 font-black tracking-widest uppercase flex items-center gap-2">
-                                <i className="pi pi-verified text-teal-600 text-xs"></i> التطبيق العملي والعوائق:
+                            <div className="bg-teal-950/20 p-5 rounded-2xl border border-teal-500/10 flex flex-col gap-2">
+                              <p className="text-[11px] text-teal-300 font-black tracking-widest uppercase flex items-center gap-2">
+                                <i className="pi pi-verified text-teal-400 text-xs"></i> التطبيق العملي والعوائق:
                               </p>
-                              <p className="text-xs text-slate-800 bg-white/80 p-4 rounded-xl border border-teal-50 font-medium leading-relaxed">
+                              <p className="text-xs text-teal-100/90 bg-teal-950/15 p-4 rounded-xl border border-teal-500/10 leading-relaxed font-bold">
                                 {refData.practicalIssues || "تم تفعيل وتطبيق المعرفة بسلاسة ودون مشاكل تقنية."}
                               </p>
                             </div>
@@ -3304,13 +3357,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-10 px-6 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col items-center gap-4">
-                        <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shadow-3xs">
+                      <div className="text-center py-12 px-6 bg-white/5 border border-white/10 rounded-[32px] flex flex-col items-center gap-4 backdrop-blur-md">
+                        <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-3xs animate-bounce">
                           <i className="pi pi-check text-2xl font-black"></i>
                         </div>
                         <div>
-                          <h4 className="text-sm font-black text-blue-950 mb-1">المهمة مكتملة بنجاح! 🚀</h4>
-                          <p className="text-xs text-slate-400 font-bold max-w-md mx-auto leading-relaxed">
+                          <h4 className="text-sm font-black text-white mb-1">المهمة مكتملة بنجاح! 🚀</h4>
+                          <p className="text-xs text-slate-350 font-bold max-w-md mx-auto leading-relaxed">
                             هذا النشاط مسجل كمكتمل في سجلاتك. لم تدوّن حالتها ضمن البوصلة أو التقييمات التفصيلية للمهارات حتى الآن، لكن تقدمك المتتالي سليم وتأثيرها محتسب في نقاط خبرتك العام.
                           </p>
                         </div>
@@ -3322,10 +3375,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 <TabPanel
                   headerTemplate={(options) => (
                     <div
-                      className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                      className={`px-4 py-2 rounded-2xl text-xs font-black cursor-pointer transition-all ${
                         options.selected
-                          ? "bg-white text-indigo-600 shadow-sm border border-slate-200"
-                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                          ? "bg-gradient-to-r from-white/95 to-blue-50/95 text-[#0A0F2C] shadow-lg scale-105 border border-white/20"
+                          : "text-slate-300 hover:text-white hover:bg-white/10"
                       }`}
                       onClick={options.onClick}
                     >
@@ -3338,37 +3391,37 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     {taskReflectionData && taskReflectionData.length > 0 ? (
                       <>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
-                            <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2">
+                          <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/25 p-5 rounded-[24px] flex flex-col items-center justify-center text-center shadow-md">
+                            <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center mb-2">
                               <History className="w-5 h-5" />
                             </div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase">عدد المراجعات</p>
-                            <p className="text-xl font-black text-slate-800">{taskReflectionData.filter((r:any) => r.type === 'review').length}</p>
+                            <p className="text-[10px] text-indigo-955/80 font-bold uppercase">عدد المراجعات</p>
+                            <p className="text-2xl font-black bg-gradient-to-r from-[#030712] via-blue-950 to-[#0F172A] bg-clip-text text-transparent font-mono">{taskReflectionData.filter((r:any) => r.type === 'review').length}</p>
                           </div>
-                          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center col-span-2">
-                            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
+                          <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/25 p-5 rounded-[24px] flex flex-col items-center justify-center text-center col-span-2 shadow-md">
+                            <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-2">
                               <TrendingUp className="w-5 h-5" />
                             </div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">الفجوات الزمنية بين المراجعات (بالأيام)</p>
+                            <p className="text-[10px] text-indigo-955/80 font-bold uppercase tracking-tight">الفجوات الزمنية بين المراجعات (بالأيام)</p>
                             <div className="flex flex-wrap gap-2 mt-1 justify-center">
                               {taskReflectionData.length > 1 ? taskReflectionData.slice(1).map((r: any, i: number) => {
                                 const prev = taskReflectionData[i];
                                 const diff = new Date(r.createdAt).getTime() - new Date(prev.createdAt).getTime();
                                 const days = Math.floor(diff / (1000 * 60 * 60 * 24));
                                 return (
-                                  <span key={i} className="text-xs font-black bg-slate-100 px-3 py-1 rounded-lg text-slate-600 border border-slate-200">
+                                  <span key={i} className="text-xs font-black bg-indigo-950/5 border border-indigo-950/10 px-3 py-1 rounded-xl text-indigo-950">
                                     المراجعة {i + 1}: {days > 0 ? `${days} يوم` : 'نفس اليوم'}
                                   </span>
                                 );
-                              }) : <span className="text-xs font-bold text-slate-300">لا توجد مراجعات لاحتساب الفجوات</span>}
+                              }) : <span className="text-xs font-bold text-[#0A0F2C]/70">لا توجد مراجعات لاحتساب الفجوات</span>}
                             </div>
                           </div>
                         </div>
 
                         {taskReflectionData.length > 1 ? (
-                          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-                            <h4 className="text-xs font-black text-slate-400 tracking-widest uppercase flex items-center gap-2">
-                              <TrendingUp className="w-4 h-4 text-indigo-500" /> مخطط تطور الإتقان والتركيز عبر المراجعات
+                          <div className="bg-white/5 border border-white/10 p-6 rounded-[32px] shadow-xl space-y-4">
+                            <h4 className="text-xs font-black text-slate-300 tracking-widest uppercase flex items-center gap-2">
+                              <TrendingUp className="w-4 h-4 text-indigo-400" /> مخطط تطور الإتقان والتركيز عبر المراجعات
                             </h4>
                             <div className="h-64 w-full">
                               <ResponsiveContainer width="100%" height="100%">
@@ -3388,12 +3441,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                       <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
                                     </linearGradient>
                                   </defs>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
                                   <XAxis 
                                     dataKey="name" 
                                     axisLine={false} 
                                     tickLine={false} 
-                                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} 
+                                    tick={{fill: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: 'bold'}} 
                                     dy={10}
                                   />
                                   <YAxis 
@@ -3401,7 +3454,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                     domain={[0, 10]}
                                   />
                                   <RechartsTooltip 
-                                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', direction: 'rtl'}}
+                                    contentStyle={{borderRadius: '16px', border: '1px solid rgba(255,255,255,0.15)', background: '#0a0f2c', color: '#fff', direction: 'rtl'}}
                                     itemStyle={{fontSize: '11px', fontWeight: 'bold'}}
                                     labelStyle={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}
                                   />
@@ -3428,15 +3481,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                             </div>
                           </div>
                         ) : (
-                          <div className="text-center py-6 px-4 bg-blue-50/50 border border-blue-100 rounded-3xl">
-                            <p className="text-sm font-bold text-blue-900 mb-1">لم تقم بأي مراجعة بعد</p>
-                            <p className="text-xs text-blue-700/70">قم بمراجعة هذه المهمة لاحقاً لرؤية الرسم البياني لتطور مستواك وتركيزك.</p>
+                          <div className="text-center py-6 px-4 bg-white/5 border border-white/10 rounded-3xl">
+                            <p className="text-sm font-bold text-white mb-1">لم تقم بأي مراجعة بعد</p>
+                            <p className="text-xs text-slate-300">قم بمراجعة هذه المهمة لاحقاً لرؤية الرسم البياني لتطور مستواك وتركيزك.</p>
                           </div>
                         )}
 
                         {taskReflectionData.length > 1 && (
                           <div className="space-y-4">
-                            <h4 className="text-sm font-black text-slate-800 pr-2">تاريخ المراجعات والتقييمات</h4>
+                            <h4 className="text-sm font-black text-white pr-2">تاريخ المراجعات والتقييمات</h4>
                             {taskReflectionData.slice(1).map((refData: any, idx: number) => {
                               const original = taskReflectionData[0];
                               const masteryDiff = refData.mastery - original.mastery;
@@ -3444,51 +3497,51 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                               const isMasterySame = masteryDiff === 0;
 
                               return (
-                                <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-3">
+                                <div key={idx} className="bg-white/5 border border-white/10 p-5 rounded-2xl shadow-lg flex flex-col gap-3">
                                   <div className="flex items-center justify-between">
                                     <div className="flex flex-col gap-1">
-                                      <span className="text-xs font-black text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded-md w-fit">المراجعة {idx + 1}</span>
+                                      <span className="text-xs font-black text-indigo-300 bg-indigo-500/20 px-2.5 py-1 rounded-md w-fit">المراجعة {idx + 1}</span>
                                       <span className="text-[10px] text-slate-400 font-bold">{new Date(refData.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      <div className={`flex flex-col items-center justify-center p-2 rounded-xl text-center min-w-[70px] ${isMasteryUp ? 'bg-emerald-50 text-emerald-700' : isMasterySame ? 'bg-slate-50 text-slate-600' : 'bg-rose-50 text-rose-700'}`}>
+                                      <div className={`flex flex-col items-center justify-center p-2 rounded-xl text-center min-w-[70px] ${isMasteryUp ? 'bg-emerald-500/15 text-emerald-300' : isMasterySame ? 'bg-white/5 text-slate-300' : 'bg-rose-500/15 text-rose-300'}`}>
                                         <span className="text-[9px] uppercase font-black opacity-70">الإتقان</span>
                                         <span className="text-sm font-black">{refData.mastery} <span className="text-[10px]">/ 10</span></span>
-                                        <span className={`text-[10px] font-black ${isMasteryUp ? 'text-emerald-500' : isMasterySame ? 'text-slate-400' : 'text-rose-500'}`}>
+                                        <span className={`text-[10px] font-black ${isMasteryUp ? 'text-emerald-400' : isMasterySame ? 'text-slate-400' : 'text-rose-450'}`}>
                                           {isMasteryUp ? `+${masteryDiff} تحسن` : isMasterySame ? 'مستقر' : `${Math.abs(masteryDiff)}- تراجع`}
                                         </span>
                                       </div>
                                     </div>
                                   </div>
                                   {(refData.strengths || refData.weaknesses || refData.learnings) && (
-                                    <div className="bg-slate-50/75 p-4 rounded-xl border border-slate-150 flex flex-col gap-3 text-right">
-                                      <span className="text-indigo-600 mr-1 block text-[11px] font-black">📋 خلاصة هذه المراجعة:</span>
+                                    <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex flex-col gap-3 text-right">
+                                      <span className="text-indigo-300 mr-1 block text-[11px] font-black">📋 خلاصة هذه المراجعة:</span>
                                       
                                       {refData.strengths && (
-                                        <div className="flex gap-2 items-start text-xs font-semibold text-slate-700 leading-relaxed pr-1">
+                                        <div className="flex gap-2 items-start text-xs font-semibold text-slate-300 leading-relaxed pr-1">
                                           <span className="text-sm shrink-0">💪</span>
                                           <div>
-                                            <span className="font-black text-emerald-700 block text-[10px] uppercase mb-0.5">نقاط القوة والأداء المميز:</span>
+                                            <span className="font-black text-emerald-400 block text-[10px] uppercase mb-0.5">نقاط القوة والأداء المميز:</span>
                                             <span>{refData.strengths}</span>
                                           </div>
                                         </div>
                                       )}
 
                                       {refData.weaknesses && (
-                                        <div className="flex gap-2 items-start text-xs font-semibold text-slate-700 leading-relaxed pr-1 border-t border-slate-200/50 pt-2.5">
+                                        <div className="flex gap-2 items-start text-xs font-semibold text-slate-300 leading-relaxed pr-1 border-t border-white/10 pt-2.5">
                                           <span className="text-sm shrink-0">🧨</span>
                                           <div>
-                                            <span className="font-black text-rose-700 block text-[10px] uppercase mb-0.5">نقاط الضعف (مجالات التطوير):</span>
+                                            <span className="font-black text-rose-400 block text-[10px] uppercase mb-0.5">نقاط الضعف (مجالات التطوير):</span>
                                             <span>{refData.weaknesses}</span>
                                           </div>
                                         </div>
                                       )}
 
                                       {refData.learnings && (
-                                        <div className="flex gap-2 items-start text-xs font-semibold text-slate-700 leading-relaxed pr-1 border-t border-slate-200/50 pt-2.5">
+                                        <div className="flex gap-2 items-start text-xs font-semibold text-slate-300 leading-relaxed pr-1 border-t border-white/10 pt-2.5">
                                           <span className="text-sm shrink-0">💡</span>
                                           <div>
-                                            <span className="font-black text-blue-700 block text-[10px] uppercase mb-0.5">المهارات والأفكار المكتسبة:</span>
+                                            <span className="font-black text-blue-400 block text-[10px] uppercase mb-0.5">المهارات والأفكار المكتسبة:</span>
                                             <span>{refData.learnings}</span>
                                           </div>
                                         </div>
@@ -3502,8 +3555,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         )}
                       </>
                     ) : (
-                      <div className="text-center py-10 px-6 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col items-center gap-4">
-                        <p className="text-sm font-black text-blue-950">لا توجد بيانات مراجعة</p>
+                      <div className="text-center py-10 px-6 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center gap-4">
+                        <p className="text-sm font-black text-slate-300">لا توجد بيانات مراجعة</p>
                       </div>
                     )}
                   </div>
@@ -3513,10 +3566,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   <TabPanel
                     headerTemplate={(options) => (
                       <div
-                        className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                        className={`px-4 py-2 rounded-2xl text-xs font-black cursor-pointer transition-all ${
                           options.selected
-                            ? "bg-white text-indigo-600 shadow-sm border border-slate-200"
-                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                            ? "bg-gradient-to-r from-white/95 to-blue-50/95 text-[#0A0F2C] shadow-lg scale-105 border border-white/20"
+                            : "text-slate-300 hover:text-white hover:bg-white/10"
                         }`}
                         onClick={options.onClick}
                       >
@@ -3529,25 +3582,25 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       {taskReflectionData
                         .filter((r: any) => r.languageLearning)
                         .map((ref: any, idx: number) => (
-                          <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-6 relative">
-                            <div className="absolute -top-3 right-6 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-sm border-2 border-white">
+                          <div key={idx} className="bg-white/5 border border-white/10 p-5 rounded-[32px] relative shadow-lg space-y-6">
+                            <div className="absolute -top-3 right-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md border border-white/20">
                                 {idx === 0 ? "التقييم اللغوي الأصلي 📝" : `مراجعة لغوية ${idx} 🔄`}
                             </div>
 
                             {/* Accent Rating */}
-                            <div className="bg-gradient-to-br from-amber-50/70 to-yellow-50/50 p-4 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center">
-                              <p className="text-[10px] text-amber-950/75 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/25 p-5 rounded-[24px] flex flex-col items-center justify-center text-center shadow-md">
+                              <p className="text-[10px] text-amber-955/90 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
                                 <Sparkles className="w-3.5 h-3.5 text-amber-600" /> تقييم اللكنة (Accent):
                               </p>
-                              <div className="text-3xl font-black text-amber-700 font-mono">
-                                {ref.languageLearning.accentRating} <span className="text-xs font-bold text-amber-400">/ 5</span>
+                              <div className="text-4xl font-black bg-gradient-to-r from-[#030712] via-blue-950 to-[#0F172A] bg-clip-text text-transparent font-mono">
+                                {ref.languageLearning.accentRating} <span className="text-xs font-extrabold text-[#0A0F2C]/70">/ 5</span>
                               </div>
                               <div className="flex gap-1 mt-2.5">
                                 {[1, 2, 3, 4, 5].map((s) => (
                                   <div
                                     key={s}
                                     className={`w-2.5 h-2.5 rounded-full ${
-                                      s <= ref.languageLearning.accentRating ? "bg-amber-500" : "bg-amber-100"
+                                      s <= ref.languageLearning.accentRating ? "bg-amber-500 shadow shadow-amber-500/30" : "bg-indigo-950/15"
                                     }`}
                                   />
                                 ))}
@@ -3557,19 +3610,19 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                             {/* Sentences */}
                             {ref.languageLearning.sentences && ref.languageLearning.sentences.length > 0 && (
                               <div className="space-y-3">
-                                <h4 className="text-xs font-black text-indigo-900 pr-2 flex items-center gap-2">
-                                  <Languages className="w-4 h-4" /> الجمل المكتسبة:
+                                <h4 className="text-xs font-black text-indigo-300 pr-2 flex items-center gap-2">
+                                  <Languages className="w-4 h-4 text-indigo-400" /> الجمل المكتسبة:
                                 </h4>
                                 <div className="grid grid-cols-1 gap-2">
                                   {ref.languageLearning.sentences.map((s: any, sIdx: number) => (
-                                    <div key={sIdx} className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col gap-1">
+                                    <div key={sIdx} className="bg-white/5 border border-white/10 p-4 rounded-xl flex flex-col gap-2">
                                       <div className="flex items-center justify-between">
-                                        <p className="text-xs font-bold text-slate-800">{s.text || "تسجيل صوتي 🎙️"}</p>
+                                        <p className="text-xs font-bold text-white">{s.text || "تسجيل صوتي 🎙️"}</p>
                                         <div className="flex gap-1">
                                           {s.audioData && (
                                             <Button 
                                               icon={<Mic className="w-3.5 h-3.5" />} 
-                                              className="p-button-text p-button-rounded text-rose-500 w-8 h-8" 
+                                              className="p-button-text p-button-rounded text-rose-400 w-8 h-8 hover:bg-white/10" 
                                               onClick={() => {
                                                 const audio = new Audio(s.audioData);
                                                 audio.play();
@@ -3578,7 +3631,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                           )}
                                           <Button 
                                             icon={<Volume2 className="w-3.5 h-3.5" />} 
-                                            className="p-button-text p-button-rounded text-indigo-500 w-8 h-8" 
+                                            className="p-button-text p-button-rounded text-indigo-400 w-8 h-8 hover:bg-white/10" 
                                             disabled={!s.text}
                                             onClick={() => {
                                               if (!s.text) return;
@@ -3599,7 +3652,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                         </div>
                                       </div>
                                       {s.notes && (
-                                        <p className="text-[10px] text-slate-500 font-medium bg-white/60 p-2 rounded-lg border border-slate-50 italic">
+                                        <p className="text-[10px] text-slate-350 font-medium bg-white/5 p-2 rounded-lg border border-white/5 italic">
                                           {s.notes}
                                         </p>
                                       )}
@@ -3611,19 +3664,19 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
                             {/* Issues & Notes */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div className="bg-sky-50/30 p-4 rounded-2xl border border-sky-100 flex flex-col gap-1.5">
-                                <p className="text-[10px] text-sky-800 font-black tracking-widest uppercase flex items-center gap-1.5">
-                                  <MessageSquare className="w-3.5 h-3.5 text-sky-500" /> مشاكل النطق:
+                              <div className="bg-sky-950/20 p-4 rounded-2xl border border-sky-500/10 flex flex-col gap-1.5">
+                                <p className="text-[10px] text-sky-300 font-black tracking-widest uppercase flex items-center gap-1.5">
+                                  <MessageSquare className="w-3.5 h-3.5 text-sky-400" /> مشاكل النطق:
                                 </p>
-                                <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-sky-50/30 font-medium leading-relaxed">
+                                <p className="text-xs text-sky-100 bg-white/5 p-3.5 rounded-xl border border-sky-500/10 font-medium leading-relaxed">
                                   {ref.languageLearning.pronunciationIssues || "لا يوجد ملاحظات نطق."}
                                 </p>
                               </div>
-                              <div className="bg-indigo-50/30 p-4 rounded-2xl border border-indigo-100 flex flex-col gap-1.5">
-                                <p className="text-[10px] text-indigo-800 font-black tracking-widest uppercase flex items-center gap-1.5">
-                                  <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> ملاحظات اللهجة:
+                              <div className="bg-indigo-950/20 p-4 rounded-2xl border border-indigo-500/10 flex flex-col gap-1.5">
+                                <p className="text-[10px] text-indigo-300 font-black tracking-widest uppercase flex items-center gap-1.5">
+                                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> ملاحظات اللهجة:
                                 </p>
-                                <p className="text-xs text-slate-700 bg-white/70 p-3.5 rounded-xl border border-indigo-50/30 font-medium leading-relaxed">
+                                <p className="text-xs text-indigo-100 bg-white/5 p-3.5 rounded-xl border border-indigo-500/10 font-bold leading-relaxed">
                                   {ref.languageLearning.dialectNotes || "لا يوجد ملاحظات لهجة."}
                                 </p>
                               </div>
@@ -3635,7 +3688,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 )}
               </TabView>
             </motion.div>
-          )}
+          ))}
         </AnimatePresence>
       </Dialog>
 
@@ -3645,12 +3698,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         visible={showCompassPopup}
         onHide={() => setShowCompassPopup(false)}
         header={
-          <div className="flex items-center gap-3 text-blue-950 font-black pr-4 text-2xl font-sans" dir="rtl">
-            <i className="pi pi-compass text-indigo-600 border-2 border-indigo-950/10 p-1.5 rounded-lg"></i>
-            <span className="font-black text-blue-950 tracking-tight">البوصلة والكبسولة 🧭</span>
+          <div className="flex items-center gap-3 pr-2 text-right w-full" dir="rtl">
+            <i className="pi pi-compass text-indigo-400 text-2xl animate-pulse"></i>
+            <span className="text-xl font-black text-white">البوصلة والكبسولة 🧭</span>
           </div>
         }
-        className="font-sans text-xl !rounded-[32px] overflow-hidden"
+        className="font-sans text-xl !rounded-[32px] overflow-hidden w-[95vw] max-w-4xl border-none shadow-2xl"
+        contentClassName="bg-gradient-to-br from-[#090e1a] to-[#03050a] p-6 text-white"
+        headerClassName="bg-[#090e1a] border-b border-white/5 pb-4"
         style={{ borderRadius: '32px' }}
         closable
         dismissableMask
@@ -3666,10 +3721,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               className="text-right font-sans h-[65vh] min-h-[500px] flex flex-col" 
               dir="rtl"
             >
-              <TabView className="custom-spaced-tabs flex-1 flex flex-col pt-2" pt={{ nav: { className: "flex gap-2 p-1.5 bg-slate-100 rounded-2xl border-none mb-4 mx-2" }, panelContainer: { className: "p-0 flex-1 overflow-y-auto w-full no-scrollbar" } }}>
+              <TabView className="custom-spaced-tabs flex-1 flex flex-col pt-2" pt={{ nav: { className: "flex gap-2 p-1.5 bg-white/5 rounded-2xl border-none mb-4 mx-2" }, panelContainer: { className: "p-0 flex-1 overflow-y-auto w-full no-scrollbar bg-transparent" } }}>
                 <TabPanel headerTemplate={createTabHeader("pi-compass", "أساسيات البوصلة")}>
                   <div className="space-y-4 px-2 pb-6">
-                    <div className="text-slate-500 font-bold text-xs leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="text-slate-300 font-bold text-xs leading-relaxed bg-white/5 p-4 rounded-2xl border border-white/10 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <span>قمرة القيادة لمعرفة دافعيتك والهدف النهائي ومخاوفك التي تسعى لتخطيها خلال هذه الرحلة.</span>
                       {!isEditingPsychology ? (
                         <button
@@ -3705,55 +3760,55 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                       )}
                     </div>
 
-                    <div className="bg-gradient-to-br from-blue-50/70 to-indigo-50/50 p-5 rounded-2xl border border-blue-100/30">
-                      <p className="text-[10px] text-indigo-900/60 font-black uppercase tracking-widest flex items-center gap-2 mb-2">
-                        <i className="pi pi-question-circle text-indigo-600 text-[10px]"></i> السبب (ليه عايز تعمل ده؟):
+                    <div className="bg-gradient-to-br from-indigo-500/10 to-blue-500/5 p-5 rounded-2xl border border-indigo-500/20">
+                      <p className="text-[10px] text-indigo-300 font-black uppercase tracking-widest flex items-center gap-2 mb-2">
+                        <i className="pi pi-question-circle text-indigo-400 text-[10px]"></i> السبب (ليه عايز تعمل ده؟):
                       </p>
                       {isEditingPsychology ? (
                         <textarea
-                          className="w-full h-44 p-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/10 text-xs font-bold text-slate-800 resize-y min-h-[140px] font-sans"
+                          className="w-full h-44 p-3 bg-white/5 border border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-bold text-white resize-y min-h-[140px] font-sans placeholder:text-slate-500"
                           value={editReason}
                           onChange={(e) => setEditReason(e.target.value)}
                           placeholder="اكتب الأسباب والدافعية من هذه الرحلة..."
                         />
                       ) : (
-                        <p className="text-blue-950 font-bold text-sm bg-white/80 p-3.5 rounded-xl border border-white leading-relaxed text-blue-980 shadow-xs">
+                        <p className="text-white font-bold text-sm bg-white/5 p-3.5 rounded-xl border border-white/5 leading-relaxed shadow-xs">
                           {user.psychology.reason || "لم يتم تسجيله بعد"}
                         </p>
                       )}
                     </div>
 
-                    <div className="bg-gradient-to-br from-teal-50/70 to-emerald-50/50 p-5 rounded-2xl border border-teal-100/30">
-                      <p className="text-[10px] text-teal-900/60 font-black uppercase tracking-widest flex items-center gap-2 mb-2">
-                        <i className="pi pi-flag text-teal-600 text-[10px]"></i> الهدف النهائي:
+                    <div className="bg-gradient-to-br from-teal-500/10 to-emerald-500/5 p-5 rounded-2xl border border-teal-500/20">
+                      <p className="text-[10px] text-teal-300 font-black uppercase tracking-widest flex items-center gap-2 mb-2">
+                        <i className="pi pi-flag text-teal-400 text-[10px]"></i> الهدف النهائي:
                       </p>
                       {isEditingPsychology ? (
                         <textarea
-                          className="w-full h-44 p-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/10 text-xs font-bold text-slate-800 resize-y min-h-[140px] font-sans"
+                          className="w-full h-44 p-3 bg-white/5 border border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 text-xs font-bold text-white resize-y min-h-[140px] font-sans placeholder:text-slate-500"
                           value={editTarget}
                           onChange={(e) => setEditTarget(e.target.value)}
                           placeholder="ما هو الهدف النهائي الذي تطمح للوصول إليه؟..."
                         />
                       ) : (
-                        <p className="text-blue-950 font-bold text-sm bg-white/80 p-3.5 rounded-xl border border-white leading-relaxed shadow-xs">
+                        <p className="text-white font-bold text-sm bg-white/5 p-3.5 rounded-xl border border-white/5 leading-relaxed shadow-xs">
                           {user.psychology.target || "لم يتم تسجيله بعد"}
                         </p>
                       )}
                     </div>
 
-                    <div className="bg-gradient-to-br from-rose-50/70 to-red-50/50 p-5 rounded-2xl border border-rose-100/30">
-                      <p className="text-[10px] text-rose-900/60 font-black uppercase tracking-widest flex items-center gap-2 mb-2">
-                        <i className="pi pi-exclamation-triangle text-rose-600 text-[10px]"></i> المخاوف (التي تخاف الوقوع فيها):
+                    <div className="bg-gradient-to-br from-rose-500/10 to-red-500/5 p-5 rounded-2xl border border-rose-500/20">
+                      <p className="text-[10px] text-rose-300 font-black uppercase tracking-widest flex items-center gap-2 mb-2">
+                        <i className="pi pi-exclamation-triangle text-rose-400 text-[10px]"></i> المخاوف (التي تخاف الوقوع فيها):
                       </p>
                       {isEditingPsychology ? (
                         <textarea
-                          className="w-full h-44 p-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500/10 text-xs font-bold text-slate-800 resize-y min-h-[140px] font-sans"
+                          className="w-full h-44 p-3 bg-white/5 border border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-xs font-bold text-white resize-y min-h-[140px] font-sans placeholder:text-slate-500"
                           value={editAnxieties}
                           onChange={(e) => setEditAnxieties(e.target.value)}
                           placeholder="ما هي التحديات أو المخاوف التي تود تفاديها؟..."
                         />
                       ) : (
-                        <p className="text-red-950 font-bold text-sm bg-white/80 p-3.5 rounded-xl border border-white leading-relaxed text-red-800 shadow-xs">
+                        <p className="text-white font-bold text-sm bg-white/5 p-3.5 rounded-xl border border-white/5 leading-relaxed shadow-xs">
                           {user.psychology.anxieties || "لم يتم تسجيله بعد"}
                         </p>
                       )}
@@ -3765,12 +3820,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                   <div className="px-2 pb-6 space-y-6">
 
               {/* Time Capsule Integration inside the Compass popup */}
-              <div className="border-t border-slate-100 pt-6 mt-6">
-                <div className="bg-gradient-to-br from-[#faf8ff] to-[#f4f2ff] p-6 rounded-3xl border border-indigo-100/50 space-y-4">
-                  <h4 className="font-black text-indigo-950 text-base flex items-center gap-2">
+              <div className="border-t border-white/10 pt-6 mt-6">
+                <div className="bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 p-6 rounded-3xl border border-indigo-500/20 space-y-4">
+                  <h4 className="font-black text-indigo-100 text-base flex items-center gap-2">
                     <span className="text-xl">✉️</span> الكبسولة الزمنية لمستقبلك
                   </h4>
-                  <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                  <p className="text-xs text-slate-300 font-bold leading-relaxed">
                      هنا يمكنك كتابة كبسولات ورسائل وتنبيهات لنفسك المستقبلية. ستُقفل هذه الكبسولات تلقائيًا وتُبث في الفضاء لتُفتح فقط عندما تفتح قفل خطتك القادمة!
                   </p>
 
@@ -3785,9 +3840,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
                       return (
                         <div className="space-y-4">
-                          <div className="bg-white/85 p-4 rounded-2xl border border-indigo-50/80 space-y-2.5">
-                            <span className="text-xs font-black text-indigo-900 flex items-center gap-1.5">
-                              🎯 الكبسولة موجهة للخطة القادمة: <span className="text-blue-600">"{nextSt.name}"</span>
+                          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-2.5">
+                            <span className="text-xs font-black text-indigo-200 flex items-center gap-1.5">
+                              🎯 الكبسولة موجهة للخطة القادمة: <span className="text-indigo-400">"{nextSt.name}"</span>
                             </span>
                             
                             <textarea
@@ -4101,12 +4156,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         header={
           <div className="flex items-center justify-between w-full pr-4 pb-2" dir="rtl">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shadow-inner">
-                 <Rocket className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
+                 <Rocket className="w-5 h-5 text-blue-300 animate-pulse" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-black tracking-tight text-slate-800">{stations.find(s => s.id === selectedStation)?.name}</span>
-                <span className="text-[10px] text-blue-600 font-bold uppercase tracking-widest">غرفة التحكم في العمليات والمهام التنفيذية</span>
+                <span className="text-xl font-black tracking-tight text-white">{stations.find(s => s.id === selectedStation)?.name}</span>
+                <span className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">غرفة التحكم في العمليات والمهام التنفيذية</span>
               </div>
             </div>
             
@@ -4121,11 +4176,20 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             })()}
           </div>
         }
-        className="w-screen h-screen font-sans rounded-none border-none bg-white p-0 m-0 max-w-none max-h-none"
+        className="w-screen h-screen font-sans rounded-none border-none bg-transparent p-0 m-0 max-w-none max-h-none"
         style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0 }}
         contentClassName="no-scrollbar"
-        headerStyle={{ background: '#ffffff', borderBottom: '1px solid #f1f5f9', padding: '24px' }}
-        contentStyle={{ background: '#ffffff', color: '#0f172a', padding: '0' }}
+        headerStyle={{ 
+          background: 'var(--blue-dark)', 
+          color: '#ffffff', 
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)', 
+          padding: '24px' 
+        }}
+        contentStyle={{ 
+          background: 'var(--gradient-main)', 
+          color: '#ffffff', 
+          padding: '0' 
+        }}
         dismissableMask
         closable
         maximized
@@ -4134,9 +4198,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           <div className="flex-1 overflow-hidden">
             <div className="flex flex-col md:flex-row h-full w-full animate-fade-in" dir="rtl">
                 {/* Main Tasks Tree (Collapsible) */}
-                <div className="flex-1 p-6 overflow-y-auto no-scrollbar border-l border-slate-100">
+                <div className="flex-1 p-6 overflow-y-auto no-scrollbar border-l border-white/10" style={{ borderLeftWidth: '1px' }}>
                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                      <h3 className="text-lg font-black text-white flex items-center gap-2">
                          <span className="w-1.5 h-5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]"></span>
                          المهام الرئيسية والهيكل التنفيذي
                       </h3>
@@ -4145,13 +4209,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                    <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto no-scrollbar pb-6 px-1">
                      {filteredMainTasksNodes.map((node: any) => (
                        <div key={node.key} className="space-y-3">
-                         <div className="bg-white border border-slate-200 rounded-[24px] p-4 hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer">
+                         <div className="bg-white/5 border border-white/10 rounded-[24px] p-4 hover:border-indigo-400/50 hover:bg-white/10 hover:shadow-lg hover:shadow-indigo-500/5 transition-all cursor-pointer">
                            {treeNodeTemplate(node)}
                          </div>
                          {node.children && node.children.length > 0 && (
-                           <div className="flex flex-col gap-3 pr-6 border-r-2 border-indigo-100 mr-4">
+                           <div className="flex flex-col gap-3 pr-6 border-r-2 border-indigo-500/20 mr-4">
                              {node.children.map((child: any) => (
-                               <div key={child.key} className="bg-slate-50 border border-slate-200 rounded-[20px] p-3 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer">
+                               <div key={child.key} className="bg-white/8 border border-white/10 rounded-[20px] p-3 hover:border-indigo-300/50 hover:bg-white/15 hover:shadow-md transition-all cursor-pointer">
                                  {treeNodeTemplate(child)}
                                </div>
                              ))}
@@ -4163,8 +4227,8 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 </div>
 
                 {/* Side Tasks Panel */}
-                <div className="w-full md:w-80 p-6 bg-slate-50/70 border-r border-slate-100 overflow-y-auto no-scrollbar md:border-r-0">
-                   <h3 className="text-sm font-black text-indigo-700 mb-6 flex items-center gap-2 uppercase tracking-wider">
+                <div className="w-full md:w-80 p-6 bg-white/5 border-r border-white/10 overflow-y-auto no-scrollbar md:border-r-0" style={{ borderRightWidth: '1px' }}>
+                   <h3 className="text-sm font-black text-indigo-300 mb-6 flex items-center gap-2 uppercase tracking-wider">
                       <i className="pi pi-star-fill text-xs" />
                       المبادرات الجانبية
                    </h3>
@@ -4180,21 +4244,21 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                             }}
                             className={`p-4 rounded-2xl border transition-all cursor-pointer group
                               ${t.isCompleted 
-                                ? 'bg-slate-100/80 border-indigo-200 opacity-60' 
-                                : 'bg-white border-slate-200 hover:border-indigo-300 shadow-sm hover:shadow'}
+                                ? 'bg-white/5 border-indigo-500/20 opacity-50' 
+                                : 'bg-white/8 border-white/10 hover:border-indigo-400 hover:bg-white/12 shadow-sm hover:shadow-md'}
                             `}
                           >
                              <div className="flex items-center gap-3">
                                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all
-                                   ${t.isCompleted ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-white border-slate-200 text-indigo-600 shadow-sm'}
+                                   ${t.isCompleted ? 'bg-indigo-950/40 border-indigo-500/20 text-indigo-300' : 'bg-white/10 border-white/20 text-indigo-300 shadow-sm'}
                                 `}>
-                                   {t.isCompleted ? <i className="pi pi-check text-[10px]" /> : <i className="pi pi-star text-[10px]" />}
+                                   {t.isCompleted ? <div className="w-2 h-2 rounded-full bg-indigo-600" /> : <i className="pi pi-star text-[10px]" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                   <p className={`text-xs font-bold truncate ${t.isCompleted ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
+                                   <p className={`text-xs font-bold truncate ${t.isCompleted ? 'text-slate-400 opacity-60' : 'text-white'}`}>
                                       {t.title}
                                    </p>
-                                   <p className="text-[10px] text-indigo-600/70 mt-0.5 font-black uppercase tracking-widest">SIDE MISSION</p>
+                                   <p className="text-[10px] text-indigo-300 opacity-80 mt-0.5 font-black uppercase tracking-widest">SIDE MISSION</p>
                                 </div>
                              </div>
                           </div>
@@ -4203,57 +4267,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                    ) : (
                      <div className="flex flex-col items-center justify-center py-6 text-center opacity-60 mb-8">
                         <i className="pi pi-inbox text-2xl mb-2 text-indigo-300" />
-                        <p className="text-xs font-bold text-indigo-400">لا توجد مهام إضافية</p>
+                        <p className="text-xs font-bold text-indigo-300">لا توجد مهام إضافية</p>
                      </div>
                    )}
 
-                   <h3 className="text-sm font-black text-amber-600 mb-6 flex items-center gap-2 uppercase tracking-wider">
-                      <i className="pi pi-bolt text-xs" />
-                      المهام التطبيقية
-                   </h3>
-                   {filteredPracticalTasks && filteredPracticalTasks.length > 0 ? (
-                     <div className="space-y-4">
-                       {filteredPracticalTasks.map((sub: any, subIdx: number) => (
-                         <div key={`sub-${subIdx}`} className="space-y-2">
-                           <div className="text-xs text-amber-600/70 font-black tracking-widest uppercase">
-                             المجموعة {subIdx + 1}
-                           </div>
-                           {sub.tasks?.map((t: any) => (
-                             <div 
-                               key={t.id}
-                               onClick={() => {
-                                 if (!t.isCompleted) completePracticalTask(selectedStation, subIdx, t.id);
-                               }}
-                               className={`p-4 rounded-2xl border transition-all cursor-pointer group
-                                 ${t.isCompleted 
-                                   ? 'bg-amber-50/50 border-amber-200 opacity-60' 
-                                   : 'bg-white border-slate-200 hover:border-amber-300 shadow-sm hover:shadow'}
-                               `}
-                             >
-                                <div className="flex items-center gap-3">
-                                   <div className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all
-                                      ${t.isCompleted ? 'bg-amber-500 border-amber-400 text-white' : 'bg-white border-slate-200 text-amber-500 shadow-sm'}
-                                   `}>
-                                      {t.isCompleted ? <i className="pi pi-check text-[10px]" /> : <i className="pi pi-bolt text-[10px]" />}
-                                   </div>
-                                   <div className="flex-1 min-w-0">
-                                      <p className={`text-xs font-bold truncate ${t.isCompleted ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
-                                         {t.title}
-                                      </p>
-                                      <p className="text-[10px] text-amber-600/70 mt-0.5 font-black uppercase tracking-widest">PRACTICAL MISSION</p>
-                                   </div>
-                                </div>
-                             </div>
-                           ))}
-                         </div>
-                       ))}
-                     </div>
-                   ) : (
-                     <div className="flex flex-col items-center justify-center py-6 text-center opacity-60">
-                        <i className="pi pi-box text-2xl mb-2 text-amber-400" />
-                        <p className="text-xs font-bold text-amber-500">لا توجد مهام تطبيقية</p>
-                     </div>
-                   )}
+
                 </div>
               </div>
           </div>

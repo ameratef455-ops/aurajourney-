@@ -565,6 +565,63 @@ export function ReviewPathSession({
                    </svg>
                 </div>
 
+                {task && (
+                  <div className="max-w-4xl w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden shadow-2xl z-20">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#2D52CC]/10 rounded-full blur-2xl pointer-events-none" />
+                    <div className="text-right flex-1">
+                      <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20">المهمة الحالية 🎯</span>
+                      <h2 className="text-xl md:text-2xl font-black text-white mt-1.5 mb-1">{task.title}</h2>
+                      {task.description && (
+                        <p className="text-[#A0B4E8] text-xs line-clamp-1 opacity-85">{task.description}</p>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      {onOpenReflection && (
+                        <button
+                          onClick={() => {
+                            vibrate(HAPITCS.MAJOR_CLICK);
+                            onOpenReflection(task);
+                          }}
+                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white text-xs font-black shadow-lg transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer border-none"
+                          title="الانعكاس المعرفي"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>تأمل / تقييم</span>
+                        </button>
+                      )}
+                      
+                      {onOpenFlashcards && (
+                        <button
+                          onClick={() => {
+                            vibrate(HAPITCS.MAJOR_CLICK);
+                            onOpenFlashcards(task);
+                          }}
+                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-500 hover:brightness-110 text-white text-xs font-black shadow-lg transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer border-none"
+                          title="كروت المراجعة"
+                        >
+                          <i className="pi pi-clone text-[11px]" />
+                          <span>كروت المراجعة</span>
+                        </button>
+                      )}
+                      
+                      {onOpenAnalytics && (
+                        <button
+                          onClick={() => {
+                            vibrate(HAPITCS.MAJOR_CLICK);
+                            onOpenAnalytics(task);
+                          }}
+                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 hover:brightness-110 text-white text-xs font-black shadow-lg transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer border-none"
+                          title="تحليلات الأداء"
+                        >
+                          <i className="pi pi-chart-bar text-[11px]" />
+                          <span>الإحصائيات</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-x-24 md:gap-y-16 max-w-4xl w-full relative z-20">
                   {targets.map((target, idx) => {
                     const isCompleted = completedTargets.includes(target.id);
@@ -686,9 +743,51 @@ export function ReviewPathSession({
                                    <div className={`w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr ${selectedTarget.color} flex items-center justify-center text-white shadow-2xl shrink-0`}>
                                       {selectedTarget.icon}
                                    </div>
-                                   <div className="text-center md:text-right">
+                                   <div className="text-center md:text-right flex-1">
                                       <h2 className="text-2xl md:text-4xl font-black text-white mb-1 line-clamp-2">{task?.title || 'عنوان المهمة'}</h2>
-                                      <p className="text-blue-400 font-extrabold text-sm md:text-lg">{selectedTarget.title}</p>
+                                      <p className="text-blue-400 font-extrabold text-sm md:text-lg mb-3">{selectedTarget.title}</p>
+                                      
+                                      {/* Quick Actions buttons inside detail mode */}
+                                      <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                                        {onOpenReflection && (
+                                          <button
+                                            onClick={() => {
+                                              vibrate(HAPITCS.MAJOR_CLICK);
+                                              onOpenReflection(task);
+                                            }}
+                                            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:brightness-110 text-white text-xs font-bold shadow-md transition-all active:scale-95 flex items-center gap-1 cursor-pointer border-none"
+                                          >
+                                            <Sparkles className="w-3 h-3" />
+                                            <span>تأمل / تقييم</span>
+                                          </button>
+                                        )}
+                                        
+                                        {onOpenFlashcards && (
+                                          <button
+                                            onClick={() => {
+                                              vibrate(HAPITCS.MAJOR_CLICK);
+                                              onOpenFlashcards(task);
+                                            }}
+                                            className="px-3 py-1.5 rounded-lg bg-sky-500 hover:brightness-110 text-white text-xs font-bold shadow-md transition-all active:scale-95 flex items-center gap-1 cursor-pointer border-none"
+                                          >
+                                            <i className="pi pi-clone text-[10px]" />
+                                            <span>كروت المراجعة</span>
+                                          </button>
+                                        )}
+                                        
+                                        {onOpenAnalytics && (
+                                          <button
+                                            onClick={() => {
+                                              vibrate(HAPITCS.MAJOR_CLICK);
+                                              onOpenAnalytics(task);
+                                            }}
+                                            className="px-3 py-1.5 rounded-lg bg-indigo-500 hover:brightness-110 text-white text-xs font-bold shadow-md transition-all active:scale-95 flex items-center gap-1 cursor-pointer border-none"
+                                          >
+                                            <i className="pi pi-chart-bar text-[10px]" />
+                                            <span>الإحصائيات</span>
+                                          </button>
+                                        )}
+                                      </div>
                                    </div>
                                 </div>
                                 <div className="bg-white/5 p-5 md:p-8 rounded-[24px] border border-white/5 space-y-3">

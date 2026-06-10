@@ -92,14 +92,14 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       onClick={options.onClick} 
       className={`${options.className} flex flex-col items-center justify-center py-3 px-6 group min-w-[70px] transition-all duration-300 active:scale-95 cursor-pointer relative`}
     >
-      <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500 ${options.selected ? 'bg-gradient-to-br from-blue-600 via-indigo-700 to-indigo-900 text-white shadow-lg shadow-indigo-500/20 scale-110 rotate-[5deg]' : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:scale-110'}`}>
+      <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500 ${options.selected ? 'bg-gradient-to-br from-blue-600 via-indigo-500 to-indigo-700 text-white shadow-lg shadow-indigo-500/20 scale-110 rotate-[5deg]' : 'bg-white/10 text-white group-hover:bg-white/20 group-hover:text-white group-hover:scale-110'}`}>
         <i className={`pi ${icon} text-base`}></i>
       </div>
-      <span className={`text-[10px] font-black mt-2 transition-all uppercase tracking-widest text-indigo-700 hidden sm:block ${options.selected ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0'}`}>
+      <span className={`text-[10px] font-black mt-2 transition-all uppercase tracking-widest text-white hidden sm:block ${options.selected ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0'}`}>
         {label}
       </span>
       <div 
-        className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-indigo-800 rounded-full transition-opacity duration-300 ${options.selected ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full transition-opacity duration-300 ${options.selected ? 'opacity-100' : 'opacity-0'}`}
       />
     </div>
   );
@@ -236,7 +236,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     const map: Record<string, number> = {};
     for (const st of stations) {
       const stTasks = tasks.filter((t) => t.stationId === st.id);
-      const mainTasks = stTasks.filter((t) => t.type === "main");
+      const mainTasks = stTasks.filter((t) => t.type === "main" && !t.parentId && !t.title.includes("المراجعة") && !t.title.includes("خطة المراجعة"));
       const subTasksListForSt = tasks.filter((t) => t.type === "sub" && mainTasks.some(m => m.id === t.parentId));
       
       const totalCount = mainTasks.length + subTasksListForSt.length;
@@ -1190,7 +1190,13 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
   const mainTasksNodes = useMemo(() => {
     if (!tasks || !selectedStation) return [];
-    const mainTasks = tasks.filter(t => t.stationId === selectedStation && t.type === 'main');
+    const mainTasks = tasks.filter(t => 
+      t.stationId === selectedStation && 
+      t.type === 'main' && 
+      !t.parentId && 
+      !t.title.includes("المراجعة") && 
+      !t.title.includes("خطة المراجعة")
+    );
     return mainTasks.map(t => {
       const subs = tasks.filter(sub => sub.parentId === t.id && sub.type === 'sub');
       return {

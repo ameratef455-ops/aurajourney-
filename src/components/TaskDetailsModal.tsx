@@ -40,6 +40,17 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
 
   const [showPostponeDialog, setShowPostponeDialog] = useState(false);
   const [selectedForPostpone, setSelectedForPostpone] = useState<string[]>([]);
+  const [isTaskLoading, setIsTaskLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (visible && taskId) {
+      setIsTaskLoading(true);
+      const timer = setTimeout(() => {
+        setIsTaskLoading(false);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [taskId, visible]);
 
   // Use live query to keep data in sync
   const task = useLiveQuery(() => 
@@ -58,7 +69,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
   const user = settings?.[0];
   const isLanguageLearning = user?.learningGoal?.includes('لغ');
 
-  if (!task || !taskId) return null;
+  if (!visible || !taskId) return null;
 
   const hasReflection = reflectionsForTask && reflectionsForTask.length > 0;
 
@@ -348,70 +359,121 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
       <Dialog
         maximized
         visible={visible}
-      onHide={onHide}
-      header={
-        <div className="flex justify-between items-center w-full pr-6 pl-6" dir="rtl">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
-              <Sparkles className="w-6 h-6" />
+        onHide={onHide}
+        transitionOptions={{ timeout: 400 }}
+        header={
+          <div className="flex justify-between items-center w-full pr-6 pl-6" dir="rtl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-sm border border-indigo-500/30">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-white leading-none">تفاصيل المهمة</h3>
+                <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest truncate max-w-[200px]">
+                  {task ? task.title : 'جاري التحميل...'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-black text-slate-900 leading-none">تفاصيل المهمة</h3>
-              <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{task.title}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5">
-            {!task.isCompleted && (task.activities || []).length > 0 && (
-              <button
-                onClick={() => {
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  setSelectedForPostpone((task.activities || []).filter(a => !a.isCompleted).map(a => a.id));
-                  setShowPostponeDialog(true);
-                }}
-                className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 px-4 py-2 rounded-xl text-xs font-black shadow-3xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                type="button"
-              >
-                <Clock className="w-3.5 h-3.5" />
-                <span>أجل الأنشطة 🗓️</span>
-              </button>
-            )}
-            {!hasReflection && task.isCompleted && (
-              <button
-                onClick={() => {
-                  vibrate(HAPITCS.MAJOR_CLICK);
-                  if (onOpenReflection) onOpenReflection(task);
-                }}
-                className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-2xl text-[11px] font-black shadow-xl shadow-amber-200 border-none transition-all active:scale-95 flex items-center gap-2 cursor-pointer animate-bounce mt-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>قيم المهمة الآن ✨</span>
-              </button>
+            {task && !isTaskLoading && (
+              <div className="flex items-center gap-2.5">
+                {!task.isCompleted && (task.activities || []).length > 0 && (
+                  <button
+                    onClick={() => {
+                      vibrate(HAPITCS.MAJOR_CLICK);
+                      setSelectedForPostpone((task.activities || []).filter(a => !a.isCompleted).map(a => a.id));
+                      setShowPostponeDialog(true);
+                    }}
+                    className="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 px-4 py-2 rounded-xl text-xs font-black shadow-3xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    type="button"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>أجل الأنشطة 🗓️</span>
+                  </button>
+                )}
+                {!hasReflection && task.isCompleted && (
+                  <button
+                    onClick={() => {
+                      vibrate(HAPITCS.MAJOR_CLICK);
+                      if (onOpenReflection) onOpenReflection(task);
+                    }}
+                    className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-2xl text-[11px] font-black shadow-xl shadow-amber-500/20 border-none transition-all flex items-center gap-2 cursor-pointer animate-bounce mt-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>قيم المهمة الآن ✨</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
-        </div>
-      }
-      className="w-full max-w-5xl font-sans"
-      modal
-      dismissableMask
-      baseZIndex={LAYERS.TASK_REVIEW + 10}
-      contentClassName="p-0 bg-white"
-    >
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.99, y: 3 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.15, ease: "easeOut" }}
-        className="flex flex-col h-[82vh] border-t border-slate-100" 
-        dir="rtl"
+        }
+        className="w-full font-sans m-0 p-0 rounded-none border-none"
+        style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0 }}
+        modal
+        dismissableMask
+        baseZIndex={LAYERS.TASK_REVIEW + 10}
+        contentClassName="p-0 bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 text-white overflow-hidden"
+        headerClassName="bg-[#020617] border-b border-white/5"
       >
-        <ConfirmDialog />
-        <div className="flex-1 flex overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.99, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col h-full overflow-hidden" 
+          dir="rtl"
+        >
+          <ConfirmDialog />
+          {isTaskLoading || !task ? (
+            <div className="flex-1 flex overflow-hidden p-8 animate-pulse bg-gradient-to-br from-[#0A0F2C]/5 to-[#2D52CC]/5" dir="rtl">
+              {/* Sidebar Skeleton */}
+              <div className="w-80 border-l border-indigo-950/5 pr-4 pl-8 py-4 space-y-6 shrink-0 hidden md:block" style={{ borderLeftWidth: '1px' }}>
+                <div className="h-4 bg-indigo-950/10 rounded-md w-1/2"></div>
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map(idx => (
+                    <div key={idx} className="h-14 bg-indigo-950/5 rounded-2xl w-full border border-indigo-950/5 p-4 flex justify-between items-center">
+                      <div className="flex items-center gap-3 w-3/4">
+                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-950/10 shrink-0"></div>
+                        <div className="h-3 bg-indigo-950/10 rounded-md w-3/4"></div>
+                      </div>
+                      <div className="w-4 h-4 rounded-full bg-indigo-950/5 animate-pulse"></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Main Content Skeleton */}
+              <div className="flex-1 p-8 md:p-12 space-y-8 overflow-y-auto">
+                <div className="p-6 bg-indigo-950/5 border border-indigo-950/5 rounded-3xl space-y-4">
+                  <div className="h-3 bg-indigo-950/10 rounded-md w-12 animate-pulse"></div>
+                  <div className="h-6 bg-gradient-to-r from-[#0a0f2c]/10 to-[#2d52cc]/10 rounded-lg w-2/3 animate-pulse"></div>
+                  <div className="h-3 bg-indigo-950/10 rounded-md w-1/3 animate-pulse"></div>
+                </div>
+                <div className="space-y-4">
+                  <div className="h-4 bg-indigo-950/10 rounded-md w-1/4 animate-pulse"></div>
+                  <div className="space-y-3">
+                    <div className="h-3 bg-indigo-950/5 rounded-md w-full animate-pulse"></div>
+                    <div className="h-3 bg-indigo-950/5 rounded-md w-[95%] animate-pulse"></div>
+                    <div className="h-3 bg-indigo-950/5 rounded-md w-[80%] animate-pulse"></div>
+                  </div>
+                </div>
+                <div className="h-[200px] bg-[#0A0F2C]/5 rounded-[32px] flex items-center justify-center p-8 border border-[#2D52CC]/10">
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#0a0f2c]/10 to-[#2d52cc]/10 flex items-center justify-center animate-spin">
+                       <i className="pi pi-spinner text-indigo-600 text-lg"></i>
+                    </div>
+                    <span className="text-xs font-bold text-indigo-950/60 leading-relaxed">جاري تزامن وتوريث خطوات السعي والأنشطة الإجرائية...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex overflow-hidden">
           {/* Sidebar: Activities */}
-          <div className="w-80 border-l border-slate-100 bg-slate-50/50 flex flex-col">
+          <div className="w-80 border-l border-white/10 bg-[#020617] flex flex-col">
             <div className="p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">قائمة الأنشطة</h4>
                 {task.isCompleted && (
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md border border-emerald-100 scale-90">
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-md border border-emerald-500/30 scale-90">
                     <CheckCircle2 className="w-3 h-3" />
                     <span className="text-[9px] font-black uppercase">مكتملة</span>
                   </div>
@@ -456,7 +518,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 overflow-y-auto bg-white p-8 md:p-12 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto bg-transparent p-8 md:p-12 custom-scrollbar">
             {editingActivityId ? (
               (() => {
                 const act = (task.activities || []).find(a => a.id === editingActivityId);
@@ -467,31 +529,31 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                     <div className="flex justify-between items-start">
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-indigo-100">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-indigo-500/30">
                             <Clock className="w-3 h-3" />
                             <span>{act.duration ? `${act.duration} دقيقة لكل جلسة` : 'نشاط تنفيذي'}</span>
                           </div>
                           {task.isCompleted && (
-                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-lg border border-slate-200">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-white/10">
                               <Lock className="w-3 h-3" />
                               <span>المهمة مكتملة - عرض فقط</span>
                             </div>
                           )}
                         </div>
-                        <h3 className="text-4xl font-black text-slate-900 leading-tight tracking-tight">{act.title}</h3>
+                        <h3 className="text-4xl font-black text-white leading-tight tracking-tight">{act.title}</h3>
                         {act.description && (
-                          <p className="text-slate-600 text-sm leading-relaxed mt-4">
+                          <p className="text-slate-300 text-sm leading-relaxed mt-4">
                             {act.description}
                           </p>
                         )}
                         {act.guidance && (
-                          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mt-4 relative overflow-hidden">
+                          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 mt-4 relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-1.5 h-full bg-indigo-500"></div>
                             <div className="flex items-start gap-3">
-                              <i className="pi pi-compass text-indigo-500 text-lg mt-0.5 shrink-0" />
+                              <i className="pi pi-compass text-indigo-400 text-lg mt-0.5 shrink-0" />
                               <div>
-                                <h5 className="text-[11px] font-black text-indigo-900 uppercase tracking-widest mb-1 opacity-80">توجيه النشاط</h5>
-                                <p className="text-indigo-950/80 text-sm font-medium leading-relaxed">
+                                <h5 className="text-[11px] font-black text-indigo-200 uppercase tracking-widest mb-1 opacity-80">توجيه النشاط</h5>
+                                <p className="text-indigo-100/90 text-sm font-medium leading-relaxed">
                                   {act.guidance}
                                 </p>
                               </div>
@@ -503,7 +565,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                       {!task.isCompleted && (
                         <button 
                           onClick={() => toggleActivityComplete(act.id)}
-                          className={`w-12 h-12 rounded-2xl transition-all flex items-center justify-center ${act.isCompleted ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-slate-500' : 'bg-slate-50 text-slate-400 hover:bg-emerald-100 hover:text-emerald-600'}`}
+                          className={`w-12 h-12 rounded-2xl transition-all flex items-center justify-center ${act.isCompleted ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-slate-600' : 'bg-white/5 text-slate-400 hover:bg-emerald-500/20 hover:text-emerald-400'}`}
                           title={act.isCompleted ? "التراجع عن الإكمال" : "إكمال النشاط"}
                         >
                           <CheckCircle2 className="w-5 h-5" />
@@ -512,7 +574,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                       {!task.isCompleted && (
                         <button 
                           onClick={() => handleDeleteActivity(act.id)}
-                          className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-400 hover:bg-rose-100 hover:text-rose-600 transition-all flex items-center justify-center"
+                          className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all flex items-center justify-center"
                           title="حذف النشاط"
                         >
                           <Trash2 className="w-5 h-5" />
@@ -540,7 +602,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                                       handleAddStepWithVal(act.id);
                                     }
                                   }}
-                                  className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-[28px] text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 transition-all"
+                                  className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/10 rounded-[28px] text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-white placeholder:text-slate-500"
                                 />
                                 <button 
                                   onClick={() => handleAddStepWithVal(act.id)}
@@ -555,17 +617,17 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                               {(act.steps || []).map(step => (
                                 <div 
                                   key={step.id}
-                                  className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-3xl group hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all"
+                                  className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-3xl group hover:border-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/5 transition-all"
                                 >
                                   <div className="flex items-center gap-5">
                                     <button 
                                       onClick={() => toggleStep(act.id, step.id)}
                                       disabled={task.isCompleted}
-                                      className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all ${task.isCompleted ? 'cursor-not-allowed opacity-60' : ''} ${step.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'border-slate-200 bg-white hover:border-indigo-400'}`}
+                                      className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all ${task.isCompleted ? 'cursor-not-allowed opacity-60' : ''} ${step.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'border-white/20 bg-transparent hover:border-indigo-400'}`}
                                     >
                                       {step.isCompleted && <CheckCircle2 className="w-4 h-4" />}
                                     </button>
-                                    <span className={`text-base font-bold ${step.isCompleted ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                                    <span className={`text-base font-bold ${step.isCompleted ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
                                       {step.title}
                                     </span>
                                   </div>
@@ -581,8 +643,8 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                               ))}
                               
                               {(act.steps || []).length === 0 && (
-                                <div className="text-center py-16 px-10 bg-slate-50/50 rounded-[40px] border border-dashed border-slate-200">
-                                  <Sparkles className="w-10 h-10 text-indigo-200 mx-auto mb-4" />
+                                <div className="text-center py-16 px-10 bg-white/5 rounded-[40px] border border-dashed border-white/10">
+                                  <Sparkles className="w-10 h-10 text-indigo-400 mx-auto mb-4" />
                                   <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">قسم النشاط لخطوات صغيرة لضمان سهولة الإنجاز</p>
                                 </div>
                               )}
@@ -602,10 +664,10 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                               onBlur={(e) => handleUpdateActivity(act.id, { description: e.target.value })}
                               readOnly={task.isCompleted}
                               placeholder={task.isCompleted ? "لا يوجد وصف لهذا النشاط" : "ما هي الملاحظات أو المصادر الهامة لهذا النشاط؟"}
-                              className={`w-full h-80 p-8 border border-slate-200 rounded-[40px] text-base font-bold text-slate-700 leading-relaxed focus:outline-none focus:ring-8 focus:ring-indigo-500/5 focus:bg-white transition-all resize-none shadow-inner ${task.isCompleted ? 'bg-slate-50/30 cursor-not-allowed' : 'bg-slate-50'}`}
+                              className={`w-full h-80 p-8 border border-white/10 rounded-[40px] text-base font-bold leading-relaxed focus:outline-none focus:ring-8 focus:ring-indigo-500/10 focus:bg-white/10 transition-all resize-none shadow-inner placeholder:text-slate-500 ${task.isCompleted ? 'bg-white/5 cursor-not-allowed text-slate-400' : 'bg-white/5 text-white'}`}
                            />
                            {!task.isCompleted && (
-                             <div className="flex items-center gap-2 text-indigo-400 px-4 bg-indigo-50/50 py-3 rounded-2xl self-start">
+                             <div className="flex items-center gap-2 text-indigo-300 px-4 bg-indigo-500/20 py-3 rounded-2xl self-start">
                                <Info className="w-4 h-4" />
                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">يتم الحفظ التلقائي عند الخروج من الحقل</span>
                              </div>
@@ -620,15 +682,15 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                         </div>
                       }>
                         <div className="py-8">
-                           <div className="bg-slate-50 border border-slate-100 rounded-[32px] p-8 min-h-[200px]">
-                             <h4 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-3">
-                               <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-indigo-600">
+                           <div className="bg-white/5 border border-white/10 rounded-[32px] p-8 min-h-[200px]">
+                             <h4 className="text-xl font-black text-white mb-6 flex items-center gap-3">
+                               <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-indigo-400">
                                   <i className="pi pi-info-circle" />
                                </div>
                                ملاحظات الموجه العامة للمحطة
                              </h4>
                              {station?.generalNotes ? (
-                               <p className="text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">
+                               <p className="text-slate-300 font-medium leading-relaxed whitespace-pre-wrap">
                                  {station.generalNotes}
                                </p>
                              ) : (
@@ -648,22 +710,22 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
               <div className="h-full flex flex-col justify-between max-w-2xl mx-auto py-4 font-sans animate-fade-in" dir="rtl">
                 <div className="space-y-6">
                   {/* Task Header & Title Info */}
-                  <div className="p-6 bg-slate-50 border border-slate-100/80 rounded-3xl space-y-2 mt-4 text-right">
-                    <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md">مضمون المهمة</span>
-                    <h3 className="text-2xl font-black text-blue-950">{task.title}</h3>
+                  <div className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-2 mt-4 text-right">
+                    <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md">مضمون المهمة</span>
+                    <h3 className="text-2xl font-black text-white">{task.title}</h3>
                     {task.description && (
-                      <p className="text-xs text-slate-600 font-medium leading-relaxed">{task.description}</p>
+                      <p className="text-xs text-slate-300 font-medium leading-relaxed">{task.description}</p>
                     )}
                   </div>
 
                   {/* 1. Pre-Task Start Message (رسالة قبل بدء المهمة) */}
                   {task.startMessage && (
-                    <div className="p-5 bg-gradient-to-br from-indigo-50 to-indigo-100/30 border border-indigo-100/50 rounded-3xl space-y-2 text-right shadow-3xs animate-fade-in">
-                      <div className="flex items-center gap-2 text-indigo-800">
+                    <div className="p-5 bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border border-indigo-500/20 rounded-3xl space-y-2 text-right shadow-3xs animate-fade-in">
+                      <div className="flex items-center gap-2 text-indigo-300">
                         <Sparkles className="w-4 h-4 animate-pulse shrink-0" />
                         <h4 className="text-xs font-black">📢 رسالة انطلاق وتوجيه قبل البدء:</h4>
                       </div>
-                      <p className="text-xs font-bold text-indigo-950 bg-white/95 p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap shadow-3xs">
+                      <p className="text-xs font-bold text-white bg-white/5 border border-white/5 p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap shadow-3xs">
                         {task.startMessage}
                       </p>
                     </div>
@@ -671,8 +733,8 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
 
                   {/* 2. Learning Resources (مصادر التعلم المخصصة للمهمة) */}
                   {task.learningResources && parseLearningResources(task.learningResources).length > 0 ? (
-                    <div className="p-5 bg-gradient-to-br from-blue-50 to-blue-100/30 border border-blue-100/50 rounded-3xl space-y-3 text-right shadow-3xs animate-fade-in">
-                      <div className="flex items-center gap-2 text-blue-900">
+                    <div className="p-5 bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 rounded-3xl space-y-3 text-right shadow-3xs animate-fade-in">
+                      <div className="flex items-center gap-2 text-blue-300">
                         <i className="pi pi-book text-xs shrink-0" />
                         <h4 className="text-xs font-black">📚 مصادر ومراجع التعلم المقترحة:</h4>
                       </div>
@@ -690,8 +752,8 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                                 rel="noopener noreferrer"
                                 className={`text-[11px] font-bold px-3 py-2 rounded-xl border flex items-center gap-1.5 transition-all
                                   ${isUrl 
-                                    ? 'bg-white border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 hover:scale-105 active:scale-95 shadow-3xs' 
-                                    : 'bg-white border-slate-200 text-slate-700'
+                                    ? 'bg-white/5 border-blue-500/30 text-blue-300 hover:bg-white/10 hover:border-blue-400 hover:scale-105 active:scale-95 shadow-3xs' 
+                                    : 'bg-white/5 border-white/10 text-slate-300'
                                   }`}
                               >
                                 <i className={`pi ${isUrl ? 'pi-external-link' : 'pi-bookmark'} text-[10px]`}></i>
@@ -706,12 +768,12 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
 
                   {/* YouTube Embedded Video for the Task */}
                   {task.youtubeUrl && (
-                    <div className="p-5 bg-slate-50 border border-slate-100/80 rounded-3xl space-y-3 shadow-3xs animate-fade-in">
-                      <div className="flex items-center gap-2 text-rose-700">
+                    <div className="p-5 bg-white/5 border border-white/10 rounded-3xl space-y-3 shadow-3xs animate-fade-in">
+                      <div className="flex items-center gap-2 text-rose-400">
                         <i className="pi pi-youtube text-lg shrink-0" />
                         <h4 className="text-xs font-black">فيديو داعم للمهمة:</h4>
                       </div>
-                      <div className="rounded-2xl overflow-hidden border border-slate-200">
+                      <div className="rounded-2xl overflow-hidden border border-white/10">
                          {(() => {
                             let videoId = '';
                             try {
@@ -746,12 +808,12 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
 
                   {/* Google Drive Embedded */}
                   {task.googleDriveUrl && (
-                    <div className="p-5 bg-slate-50 border border-slate-100/80 rounded-3xl space-y-3 shadow-3xs animate-fade-in">
-                      <div className="flex items-center gap-2 text-blue-700">
+                    <div className="p-5 bg-white/5 border border-white/10 rounded-3xl space-y-3 shadow-3xs animate-fade-in">
+                      <div className="flex items-center gap-2 text-blue-400">
                         <i className="pi pi-google border p-0.5 rounded text-[10px] shrink-0" />
                         <h4 className="text-xs font-black">جوجل درايف داعم للمهمة:</h4>
                       </div>
-                      <div className="rounded-2xl overflow-hidden border border-slate-200 h-[400px]">
+                      <div className="rounded-2xl overflow-hidden border border-white/10 h-[400px]">
                          {(() => {
                             let embedUrl = task.googleDriveUrl;
                             if (embedUrl.includes('/view')) {
@@ -780,9 +842,9 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                      <div className="space-y-4">
                         <LanguageTools />
                         
-                        <div className="p-5 bg-gradient-to-br from-indigo-50 to-indigo-100/30 border border-indigo-100/50 rounded-3xl space-y-3 text-right shadow-3xs animate-fade-in animate-none">
+                        <div className="p-5 bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border border-indigo-500/20 rounded-3xl space-y-3 text-right shadow-3xs animate-fade-in animate-none">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-indigo-900">
+                            <div className="flex items-center gap-2 text-indigo-200">
                               <span className="text-base shrink-0">🌐</span>
                               <h4 className="text-xs font-black">تدريب النطق والاستماع (YouGlish):</h4>
                             </div>
@@ -822,8 +884,8 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                 </div>
 
                 {/* Bottom Guide hint */}
-                <div className="text-center p-5 border border-dashed border-slate-200/60 rounded-2xl bg-slate-50/20 mt-auto">
-                  <p className="text-[10px] text-slate-450 font-bold leading-relaxed">
+                <div className="text-center p-5 border border-dashed border-white/10 rounded-2xl bg-white/5 mt-auto">
+                  <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
                     💡 اختر أحد الأنشطة العملية من الجدول الجانبي للبدء في تقسيمها، إدارتها، وتدوين إنجازاتك.
                   </p>
                 </div>
@@ -831,7 +893,8 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
             )}
           </div>
         </div>
-      </motion.div>
+      )}
+    </motion.div>
 
       <style>{`
         .custom-task-tabs .p-tabview-nav {
@@ -882,29 +945,29 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
       visible={showPostponeDialog}
       onHide={() => setShowPostponeDialog(false)}
       showHeader={false}
-      className="w-full max-w-sm rounded-[24px] overflow-hidden border border-slate-100 shadow-2xl relative"
+      className="w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl relative"
       modal
       dismissableMask
-      contentClassName="p-0 bg-white"
+      contentClassName="p-0 bg-[#020617]"
     >
       <div className="p-7 text-center font-sans" dir="rtl">
         {/* Clock/Delay Icon Container */}
-        <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-amber-50 text-amber-600 mb-4 border border-amber-100">
+        <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-amber-500/20 text-amber-400 mb-4 border border-amber-500/30">
           <Clock className="w-7 h-7" />
         </div>
         
         {/* Title */}
-        <h3 className="text-base font-black text-slate-900 mb-2">
+        <h3 className="text-base font-black text-white mb-2">
           ترحيل وتأجيل الأنشطة 🗓️
         </h3>
         
         {/* Description */}
-        <p className="text-xs font-semibold text-slate-500 leading-relaxed mb-4 px-1">
+        <p className="text-xs font-semibold text-slate-400 leading-relaxed mb-4 px-1">
           حدد بذكاء الأنشطة التي تود ترحيلها ليوم إجازتك، لتخفف الضغط وتكمل دراستك بطاقة متوازنة.
         </p>
 
         {/* Activities list to select */}
-        <div className="space-y-1.5 max-h-40 overflow-y-auto mb-6 text-right custom-scrollbar border border-slate-100/70 p-2 rounded-xl bg-slate-50/40">
+        <div className="space-y-1.5 max-h-40 overflow-y-auto mb-6 text-right custom-scrollbar border border-white/10 p-2 rounded-xl bg-white/5">
           {(task.activities || []).map(act => {
             const isSelected = selectedForPostpone.includes(act.id);
             return (
@@ -921,12 +984,12 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                 }}
                 className={`w-full text-right p-2.5 rounded-lg border transition-all flex items-center justify-between cursor-pointer text-xs font-bold
                   ${isSelected
-                    ? 'bg-amber-100/40 border-amber-200 text-amber-900'
-                    : 'bg-white border-transparent text-slate-600 hover:border-slate-200'}`}
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                    : 'bg-white/5 border-transparent text-slate-300 hover:border-white/20'}`}
               >
                 <span>{act.title}</span>
                 <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0
-                  ${isSelected ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-300 bg-white'}`}>
+                  ${isSelected ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-500 bg-transparent'}`}>
                   {isSelected && <i className="pi pi-check text-[9px] font-black" />}
                 </div>
               </button>
@@ -936,7 +999,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
 
         {/* Learning Days Selection */}
         <div className="space-y-3 mb-6">
-          <h4 className="text-xs font-black text-slate-800 text-right pr-1">اختار يوم الإجازة اللي يريحك ترحل ليه:</h4>
+          <h4 className="text-xs font-black text-slate-300 text-right pr-1">اختار يوم الإجازة اللي يريحك ترحل ليه:</h4>
           <div className="grid grid-cols-2 gap-2">
             {(() => {
               const learningDaysRefs = user?.learningDays || [];
@@ -960,7 +1023,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                     key={dayNum}
                     type="button"
                     onClick={() => handlePostponeAction(targetDateString, dayLabel)}
-                    className="py-2.5 px-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 text-indigo-700 text-xs font-extrabold rounded-lg border border-indigo-100 transition-all text-center cursor-pointer shadow-3xs active:scale-95"
+                    className="py-2.5 px-2 bg-indigo-500/20 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 text-indigo-300 text-xs font-extrabold rounded-lg border border-indigo-500/30 transition-all text-center cursor-pointer shadow-3xs active:scale-95"
                   >
                     {dayLabel} ({targetDateString})
                   </button>
@@ -973,7 +1036,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
         {/* Action Buttons */}
         <button
           onClick={() => setShowPostponeDialog(false)}
-          className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl shadow-xs border border-slate-200 transition-all active:scale-[0.98] cursor-pointer"
+          className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 font-extrabold text-xs rounded-xl shadow-xs border border-white/10 transition-all active:scale-[0.98] cursor-pointer"
         >
           تراجع وإلغاء
         </button>

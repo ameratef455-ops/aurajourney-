@@ -146,14 +146,18 @@ export function ReflectionSidebar({
     <Dialog
       visible={reflectionSidebar}
       onHide={() => setReflectionSidebar(false)}
-      className="w-[98vw] max-w-4xl font-sans"
+      className="w-screen h-screen font-sans m-0 p-0 rounded-none border-none"
+      style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0 }}
+      contentClassName="bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 p-0"
+      headerClassName="bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 border-b border-indigo-500/20"
+      maximized
       closable
       dismissableMask
       header={
-        <div className="flex w-full items-center justify-between gap-3 text-blue-950 font-black pr-4" dir="rtl">
+        <div className="flex w-full items-center justify-between gap-3 text-white font-black pr-4" dir="rtl">
           <div className="flex items-center gap-3">
-            <i className="pi pi-chart-bar text-indigo-600 text-2xl border-2 border-indigo-950/10 p-1.5 rounded-xl bg-indigo-50/50"></i>
-            <span className="text-xl font-black text-blue-950 tracking-tight">تحليلات ومؤشرات التقدم والوعي 📊</span>
+            <i className="pi pi-chart-bar text-indigo-400 text-2xl border-2 border-indigo-500/20 p-1.5 rounded-xl bg-indigo-500/10"></i>
+            <span className="text-xl font-black text-white tracking-tight">التحليلات والمؤشرات 📊</span>
           </div>
           <button 
              onClick={handleExportPDF}
@@ -165,8 +169,14 @@ export function ReflectionSidebar({
         </div>
       }
     >
-      <div className="bg-slate-50 p-4 rounded-3xl">
-        <TabView activeIndex={reflectionActiveTab} onTabChange={(e) => setReflectionActiveTab(e.index)} className="reflection-tabs custom-spaced-tabs reflection-compact" dir="rtl">
+      <div className="h-full px-4 md:px-8 overflow-y-auto no-scrollbar pt-6">
+        <TabView 
+          activeIndex={reflectionActiveTab} 
+          onTabChange={(e) => setReflectionActiveTab(e.index)} 
+          className="custom-spaced-tabs" 
+          dir="rtl"
+          pt={{ panelContainer: { className: 'bg-transparent border-none p-0' } }}
+        >
         <TabPanel headerTemplate={createTabHeader("pi-chart-bar", "التحليلات والمؤشرات")}>
             {reflectionSidebar && (
               <div 
@@ -199,22 +209,22 @@ export function ReflectionSidebar({
             </div>
 
             {/* Radar Chart Visual */}
-            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col items-center min-h-[350px]">
-              <h4 className="text-sm font-black text-blue-950 self-start mb-4 flex items-center gap-2">
-                 <i className="pi pi-compass text-indigo-500"></i>
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col items-center min-h-[350px]">
+              <h4 className="text-sm font-black text-indigo-100 self-start mb-4 flex items-center gap-2">
+                 <i className="pi pi-compass text-indigo-400"></i>
                  تحليل القدرات الشامل
               </h4>
               <div className="w-full h-[300px]" dir="ltr">
                   <ResponsiveContainer width="100%" height="100%">
                     <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
-                      <PolarGrid stroke="#e2e8f0" />
-                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#334155', fontSize: 12, fontWeight: 700 }} />
+                      <PolarGrid stroke="#334155" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#e2e8f0', fontSize: 12, fontWeight: 700 }} />
                       <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                       <Tooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', textAlign: 'right', fontFamily: 'inherit' }}
+                        contentStyle={{ borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: '#0f172a', color: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', textAlign: 'right', fontFamily: 'inherit' }}
                         formatter={(value: number) => [`${value}%`, 'النسبة']}
                       />
-                      <Radar name="القدرات" dataKey="score" stroke="#6366f1" fill="#818cf8" fillOpacity={0.5} strokeWidth={2} />
+                      <Radar name="القدرات" dataKey="score" stroke="#818cf8" fill="#6366f1" fillOpacity={0.6} strokeWidth={2} />
                     </RadarChart>
                   </ResponsiveContainer>
               </div>
@@ -224,117 +234,117 @@ export function ReflectionSidebar({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               
               {/* 1. Commitment Rate Metric Card */}
-              <div className="bg-gradient-to-br from-indigo-50/40 via-white to-indigo-50/20 border border-indigo-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-indigo-200 hover:shadow-md transition-all">
+              <div className="bg-gradient-to-br from-indigo-500/10 via-white/5 to-indigo-500/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-indigo-500/30 transition-all">
                 <div className="flex justify-between items-start">
-                  <div className="w-12 h-12 rounded-xl bg-indigo-100/60 border border-indigo-100 flex items-center justify-center text-indigo-700">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
                     <Activity className="w-6 h-6" />
                   </div>
                   <div className="text-left font-mono">
-                    <span className="text-3xl font-black text-indigo-950">{avgCommitment}</span>
+                    <span className="text-3xl font-black text-indigo-200">{avgCommitment}</span>
                     <span className="text-sm font-extrabold text-indigo-400"> %</span>
                   </div>
                 </div>
                 <div className="mt-6 space-y-2">
-                  <h4 className="text-sm font-black text-blue-950 flex items-center gap-1.5">
+                  <h4 className="text-sm font-black text-indigo-100 flex items-center gap-1.5">
                     متوسط الالتزام والإنهاء
                   </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                  <p className="text-xs text-slate-300 leading-relaxed font-medium">
                     معدل التزامك العام بإنجاز المهام الأساسية والفرعية على في رحلتك الممتدة.
                   </p>
-                  <div className="w-full h-1.5 bg-indigo-100 rounded-full overflow-hidden pt-0 shadow-3xs p-0.5">
-                    <div className="h-full bg-indigo-600 rounded-full transition-all duration-1000" style={{ width: `${avgCommitment}%` }}></div>
+                  <div className="w-full h-1.5 bg-indigo-950 rounded-full overflow-hidden pt-0 shadow-3xs p-0.5 border border-indigo-500/20">
+                    <div className="h-full bg-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${avgCommitment}%` }}></div>
                   </div>
-                  <div className="text-[10px] text-indigo-500 font-black mt-1">
+                  <div className="text-[10px] text-indigo-300 font-black mt-1">
                     تم إكمال {completedTasksCount} مهمة من أصل {totalTasksCount} مكتشفة.
                   </div>
                 </div>
               </div>
 
               {/* 2. Focus Rate Metric Card */}
-              <div className="bg-gradient-to-br from-purple-50/40 via-white to-purple-50/20 border border-purple-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-purple-200 hover:shadow-md transition-all">
+              <div className="bg-gradient-to-br from-purple-500/10 via-white/5 to-purple-500/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-purple-500/30 transition-all">
                 <div className="flex justify-between items-start">
-                  <div className="w-12 h-12 rounded-xl bg-purple-100/60 border border-purple-100 flex items-center justify-center text-purple-700">
+                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
                     <Brain className="w-6 h-6" />
                   </div>
                   <div className="text-left font-mono">
-                    <span className="text-3xl font-black text-purple-950">{avgFocus}</span>
+                    <span className="text-3xl font-black text-purple-200">{avgFocus}</span>
                     <span className="text-sm font-extrabold text-purple-400"> / 5</span>
                   </div>
                 </div>
                 <div className="mt-6 space-y-2">
-                  <h4 className="text-sm font-black text-blue-950 flex items-center gap-1.5">
+                  <h4 className="text-sm font-black text-indigo-100 flex items-center gap-1.5">
                     متوسط التركيز الذهني
                   </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                  <p className="text-xs text-slate-300 leading-relaxed font-medium">
                     معدل حضورك العقلي واندماجك الواعي أثناء إنجاز المبادئ والمهام.
                   </p>
                   <div className="flex items-center gap-1 mt-3">
                     {[1, 2, 3, 4, 5].map((s) => (
                       <div
                         key={s}
-                        className={`h-2.5 rounded-full transition-all ${
+                        className={`h-2.5 rounded-full transition-all border border-purple-500/20 ${
                           s <= Math.round(Number(avgFocus)) 
-                            ? "bg-purple-600 w-6" 
-                            : "bg-purple-100 w-2.5"
+                            ? "bg-purple-500 w-6" 
+                            : "bg-purple-950 w-2.5"
                         }`}
                       />
                     ))}
                   </div>
-                  <div className="text-[10px] text-purple-500 font-black mt-2">
+                  <div className="text-[10px] text-purple-300 font-black mt-2">
                     تم تقييمه من واقع تحليلات وانعكاساتك الذاتية للخطة.
                   </div>
                 </div>
               </div>
 
               {/* 3. Mastery Rate Metric Card */}
-              <div className="bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 border border-amber-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-amber-200 hover:shadow-md transition-all">
+              <div className="bg-gradient-to-br from-amber-500/10 via-white/5 to-amber-500/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-amber-500/30 transition-all">
                 <div className="flex justify-between items-start">
-                  <div className="w-12 h-12 rounded-xl bg-amber-100/60 border border-amber-100 flex items-center justify-center text-amber-700">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
                     <Trophy className="w-6 h-6" />
                   </div>
                   <div className="text-left font-mono">
-                    <span className="text-3xl font-black text-amber-950">{avgMastery}</span>
-                    <span className="text-sm font-extrabold text-amber-400"> / 10</span>
+                    <span className="text-3xl font-black text-amber-200">{avgMastery}</span>
+                    <span className="text-sm font-extrabold text-amber-500"> / 10</span>
                   </div>
                 </div>
                 <div className="mt-6 space-y-2">
-                  <h4 className="text-sm font-black text-blue-950 flex items-center gap-1.5">
+                  <h4 className="text-sm font-black text-indigo-100 flex items-center gap-1.5">
                     متوسط إتقان المهارات
                   </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed font-bold">
+                  <p className="text-xs text-slate-300 leading-relaxed font-bold">
                     قوة الاستيعاب الذاتي والمكتسبات الإدراكية العملية من دراستك.
                   </p>
-                  <div className="w-full h-1.5 bg-amber-100 rounded-full overflow-hidden pt-0 shadow-3xs p-0.5">
-                    <div className="h-full bg-amber-600 rounded-full transition-all duration-1000" style={{ width: `${(Number(avgMastery) / 10) * 100}%` }}></div>
+                  <div className="w-full h-1.5 bg-amber-950 rounded-full overflow-hidden pt-0 shadow-3xs p-0.5 border border-amber-500/20">
+                    <div className="h-full bg-amber-500 rounded-full transition-all duration-1000" style={{ width: `${(Number(avgMastery) / 10) * 100}%` }}></div>
                   </div>
-                  <div className="text-[10px] text-amber-600 font-black mt-1">
+                  <div className="text-[10px] text-amber-400 font-black mt-1">
                     المستوى الحالي للمقود: {Number(avgMastery) >= 8.5 ? 'احتراف متقدّم 🌟' : Number(avgMastery) >= 6 ? 'استيعاب متمكن 👍' : 'قيد التطوير والترسيخ 🌱'}
                   </div>
                 </div>
               </div>
 
               {/* 4. Practical Application Rate Metric Card */}
-              <div className="bg-gradient-to-br from-emerald-50/40 via-white to-emerald-50/20 border border-emerald-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-emerald-200 hover:shadow-md transition-all">
+              <div className="bg-gradient-to-br from-emerald-500/10 via-white/5 to-emerald-500/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all">
                 <div className="flex justify-between items-start">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-100/60 border border-emerald-100 flex items-center justify-center text-emerald-700">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                     <Wrench className="w-6 h-6" />
                   </div>
                   <div className="text-left font-mono">
-                    <span className="text-3xl font-black text-emerald-950">{avgPractical}</span>
+                    <span className="text-3xl font-black text-emerald-200">{avgPractical}</span>
                     <span className="text-sm font-extrabold text-emerald-400"> %</span>
                   </div>
                 </div>
                 <div className="mt-6 space-y-2">
-                  <h4 className="text-sm font-black text-blue-950 flex items-center gap-1.5">
+                  <h4 className="text-sm font-black text-indigo-100 flex items-center gap-1.5">
                     معدل التطبيق العملي للدروس
                   </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed font-bold">
+                  <p className="text-xs text-slate-300 leading-relaxed font-bold">
                     فرصة نقل المعارف المفاهيمية وتحويلها المباشر إلى تفعيل ملموس.
                   </p>
-                  <div className="w-full h-1.5 bg-emerald-100 rounded-full overflow-hidden pt-0 shadow-3xs p-0.5">
-                    <div className="h-full bg-emerald-600 rounded-full transition-all duration-1000" style={{ width: `${avgPractical}%` }}></div>
+                  <div className="w-full h-1.5 bg-emerald-950 rounded-full overflow-hidden pt-0 shadow-3xs p-0.5 border border-emerald-500/20">
+                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000" style={{ width: `${avgPractical}%` }}></div>
                   </div>
-                  <div className="text-[10px] text-emerald-600 font-black mt-1">
+                  <div className="text-[10px] text-emerald-400 font-black mt-1">
                     تم تطبيق المهارات عملياً في {appliedCount} مهمة من {filteredReflections.length} جلسات دراسية.
                   </div>
                 </div>
@@ -344,60 +354,60 @@ export function ReflectionSidebar({
               {isLanguageLearning && (
                 <>
                   {/* Sentences Learned Metric Card */}
-                  <div className="bg-gradient-to-br from-blue-50/40 via-white to-blue-50/20 border border-blue-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-blue-200 hover:shadow-md transition-all">
+                  <div className="bg-gradient-to-br from-blue-500/10 via-white/5 to-blue-500/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-blue-500/30 transition-all">
                     <div className="flex justify-between items-start">
-                      <div className="w-12 h-12 rounded-xl bg-blue-100/60 border border-blue-100 flex items-center justify-center text-blue-700">
+                      <div className="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
                         <Sparkles className="w-6 h-6" />
                       </div>
                       <div className="text-left font-mono">
-                        <span className="text-3xl font-black text-blue-950">{totalSentences}</span>
+                        <span className="text-3xl font-black text-blue-200">{totalSentences}</span>
                         <span className="text-sm font-extrabold text-blue-400"> جملة</span>
                       </div>
                     </div>
                     <div className="mt-6 space-y-2">
-                      <h4 className="text-sm font-black text-blue-950 flex items-center gap-1.5">
+                      <h4 className="text-sm font-black text-indigo-100 flex items-center gap-1.5">
                         إجمالي الجمل المتعلمة
                       </h4>
-                      <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                      <p className="text-xs text-slate-300 leading-relaxed font-medium">
                         مجموع العبارات والتعبيرات التي قمت بممارستها وتسجيلها في مذكراتك.
                       </p>
-                      <div className="text-[10px] text-blue-500 font-black mt-2">
+                      <div className="text-[10px] text-blue-300 font-black mt-2">
                         ساعد التكرار والممارسة في ترسيخ هذه الجمل في ذاكرتك طويلة المدى.
                       </div>
                     </div>
                   </div>
 
                   {/* Accent/Fluency Metric Card */}
-                  <div className="bg-gradient-to-br from-rose-50/40 via-white to-rose-50/20 border border-rose-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-rose-200 hover:shadow-md transition-all">
+                  <div className="bg-gradient-to-br from-rose-500/10 via-white/5 to-rose-500/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-rose-500/30 transition-all">
                     <div className="flex justify-between items-start">
-                      <div className="w-12 h-12 rounded-xl bg-rose-100/60 border border-rose-100 flex items-center justify-center text-rose-700">
+                      <div className="w-12 h-12 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
                         <Activity className="w-6 h-6" />
                       </div>
                       <div className="text-left font-mono">
-                        <span className="text-3xl font-black text-rose-950">{avgAccent}</span>
+                        <span className="text-3xl font-black text-rose-200">{avgAccent}</span>
                         <span className="text-sm font-extrabold text-rose-400"> / 5</span>
                       </div>
                     </div>
                     <div className="mt-6 space-y-2">
-                      <h4 className="text-sm font-black text-blue-950 flex items-center gap-1.5">
+                      <h4 className="text-sm font-black text-indigo-100 flex items-center gap-1.5">
                         متوسط جودة اللكنة والنطق
                       </h4>
-                      <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                      <p className="text-xs text-slate-300 leading-relaxed font-medium">
                         مقياس تطور نطقك الصحيح ومخارج الحروف بناءً على تقييماتك الذاتية.
                       </p>
                       <div className="flex items-center gap-1 mt-3">
                         {[1, 2, 3, 4, 5].map((s) => (
                           <div
                             key={s}
-                            className={`h-2.5 rounded-full transition-all ${
+                            className={`h-2.5 rounded-full transition-all border border-rose-500/20 ${
                               s <= Math.round(Number(avgAccent)) 
-                                ? "bg-rose-600 w-6" 
-                                : "bg-rose-100 w-2.5"
+                                ? "bg-rose-500 w-6" 
+                                : "bg-rose-950 w-2.5"
                             }`}
                           />
                         ))}
                       </div>
-                      <div className="text-[10px] text-rose-500 font-black mt-2">
+                      <div className="text-[10px] text-rose-300 font-black mt-2">
                         الهدف هو الوصول لتلقائية ونطق طبيعي يشبه أهل اللغة.
                       </div>
                     </div>
@@ -410,17 +420,17 @@ export function ReflectionSidebar({
             )}
         </TabPanel>
 
-        <TabPanel headerTemplate={createTabHeader("pi-exclamation-triangle", "سجل التعثرات ⚠️")}>
+         <TabPanel headerTemplate={createTabHeader("pi-exclamation-triangle", "سجل التعثرات ⚠️")}>
             {reflectionSidebar && (
               <div 
                 className="pt-6 px-2 space-y-6 text-right font-sans css-tab-content"
                 dir="rtl"
               >
-                <div className="bg-rose-50/50 border border-rose-100 rounded-[32px] p-6 space-y-3">
-                  <h4 className="font-black text-rose-900 text-sm flex items-center gap-2">
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-[32px] p-6 space-y-3">
+                  <h4 className="font-black text-rose-400 text-sm flex items-center gap-2">
                     <i className="pi pi-history"></i> تاريخ عثرات الرحلة:
                   </h4>
-                  <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                  <p className="text-xs text-rose-200/80 font-bold leading-relaxed">
                     هنا يُحفظ كل تعثر قمت بتسجيله بصراحة. الانعكاس حول الهفوات يساعدك على إدراك المسببات لتفاديها في المستقبل.
                   </p>
                 </div>
@@ -430,7 +440,7 @@ export function ReflectionSidebar({
                     allStumbles.filter((s:any) => selectedStationFilter === "all" || s.stationId === selectedStationFilter).map((stumble: any) => (
                       <div 
                         key={stumble.id} 
-                        className="p-5 bg-white border border-rose-100/70 rounded-[28px] shadow-3xs flex flex-col gap-2 relative overflow-hidden"
+                        className="p-5 bg-white/5 border border-white/10 rounded-[28px] shadow-3xs flex flex-col gap-2 relative overflow-hidden"
                       >
                         <div className="absolute top-0 right-0 h-1 w-full bg-rose-500/30"></div>
                         <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold">
@@ -446,17 +456,17 @@ export function ReflectionSidebar({
                             })}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-700 bg-rose-50/10 p-4 rounded-2xl border border-rose-50/30 font-medium leading-relaxed mt-1">
+                        <p className="text-xs text-slate-200 bg-white/5 p-4 rounded-2xl border border-white/5 font-medium leading-relaxed mt-1">
                           {stumble.reason}
                         </p>
                       </div>
                     ))
                   ) : (
-                    <div className="py-16 bg-slate-50 border border-dashed border-slate-200 rounded-[40px] text-center px-10">
-                      <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shadow-3xs mx-auto mb-4">
+                    <div className="py-16 bg-white/5 border border-dashed border-white/10 rounded-[40px] text-center px-10">
+                      <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-3xs mx-auto mb-4">
                         <i className="pi pi-verified text-2xl font-black"></i>
                       </div>
-                      <h4 className="text-sm font-black text-blue-950 mb-1">مسيرة رائعة ومليئة بالالتزام! ⭐</h4>
+                      <h4 className="text-sm font-black text-emerald-300 mb-1">مسيرة رائعة ومليئة بالالتزام! ⭐</h4>
                       <p className="text-xs text-slate-400 font-bold max-w-md mx-auto leading-relaxed">
                         لم يتم تسجيل أي تعثرات أو عثرات جانبية حتى الآن. استمر على هذا التركيز العالي!
                       </p>
@@ -466,139 +476,11 @@ export function ReflectionSidebar({
               </div>
             )}
         </TabPanel>
-
-        <TabPanel headerTemplate={createTabHeader("pi-history", "سجل المراجعات والوعي")}>
-            {reflectionSidebar && (
-              <div 
-                className="pt-6 px-2 space-y-6 text-right font-sans css-tab-content"
-                dir="rtl"
-              >
-                <div className="bg-indigo-50/50 border border-indigo-100 rounded-[32px] p-6 space-y-3">
-                  <h4 className="font-black text-indigo-900 text-sm flex items-center gap-2">
-                    <i className="pi pi-history"></i> تاريخ المراجعات والتأمل:
-                  </h4>
-                  <p className="text-xs text-slate-500 font-bold leading-relaxed">
-                    هنا يُحفظ كل تقييم وانعكاس حول المهام التي أنجزتها.
-                  </p>
-                </div>
-
-                <div className="space-y-6 pr-1 no-scrollbar pb-10">
-                   {filteredReflections && filteredReflections.length > 0 ? (
-                     filteredReflections.slice().reverse().map((ref, idx, arr) => {
-                       const prevRef = idx < arr.length - 1 ? arr[idx + 1] : null;
-                       const focusDiff = prevRef ? ref.focus - prevRef.focus : 0;
-                       const masteryDiff = prevRef ? ref.mastery - prevRef.mastery : 0;
-
-                       return (
-                         <div key={ref.id} className="bg-white p-5 border border-slate-150 rounded-[28px] shadow-3xs hover:shadow-md transition-all text-right relative overflow-hidden">
-                            <div className="absolute top-0 right-0 h-1 w-full bg-indigo-500/30"></div>
-                            {/* Header: Date and Task Title */}
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-indigo-50 pb-3 mb-4">
-                               <div className="text-right">
-                                  <span className="text-[10px] text-slate-400 font-bold font-mono block mb-1">
-                                     {new Date(ref.createdAt).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                  <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                                     المهمة: <span className="text-indigo-600">"{ref.taskTitle}"</span>
-                                  </h4>
-                               </div>
-                               
-                               <div className="flex items-center justify-end gap-2 font-mono" dir="ltr">
-                                  {/* Focus Badge */}
-                                  <div className="bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-xl flex items-center gap-1 text-rose-700" title="مستوى التركيز العميق (من 5)">
-                                     <span className="text-[9px] font-black">التركيز:</span>
-                                     <span className="text-xs font-black">{ref.focus}/5</span>
-                                     {focusDiff !== 0 && (
-                                        <span className={`text-[9px] font-black ${focusDiff > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                           {focusDiff > 0 ? `▲ +${focusDiff}` : `▼ ${focusDiff}`}
-                                        </span>
-                                     )}
-                                  </div>
-                                  {/* Mastery Badge */}
-                                  <div className="bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-xl flex items-center gap-1 text-amber-700" title="مستوى الإتقان المحرز (من 10)">
-                                     <span className="text-[9px] font-black">الإتقان:</span>
-                                     <span className="text-xs font-black">{ref.mastery}/10</span>
-                                     {masteryDiff !== 0 && (
-                                        <span className={`text-[9px] font-black ${masteryDiff > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                           {masteryDiff > 0 ? `▲ +${masteryDiff}` : `▼ ${masteryDiff}`}
-                                        </span>
-                                     )}
-                                  </div>
-                               </div>
-                            </div>
-
-                            {/* Side-by-Side Comparison Grid: Strengths vs Weaknesses */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                               {/* Strengths */}
-                               <div className="bg-emerald-50/40 border border-emerald-100/50 p-4 rounded-2xl text-right">
-                                  <h5 className="text-[10px] text-emerald-800 font-extrabold mb-2.5 flex items-center gap-1.5">
-                                     <span className="text-sm">💪</span> نقاط القوة (Strengths)
-                                  </h5>
-                                  <p className="text-xs text-slate-700 font-bold leading-relaxed bg-white/70 p-3 rounded-xl border border-white">
-                                     {ref.strengths || "لم يتم تسجيل نقاط قوة..."}
-                                  </p>
-                               </div>
-
-                               {/* Weaknesses */}
-                               <div className="bg-rose-50/40 border border-rose-100/55 p-4 rounded-2xl text-right">
-                                  <h5 className="text-[10px] text-rose-800 font-extrabold mb-2.5 flex items-center gap-1.5">
-                                     <span className="text-sm">🧨</span> نقاط الضعف (Weaknesses)
-                                  </h5>
-                                  <p className="text-xs text-slate-700 font-bold leading-relaxed bg-white/70 p-3 rounded-xl border border-white">
-                                     {ref.weaknesses || "لم يتم تسجيل نقاط ضعف..."}
-                                  </p>
-                               </div>
-                            </div>
-
-                            {/* Acquired Skills and Practical Application */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                               {/* Acquired Skills & Learnings */}
-                               <div className="bg-blue-50/40 border border-blue-100/50 p-4 rounded-2xl text-right">
-                                  <h5 className="text-[10px] text-blue-800 font-extrabold mb-2.5 flex items-center gap-1.5">
-                                     <span className="text-sm">🧠</span> التعلم والمكتسبات
-                                  </h5>
-                                  <p className="text-xs text-slate-700 font-bold leading-relaxed bg-white/70 p-3 rounded-xl border border-white">
-                                     {ref.learnings || "التحصيل متمكن تماماً."}
-                                  </p>
-                               </div>
-
-                               {/* Practical Application */}
-                               <div className="bg-teal-50/40 border border-teal-100/50 p-4 rounded-2xl text-right flex flex-col justify-between">
-                                  <div>
-                                     <h5 className="text-[10px] text-teal-800 font-extrabold mb-2.5 flex items-center justify-between">
-                                        <span className="flex items-center gap-1.5">
-                                           <span className="text-sm">🛠️</span> التطبيق العملي
-                                        </span>
-                                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black ${ref.didPractical ? 'bg-teal-100 text-teal-800 border border-teal-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                                           {ref.didPractical ? 'تم العملي' : 'لم يطبق'}
-                                        </span>
-                                     </h5>
-                                     <p className="text-xs text-slate-700 font-bold leading-relaxed bg-white/70 p-3 rounded-xl border border-white">
-                                        {ref.didPractical 
-                                           ? (ref.practicalIssues || "تم تأكيد التجريب والتدريب للمهمة بنجاح!") 
-                                           : "اكتمل الجانب النظري في هذه المراجعة؛ ينصح بتمارين تطبيقية وتجريب ميداني."}
-                                     </p>
-                                  </div>
-                               </div>
-                            </div>
-                         </div>
-                       );
-                     })
-                   ) : (
-                      <div className="bg-indigo-50/20 p-6 rounded-[28px] border border-indigo-100/50 text-center text-slate-400 font-bold text-xs leading-relaxed">
-                         لا توجد مراجعات مسجلة ومحفوظة حالياً. أنجز المهام وسجل مراجعات التقييم لتنشيط هذا المعالج تلقائياً! 💡
-                      </div>
-                   )}
-                </div>
-              </div>
-            )}
-        </TabPanel>
       </TabView>
       </div>
 
       {/* Hidden container for PDF export that renders everything sequentially */}
-      <div className="absolute top-[-9999px] left-[-9999px]">
+      <div className="absolute top-[-9999px] left-[-9999px] opacity-0 pointer-events-none -z-50">
         <div ref={fullPdfRef} className="bg-slate-50 w-[800px] p-8 text-right font-sans" dir="rtl">
            <div className="text-center mb-12 border-b-4 border-indigo-600 pb-10 pt-4">
               <div className="flex flex-col items-center justify-center mb-6">
