@@ -53,6 +53,7 @@ export interface Task {
   hiddenRiddleHint?: string;
   taskGoals?: string;
   taskOutcomes?: string;
+  practicalPart?: string;
 }
 
 export interface SubStationTask {

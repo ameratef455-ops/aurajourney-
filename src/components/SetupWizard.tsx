@@ -474,6 +474,10 @@ const Step1 = ({ state, setState }: any) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {[
         {
+          title: "تعلم Google Sheets 📊",
+          desc: "إتقان الجداول الحسابية، الدوال المتقدمة، وتحليل البيانات الذكي",
+        },
+        {
           title: "اساسيات الذكاء الاصطناعي",
           desc: "أهم المفاهيم، Prompt Engineering، وبناء روبوتات ذكية",
         },

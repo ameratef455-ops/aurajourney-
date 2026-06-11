@@ -547,35 +547,48 @@ export function EvaluationSidebar({
       {/* Elegant Full-Screen Confirmation Dialog to Enter the Evaluation/Review */}
       {showStartConfirmation && (
         <div 
-          className="fixed inset-0 bg-[#0A0F2C] text-white flex flex-col font-sans p-6 overflow-y-auto"
+          className="fixed inset-0 bg-gradient-to-br from-[#020617] via-slate-900 to-[#0A0F2C] text-white flex flex-col font-sans p-6 overflow-y-auto"
           style={{ zIndex: 65000000 }}
           dir="rtl"
         >
           {/* Accent lighting gradients for visual depth */}
-          <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#2D52CC]/15 rounded-full blur-[120px] pointer-events-none" />
-          <div className="absolute bottom-10 left-1/4 w-96 h-96 bg-[#4D7FFF]/10 rounded-full blur-[150px] pointer-events-none" />
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-10 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[150px] pointer-events-none" />
 
-          <div className="max-w-2xl w-full mx-auto my-auto flex flex-col items-center justify-center text-center space-y-8 py-10 relative z-10">
+          {/* Explicit Two-Step Progression Indicator */}
+          <div className="w-full max-w-xl mx-auto flex items-center justify-between border-b border-white/5 pb-5 mt-2 shrink-0" dir="rtl">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black border border-indigo-400 shadow-[0_0_15px_rgba(79,70,229,0.5)]">١</span>
+              <span className="text-[11px] font-black text-white">الخطوة الأولى: أهداف التمكين والمخرجات</span>
+            </div>
+            <div className="h-[2px] flex-1 bg-white/10 mx-4 max-w-[80px]" />
+            <div className="flex items-center gap-2 opacity-40">
+              <span className="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-[10px] font-black">٢</span>
+              <span className="text-[11px] font-black text-white">الخطوة الثانية: تقييم تحصيل المهام</span>
+            </div>
+          </div>
+
+          <div className="max-w-2xl w-full mx-auto my-auto flex flex-col items-center justify-center text-center space-y-8 py-6 relative z-10">
             
             {/* Soft pulsing halo illustration */}
-            <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-[#2D52CC] to-[#4D7FFF] flex items-center justify-center text-white shadow-[0_0_40px_rgba(77,127,255,0.4)] animate-pulse border border-white/20">
-              <Sparkles className="w-12 h-12" />
+            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-[#2D52CC] to-[#4D7FFF] flex items-center justify-center text-white shadow-[0_0_40px_rgba(77,127,255,0.4)] animate-pulse border border-white/20">
+              <Sparkles className="w-10 h-10" />
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               <span className="text-xs font-black uppercase tracking-widest text-[#4D7FFF]">بوابة التمكين والتقييم</span>
-              <h1 className="text-4xl font-extrabold text-white leading-tight">
+              <h1 className="text-3xl font-extrabold text-white leading-tight">
                 سجل التقييم والتحصيل الأصلي 🛡️
               </h1>
-              <p className="text-[#A0B4E8] text-sm max-w-md mx-auto">
+              <p className="text-[#A0B4E8] text-xs max-w-md mx-auto leading-relaxed">
                 أنت الآن بصدد الدخول لشاشة قياس الأداء وتوثيق التقدم المعرفي لرحلتك الاستكشافية.
               </p>
             </div>
 
             {/* Target Objectives Section */}
-            <div className="w-full bg-[#1A2B6B]/80 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/5 space-y-4 text-right shadow-2xl relative">
-              <div className="absolute top-0 left-6 w-16 h-[2px] bg-gradient-to-r from-transparent to-[#4D7FFF]" />
-              <div className="flex items-center gap-2 text-[#4D7FFF] border-b border-indigo-950 pb-3">
+            <div className="w-full bg-white/5 backdrop-blur-md rounded-[2rem] p-6 border border-white/10 space-y-4 text-right shadow-2xl relative">
+              <div className="absolute top-0 left-6 w-16 h-[2px] bg-gradient-to-r from-transparent to-indigo-500" />
+              <div className="flex items-center gap-2 text-indigo-400 border-b border-white/5 pb-3">
                 <Target className="w-5 h-5 animate-pulse" />
                 <h3 className="font-extrabold text-white text-base">الأهداف والمخرجات المستهدفة للمهمة:</h3>
               </div>
@@ -585,7 +598,7 @@ export function EvaluationSidebar({
             </div>
 
             {/* Motivation / Startup Message Section */}
-            <div className="w-full bg-[#2D52CC]/10 backdrop-blur-md rounded-[2.5rem] p-6 border border-[#2D52CC]/20 space-y-4 text-right shadow-2xl">
+            <div className="w-full bg-indigo-500/5 backdrop-blur-md rounded-[2rem] p-6 border border-white/5 space-y-4 text-right shadow-2xl">
               <div className="flex items-center gap-2 text-emerald-400">
                 <CheckCircle2 className="w-5 h-5" />
                 <h3 className="font-extrabold text-white text-base">رسالة بدء المهمة والتمكين الجوهري:</h3>
@@ -602,7 +615,7 @@ export function EvaluationSidebar({
                   vibrate(HAPITCS.SUCCESS);
                   setShowStartConfirmation(false);
                 }}
-                className="w-full py-5 rounded-2xl bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white text-lg font-black shadow-[0_4px_25px_rgba(77,127,255,0.4)] transition-all hover:scale-[1.01] hover:brightness-110 active:scale-[0.99] cursor-pointer"
+                className="w-full py-5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 text-white text-lg font-black shadow-[0_4px_25px_rgba(79,70,229,0.35)] transition-all hover:scale-[1.01] hover:brightness-110 active:scale-[0.99] cursor-pointer"
               >
                 بدء المهمة الآن 🚀
               </button>
@@ -638,35 +651,50 @@ export function EvaluationSidebar({
         }}
         fullScreen
         dismissable={false}
-        className="w-screen h-screen !p-0 border-none shadow-none bg-[#0A0F2C]"
+        className="w-screen h-screen !p-0 border-none shadow-none bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950"
         showCloseIcon={false}
         modal={true}
         baseZIndex={LAYERS.EVALUATION_LOG}
       >
         <div 
-          className="flex flex-col h-screen w-screen bg-[#0A0F2C] text-white overflow-hidden relative" 
+          className="flex flex-col h-screen w-screen bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 text-white overflow-hidden relative" 
           dir="rtl"
         >
           {/* Header */}
-          <div className="p-6 bg-[#080d26] border-b border-indigo-950/40 flex items-center justify-between z-10 shrink-0">
+          <div className="p-6 bg-[#020617]/90 backdrop-blur border-b border-white/5 flex items-center justify-between z-10 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-[#0A0F2C] via-[#1A2B6B] to-[#2D52CC] px-5 py-2 rounded-2xl shadow-md border border-white/10">
+              <div className="bg-gradient-to-br from-indigo-950/45 to-slate-900 px-5 py-2 rounded-2xl shadow-md border border-white/10">
                 <h2 className="text-lg font-black tracking-tighter text-white uppercase flex items-center gap-2">
-                  <ListChecks className="w-5 h-5 opacity-70 text-[#4D7FFF]" />
-                  سجل التقييم
+                  <ListChecks className="w-5 h-5 opacity-70 text-indigo-400" />
+                  سجل التقييم والتمكين
                 </h2>
               </div>
             </div>
             <button 
               onClick={handleManualHide}
-              className="evaluation-close-btn w-10 h-10 rounded-xl bg-[#1A2B6B] hover:bg-[#2D52CC] flex items-center justify-center transition-all border border-white/10 active:scale-95 text-[#A0B4E8] group cursor-pointer"
+              className="evaluation-close-btn w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all border border-white/10 active:scale-95 text-[#A0B4E8] group cursor-pointer"
             >
               <i className="pi pi-times text-sm group-hover:rotate-90 transition-transform duration-300"></i>
             </button>
           </div>
 
+          {/* Explicit Two-Step Progression - Step 2 */}
+          <div className="py-3 px-6 bg-[#020617]/40 border-b border-white/5 shrink-0 flex items-center justify-center">
+            <div className="w-full max-w-xl flex items-center justify-between" dir="rtl">
+              <div className="flex items-center gap-2 opacity-60">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-[9px] font-black border border-emerald-500/20">✔</span>
+                <span className="text-[10px] font-bold text-slate-300">الخطوة الأولى: أهداف التمكين والمخرجات</span>
+              </div>
+              <div className="h-[2px] flex-1 bg-[#10b981]/20 mx-4 max-w-[80px]" />
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[9px] font-black border border-indigo-400 shadow-[0_0_10px_rgba(79,70,229,0.5)]">٢</span>
+                <span className="text-[10px] font-black text-white">الخطوة الثانية: تقييم تحصيل المهامورصد الأداء</span>
+              </div>
+            </div>
+          </div>
+
           {/* Content with Tabs */}
-          <div className="flex-1 overflow-y-auto px-4 py-6 bg-[#0A0F2C]">
+          <div className="flex-1 overflow-y-auto px-4 py-6 bg-transparent">
             <TabView className="custom-evaluation-tabs">
               <TabPanel header="" leftIcon={<Target className="w-5 h-5" />}>
                 <div 
@@ -820,10 +848,10 @@ export function EvaluationSidebar({
         <style>{`
           .custom-evaluation-tabs .p-tabview-nav {
             display: flex;
-            background: #1A2B6B;
+            background: rgba(255, 255, 255, 0.03);
             padding: 6px;
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             margin-bottom: 24px;
           }
           .custom-evaluation-tabs .p-tabview-nav li {
@@ -846,9 +874,9 @@ export function EvaluationSidebar({
             position: relative;
           }
           .custom-evaluation-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
-            background: linear-gradient(135deg, #2D52CC 0%, #4D7FFF 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #4338ca 100%);
             color: white;
-            box-shadow: 0 4px 15px rgba(77, 127, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
             transform: translateY(-2px);
           }
           .custom-evaluation-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link::after {
@@ -857,9 +885,9 @@ export function EvaluationSidebar({
             bottom: -8px;
             width: 6px;
             height: 6px;
-            background: #4D7FFF;
+            background: #3b82f6;
             border-radius: 50%;
-            box-shadow: 0 0 10px #4d7fff;
+            box-shadow: 0 0 10px #3b82f6;
           }
           .custom-evaluation-tabs .p-tabview-panels {
             background: transparent;
@@ -868,13 +896,13 @@ export function EvaluationSidebar({
           
           /* Adjust TaskItem inside EvaluationSidebar */
           .custom-evaluation-tabs .TaskItemContainer {
-             background: #1A2B6B !important;
-             border: 1px solid rgba(255, 255, 255, 0.05) !important;
+             background: rgba(255, 255, 255, 0.03) !important;
+             border: 1px solid rgba(255, 255, 255, 0.08) !important;
              color: white !important;
           }
           .custom-evaluation-tabs .TaskItemContainer:hover {
-             background: #2D52CC !important;
-             border-color: rgba(255, 255, 255, 0.1) !important;
+             background: rgba(255, 255, 255, 0.06) !important;
+             border-color: rgba(255, 255, 255, 0.15) !important;
           }
           .custom-evaluation-tabs .TaskItemContainer h4 {
              color: white !important;
@@ -928,17 +956,19 @@ export function EvaluationSidebar({
           if (initialSelectedTask) onHide();
         }}
         header={
-          <div className="flex items-center gap-3 pr-2" dir="rtl">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
+          <div className="flex items-center gap-3 pr-2 text-white" dir="rtl">
+            <div className="w-10 h-10 rounded-xl bg-white/5 text-indigo-400 border border-white/10 flex items-center justify-center shadow-sm">
               <Edit2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-slate-900">{selectedTask?.title}</h3>
-              <p className="text-[10px] text-slate-400 font-bold">تخطيط الأنشطة المطلوبة والمدة المتوقعة</p>
+              <h3 className="text-sm font-black text-white">{selectedTask?.title}</h3>
+              <p className="text-[9px] text-[#A0B4E8] font-bold">تخطيط الأنشطة المطلوبة والمدة المتوقعة</p>
             </div>
           </div>
         }
-        className="w-[95vw] max-w-xl font-sans"
+        className="w-[95vw] max-w-xl font-sans border border-white/10 shadow-2xl overflow-hidden"
+        contentClassName="bg-[#020617] text-white p-6"
+        headerClassName="bg-[#020617] border-b border-white/5 pb-4 text-white p-4"
         closable
         dismissableMask
         blockScroll
@@ -958,13 +988,13 @@ export function EvaluationSidebar({
         `}</style>
         <div className="space-y-6 pt-4" dir="rtl">
            {/* Add New Root Activity */}
-           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+           <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-3">
               <div className="flex gap-2">
                 <InputText 
                   value={newActivityTitle}
                   onChange={(e) => setNewActivityTitle(e.target.value)}
                   placeholder="اسم النشاط الجديد..."
-                  className="flex-1 p-3 text-xs font-bold border-slate-200 rounded-xl focus:border-indigo-500"
+                  className="flex-1 p-3 text-white text-xs font-bold border border-white/10 rounded-xl focus:border-indigo-500 bg-white/5 placeholder-slate-400"
                 />
                 <div className="w-24">
                   <InputNumber 
@@ -973,7 +1003,7 @@ export function EvaluationSidebar({
                     placeholder="دقيقة"
                     suffix=" د"
                     className="w-full"
-                    inputClassName="p-3 text-xs font-black text-center border-slate-200 rounded-xl focus:border-indigo-500"
+                    inputClassName="p-3 text-white text-xs font-black text-center border border-white/10 rounded-xl focus:border-indigo-500 bg-white/5"
                   />
                 </div>
               </div>

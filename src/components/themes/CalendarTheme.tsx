@@ -450,35 +450,47 @@ export function CalendarTheme({
         </motion.div>
       </AnimatePresence>
 
-      <div className="border-t border-slate-150/65 my-1" />
+      <div className="border-t border-white/5 my-1" />
 
-      {/* Arrange Calendar Modal */}
+           {/* Arrange Calendar Modal */}
       <Dialog
         maximized
         visible={isArrangeModalOpen}
         onHide={() => setIsArrangeModalOpen(false)}
+        showCloseIcon={false}
         header={
-          <div className="flex justify-between items-center w-full mt-2" dir="rtl">
-            <span className="text-xs font-black text-slate-800 flex items-center gap-2">
-              <CalendarIcon className="w-4.5 h-4.5 text-blue-500" />
-              تحديد مواعيد المهام
-            </span>
+          <div className="flex justify-between items-center w-full pr-4 pb-2" dir="rtl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 shadow-inner">
+                <CalendarIcon className="w-5 h-5 text-indigo-400" />
+              </div>
+              <span className="text-xl font-black text-white">تحديد مواعيد المهام</span>
+            </div>
+            <button
+              onClick={() => setIsArrangeModalOpen(false)}
+              className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all border border-white/10 active:scale-95 text-indigo-400 group cursor-pointer ml-4 shadow-sm"
+              title="إغلاق"
+            >
+              <i className="pi pi-times text-sm group-hover:rotate-90 transition-transform duration-300"></i>
+            </button>
           </div>
         }
-        className="font-sans !rounded-[32px] overflow-hidden"
+        className="font-sans border-none shadow-2xl bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 text-white"
+        contentClassName="bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 text-white p-6"
+        headerClassName="bg-[#020617] border-b border-white/5 text-white"
         style={{ borderRadius: '32px' }}
-        maskClassName="backdrop-blur-sm bg-slate-900/40"
+        maskClassName="backdrop-blur-sm bg-slate-900/60"
         blockScroll
         onShow={() => vibrate(HAPITCS.MAJOR_CLICK)}
       >
-        <div className="w-full flex-col bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-2xl border border-blue-100 mb-5 mt-2 gap-3 flex" dir="rtl">
+        <div className="w-full flex-col bg-white/5 p-4 rounded-2xl border border-white/10 mb-5 mt-2 gap-3 flex" dir="rtl">
           <div className="flex items-center justify-between">
             <div className="text-right">
-              <h4 className="text-xs font-black text-blue-900 mb-0.5">جدولة المحطة</h4>
-              <p className="text-[10px] text-blue-700 leading-relaxed font-semibold">قم باختيار المواعيد المناسبة لكل مهمة لضمان الالتزام بجدولك الزمني.</p>
+              <h4 className="text-xs font-black text-indigo-300 mb-0.5">جدولة المحطة</h4>
+              <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">قم باختيار المواعيد المناسبة لكل مهمة لضمان الالتزام بجدولك الزمني.</p>
             </div>
             <div className="flex flex-col gap-1 items-end">
-              <label className="text-[9px] font-black text-indigo-400 uppercase">تاريخ موحد للمهام</label>
+              <label className="text-[9px] font-black text-indigo-300 uppercase">تاريخ موحد للمهام</label>
               <Calendar 
                 onChange={(e) => {
                   if (e.value instanceof Date) {
@@ -495,11 +507,11 @@ export function CalendarTheme({
                 }}
                 placeholder="تحديد تاريخ للكل"
                 readOnlyInput
-                className="w-32 custom-calendar-mini"
-                inputClassName="!bg-white !border-indigo-200 !text-indigo-700 !text-[10px] !font-black !rounded-lg !p-1.5 !h-8"
+                className="w-32 custom-calendar-mini text-white"
+                inputClassName="!bg-white/5 !border-white/10 !text-white !text-[10px] !font-black !rounded-lg !p-1.5 !h-8"
                 showIcon
                 minDate={new Date()}
-                icon={() => <i className="pi pi-calendar-plus text-indigo-500 text-xs" />}
+                icon={() => <i className="pi pi-calendar-plus text-indigo-400 text-xs" />}
                 appendTo={typeof document !== 'undefined' ? document.body : null}
               />
             </div>
@@ -512,19 +524,19 @@ export function CalendarTheme({
               if (!list || list.length === 0) return null;
               
               const typeLabels: any = {
-                mains: { title: 'المهام الأساسية', icon: <Target className="w-3.5 h-3.5 text-emerald-500" /> },
-                sides: { title: 'المهام الجانبية', icon: <Info className="w-3.5 h-3.5 text-purple-500" /> },
+                mains: { title: 'المهام الأساسية', icon: <Target className="w-3.5 h-3.5 text-emerald-400" /> },
+                sides: { title: 'المهام الجانبية', icon: <Info className="w-3.5 h-3.5 text-purple-400" /> },
               };
 
               return (
                 <div key={cat} className="space-y-3">
-                  <h5 className="text-[11px] font-black text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
+                  <h5 className="text-[11px] font-black text-white flex items-center gap-2 border-b border-white/5 pb-2">
                     {typeLabels[cat].icon} {typeLabels[cat].title}
                   </h5>
                   <div className="grid grid-cols-1 gap-3">
                     {list.map(task => (
-                      <div key={task.id} className="p-3 bg-white border border-slate-150 rounded-2xl flex flex-col gap-3 shadow-sm hover:border-blue-200 transition-colors">
-                        <span className={`text-xs font-bold ${task.isCompleted ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                      <div key={task.id} className="p-3 bg-white/5 border border-white/10 rounded-2xl flex flex-col gap-3 shadow-md hover:border-indigo-500/50 transition-colors">
+                        <span className={`text-xs font-bold ${task.isCompleted ? 'text-slate-400 line-through' : 'text-white'}`}>
                           {task.title}
                         </span>
                         
@@ -532,9 +544,9 @@ export function CalendarTheme({
                           <div className="flex items-center justify-between">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">موعد التنفيذ</label>
                             {tempAssignments[task.id] && (
-                              <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100 flex items-center gap-1">
+                              <span className="text-[10px] font-black text-indigo-300 bg-indigo-505/20 px-2 py-0.5 rounded-lg border border-indigo-500/30 flex items-center gap-1">
                                 <span className="font-extrabold">{format(new Date(tempAssignments[task.id]), 'EEEE', { locale: ar })}</span>
-                                <span className="text-slate-300">|</span>
+                                <span className="text-white/20">|</span>
                                 <span>{format(new Date(tempAssignments[task.id]), 'd MMMM', { locale: ar })}</span>
                               </span>
                             )}
@@ -557,43 +569,45 @@ export function CalendarTheme({
                               placeholder="إختر تاريخ"
                               readOnlyInput
                               className="w-full custom-calendar-mini transition-all"
-                              inputClassName="!bg-white !border-indigo-100 !text-indigo-700 !text-[10px] !font-black !rounded-lg !p-1.5 !h-8 shadow-sm hover:!border-indigo-300"
-                              panelClassName="p-3 bg-white border border-slate-100 shadow-xl rounded-2xl font-sans"
+                              inputClassName="!bg-white/5 !border-white/10 !text-white !text-[10px] !font-black !rounded-lg !p-1.5 !h-8 shadow-sm hover:!border-indigo-400/50"
+                              panelClassName="p-3 !bg-slate-950 !border !border-white/10 shadow-xl rounded-2xl font-sans"
                               minDate={new Date()}
                               showIcon
-                              icon={() => <i className="pi pi-calendar-plus text-indigo-500 text-xs" />}
+                              icon={() => <i className="pi pi-calendar-plus text-indigo-400 text-xs" />}
                               appendTo={typeof document !== 'undefined' ? document.body : null}
                             />
                             {/* Blue gradient highlight on hover via CSS sibling */}
                             <style>{`
                               .custom-calendar-blue .p-inputtext:hover {
-                                border-color: #3b82f6 !important;
-                                background: linear-gradient(to right, #f8fafc, #eff6ff) !important;
+                                border-color: #4f46e5 !important;
+                                background: linear-gradient(to right, rgba(255,255,255,0.02), rgba(79,70,229,0.1)) !important;
                               }
                               .p-datepicker {
+                                background: #090d1f !important;
+                                color: white !important;
                                 border-radius: 20px !important;
-                                box-shadow: 0 10px 40px rgba(0,0,0,0.08) !important;
-                                border: 1px solid #f1f5f9 !important;
+                                box-shadow: 0 10px 40px rgba(0,0,0,0.4) !important;
+                                border: 1px solid rgba(255,255,255,0.1) !important;
                                 padding: 16px !important;
                               }
                               .p-datepicker .p-datepicker-header {
                                 background: transparent !important;
-                                border-bottom: 1px solid #f1f5f9 !important;
+                                border-bottom: 1px solid rgba(255,255,255,0.05) !important;
                                 margin-bottom: 8px !important;
                                 padding: 8px 0 !important;
                               }
                               .p-datepicker .p-datepicker-title .p-datepicker-month, .p-datepicker .p-datepicker-title .p-datepicker-year {
                                 font-weight: 900 !important;
-                                color: #1e293b !important;
+                                color: white !important;
                                 font-family: sans-serif !important;
                               }
                               .p-datepicker table td > span.p-highlight {
-                                background: linear-gradient(135deg, #3b82f6, #6366f1) !important;
+                                background: linear-gradient(135deg, #4f46e5, #3b82f6) !important;
                                 color: white !important;
-                                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+                                box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4) !important;
                               }
                               .p-datepicker table td > span:hover {
-                                background: #f1f5f9 !important;
+                                background: rgba(255,255,255,0.1) !important;
                                 border-radius: 50% !important;
                               }
                             `}</style>
@@ -610,13 +624,13 @@ export function CalendarTheme({
         <div className="w-full mt-6 flex gap-2 rtl:flex-row-reverse pb-1" dir="rtl">
           <button 
              onClick={handleSaveArrangementCall}
-             className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition-all shadow-sm border-none cursor-pointer"
+             className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs transition-all shadow-sm border-none cursor-pointer"
           >
              إحفظ التوزيع
           </button>
           <button 
              onClick={() => setIsArrangeModalOpen(false)}
-             className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-205 text-slate-600 font-bold text-xs transition-all border-none cursor-pointer"
+             className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs transition-all border border-white/10 cursor-pointer"
           >
              إلغاء
           </button>

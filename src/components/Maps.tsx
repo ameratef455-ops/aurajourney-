@@ -39,6 +39,7 @@ import { RevertConfirmModal } from "./RevertConfirmModal";
 import { LearningRepoModal } from "./LearningRepoModal";
 import { ReviewPathSession } from "./ReviewPathSession";
 import { CalendarTheme } from "./themes/CalendarTheme";
+import { GoogleSheetsLearning } from "./GoogleSheetsLearning";
 import { addDays, getDay, format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -265,6 +266,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [stationFormIcon, setStationFormIcon] = useState("pi pi-flag-fill");
   const [stationFormDate, setStationFormDate] = useState("");
   const [learningRepoVisible, setLearningRepoVisible] = useState(false);
+  const [sheetsLearningVisible, setSheetsLearningVisible] = useState(false);
   const [tasksPendingReflection, setTasksPendingReflection] = useState<string[]>([]);
 
   const isLanguageJourney = useMemo(() => {
@@ -276,6 +278,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
            goal.includes('german') || 
            goal.includes('spanish') ||
            goal.includes('french');
+  }, [user?.learningGoal]);
+
+  const isSheetsJourney = useMemo(() => {
+    const goal = user?.learningGoal?.toLowerCase() || '';
+    return goal.includes('sheets') || 
+           goal.includes('جداول') || 
+           goal.includes('شيتس') || 
+           goal.includes('google sheets');
   }, [user?.learningGoal]);
 
   const ICON_PRESETS = [
@@ -1012,15 +1022,23 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     }
   };
 
-  const SIDEBAR_APPS = [
-    { id: 'calendar', title: 'الخطة والمهام', icon: 'pi pi-calendar-plus', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setShowJourneyIntroPopup(true); } },
-    { id: 'awards', title: 'المحرك والجوائز', icon: 'pi pi-trophy', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setGamificationActiveTab(0); setGamificationSidebar(true); } },
-    { id: 'notes', title: 'التدوين والملاحظات', icon: 'pi pi-pencil', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { if(activeStationId) setActiveNoteStationId(activeStationId); setShowNotesPopup(true); } },
-    { id: 'analytics', title: 'التحليلات والمراجعة', icon: 'pi pi-chart-line', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setReflectionForceStationId(null); setReflectionActiveTab(0); setReflectionSidebar(true); } },
-    { id: 'links', title: 'المصادر', icon: 'pi pi-book', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setShowLinksPopup(true); } },
-    { id: 'forest', title: 'غابة المعرفة', icon: 'pi pi-sitemap', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setLearningRepoVisible(true); } },
-    { id: 'compass', title: 'البوصلة والتوجيه', icon: 'pi pi-compass', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setShowCompassPopup(true); } },
-  ];
+  const SIDEBAR_APPS = useMemo(() => {
+    const apps = [
+      { id: 'calendar', title: 'الخطة والمهام', icon: 'pi pi-calendar-plus', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setShowJourneyIntroPopup(true); } },
+      { id: 'awards', title: 'المحرك والجوائز', icon: 'pi pi-trophy', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setGamificationActiveTab(0); setGamificationSidebar(true); } },
+      { id: 'notes', title: 'التدوين والملاحظات', icon: 'pi pi-pencil', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { if(activeStationId) setActiveNoteStationId(activeStationId); setShowNotesPopup(true); } },
+      { id: 'analytics', title: 'التحليلات والمراجعة', icon: 'pi pi-chart-line', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setReflectionForceStationId(null); setReflectionActiveTab(0); setReflectionSidebar(true); } },
+      { id: 'links', title: 'المصادر', icon: 'pi pi-book', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setShowLinksPopup(true); } },
+      { id: 'forest', title: 'غابة المعرفة', icon: 'pi pi-sitemap', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setLearningRepoVisible(true); } },
+      { id: 'compass', title: 'البوصلة والتوجيه', icon: 'pi pi-compass', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', solidColor: 'bg-indigo-500', action: () => { setShowCompassPopup(true); } },
+    ];
+
+    if (isSheetsJourney) {
+      apps.push({ id: 'sheets', title: 'تعلم Google Sheets 📊', icon: 'pi pi-table', color: 'bg-[#10b981]/25 text-[#10b981] border-[#10b981]/35', solidColor: 'bg-[#10b981]', action: () => { setSheetsLearningVisible(true); } });
+    }
+
+    return apps;
+  }, [isSheetsJourney, activeStationId]);
 
   if (!stations || !tasks || !user) return null;
 
@@ -2005,6 +2023,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         onHide={() => setLearningRepoVisible(false)}
         tripId={user?.id || ''}
         isLanguageJourney={isLanguageJourney}
+      />
+
+      <GoogleSheetsLearning
+        visible={sheetsLearningVisible}
+        onHide={() => setSheetsLearningVisible(false)}
+        user={user}
       />
 
 
@@ -4619,15 +4643,29 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         onHide={() => {
           setShowJourneyIntroPopup(false);
         }}
+        showCloseIcon={false}
         header={
-          <div className="flex items-center gap-2.5 text-indigo-950 font-black pr-4 text-sm font-sans" dir="rtl">
-            <i className="pi pi-map text-emerald-600 bg-emerald-50 p-1.5 rounded-lg border border-emerald-100"></i>
-            <span>خريطة الرحلة والتقويم اليومي 🗺️</span>
+          <div className="flex items-between justify-between items-center w-full pr-4 pb-2" dir="rtl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 shadow-inner">
+                <i className="pi pi-calendar-plus text-indigo-400 text-lg"></i>
+              </div>
+              <span className="text-xl font-black text-white">التقويم والمهام اليومية</span>
+            </div>
+            <button
+              onClick={() => setShowJourneyIntroPopup(false)}
+              className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all border border-white/10 active:scale-95 text-indigo-400 group cursor-pointer ml-4 shadow-sm"
+              title="إغلاق"
+            >
+              <i className="pi pi-times text-sm group-hover:rotate-90 transition-transform duration-300"></i>
+            </button>
           </div>
         }
-        className="w-screen h-screen font-sans border-none bg-white p-0 m-0 max-w-none max-h-none !rounded-none"
+        className="w-screen h-screen font-sans border-none bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 p-0 m-0 max-w-none max-h-none !rounded-none text-white"
+        contentClassName="bg-[#020617] text-white p-6 overflow-y-auto"
+        headerClassName="bg-[#020617] border-b border-white/5 text-white"
         style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0 }}
-        maskClassName="backdrop-blur-sm bg-slate-900/40"
+        maskClassName="backdrop-blur-sm bg-slate-900/60"
         closable
         dismissableMask
       >

@@ -718,6 +718,19 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                     )}
                   </div>
 
+                  {/* Practical Part (الجزء التطبيقي) */}
+                  {task.practicalPart && (
+                    <div className="p-5 bg-gradient-to-br from-emerald-500/15 via-emerald-500/10 to-transparent border border-emerald-500/35 rounded-3xl space-y-2 text-right shadow-md animate-fade-in">
+                      <div className="flex items-center gap-2 text-emerald-300">
+                        <i className="pi pi-briefcase text-xs shrink-0 text-emerald-400" />
+                        <h4 className="text-xs font-black">🛠️ الجزء التطبيقي الفعلي للمهمة:</h4>
+                      </div>
+                      <p className="text-xs font-bold text-emerald-50 bg-white/5 border border-white/5 p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap shadow-3xs">
+                        {task.practicalPart}
+                      </p>
+                    </div>
+                  )}
+
                   {/* 1. Pre-Task Start Message (رسالة قبل بدء المهمة) */}
                   {task.startMessage && (
                     <div className="p-5 bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border border-indigo-500/20 rounded-3xl space-y-2 text-right shadow-3xs animate-fade-in">

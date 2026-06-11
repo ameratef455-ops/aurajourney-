@@ -380,6 +380,20 @@ export function TaskEditorModal({
                       onChange={(e) => updateField("description", e.target.value)}
                     />
                   </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-black text-blue-900 px-1 flex items-center gap-2">
+                      <i className="pi pi-briefcase text-[10.5px]" />
+                      <span>الجزء التطبيقي الفعلي</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-[20px] font-medium outline-none focus:ring-4 ring-blue-900/5 focus:bg-white focus:border-blue-100 transition-all text-blue-800 text-sm resize-none placeholder-slate-300"
+                      placeholder="ما هي الممارسة أو التحدي التطبيقي العملي المطلوب تنفيذه في هذه المهمة؟..."
+                      value={localTask.practicalPart || ""}
+                      onChange={(e) => updateField("practicalPart", e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-4">
