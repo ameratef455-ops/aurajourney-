@@ -1,13 +1,15 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { vibrate, HAPITCS } from '../lib/haptics';
 
 interface GrowthTreeProps {
   xp: number;
   keys: number;
   className?: string;
+  onClick?: () => void;
 }
 
-export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = "" }) => {
+export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = "", onClick }) => {
   // Calculate greenness and brightness based on XP and Keys
   // 1 XP = 1% greenness (saturation)
   const saturation = Math.min(100, Math.max(0, xp));
@@ -35,7 +37,16 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
   }));
   
   return (
-    <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-6 border border-blue-900/50 shadow-2xl flex flex-col items-center justify-center ${className}`}>
+    <motion.div 
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 400, damping: 10 }}
+      onClick={() => {
+        vibrate(HAPITCS.MAJOR_CLICK);
+        if (onClick) onClick();
+      }}
+      className={`relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-6 border border-blue-900/50 shadow-2xl flex flex-col items-center justify-center cursor-pointer ${className}`}
+    >
       {/* Floating Sparkles/Particles inside the card */}
       {keys > 0 && particles.map((p, i) => (
         <motion.div
@@ -150,6 +161,6 @@ export const GrowthTree: React.FC<GrowthTreeProps> = ({ xp, keys, className = ""
           <p className="text-[9px] text-blue-300 font-medium opacity-50 text-center max-w-[180px]">كلما زادت رتبتك ومفاتيحك، زاد اخضرار وتألق شجرتك الخاصة.</p>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

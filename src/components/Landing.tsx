@@ -372,61 +372,69 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
                   >
                     <i className="pi pi-ellipsis-v text-xs"></i>
                   </button>
+                  <AnimatePresence>
                   {activeMenuTripId === trip.id && (
                     <>
                       <div 
                         className="fixed inset-0 z-10" 
                         onClick={() => setActiveMenuTripId(null)}
                       />
-                      <div className="absolute left-0 mt-2 w-44 bg-white border border-gray-100 rounded-2xl shadow-2xl z-20 py-2 text-right overflow-hidden">
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="absolute left-0 mt-2 w-44 bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl z-20 py-2 text-right overflow-hidden"
+                      >
                         <button
                           onClick={() => {
                             setActiveMenuTripId(null);
                             startEdit(trip);
                           }}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-blue-950 hover:bg-blue-50 transition border-none bg-transparent font-bold cursor-pointer"
+                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-white hover:bg-white/10 transition border-none bg-transparent font-bold cursor-pointer"
                         >
-                          <i className="pi pi-pencil text-blue-600"></i>
+                          <i className="pi pi-pencil text-indigo-400"></i>
                           <span>تعديل المحطات</span>
                         </button>
-                        <div className="h-px bg-gray-50 mx-2" />
+                        <div className="h-px bg-white/5 mx-2" />
                         <button
                           onClick={() => {
                             setActiveMenuTripId(null);
                             setResetTrip(trip);
                           }}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-amber-600 hover:bg-amber-50 transition border-none bg-transparent font-bold cursor-pointer"
+                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-amber-500 hover:bg-white/10 transition border-none bg-transparent font-bold cursor-pointer"
                         >
-                          <i className="pi pi-refresh text-amber-500"></i>
+                          <i className="pi pi-refresh text-amber-400"></i>
                           <span>ابدأ الرحلة من جديد</span>
                         </button>
-                        <div className="h-px bg-gray-50 mx-2" />
+                        <div className="h-px bg-white/5 mx-2" />
                         <button
                           onClick={() => {
                             setActiveMenuTripId(null);
                             setFreezeConfirmTrip(trip);
                           }}
                           className={`w-full flex items-center gap-3 px-5 py-3.5 text-sm transition border-none bg-transparent font-bold cursor-pointer ${
-                            isFrozen ? "text-emerald-600 hover:bg-emerald-50" : "text-cyan-600 hover:bg-cyan-50"
+                            isFrozen ? "text-emerald-400 hover:bg-white/10" : "text-cyan-400 hover:bg-white/10"
                           }`}
                         >
-                          <i className={`pi ${isFrozen ? 'pi-play' : 'pi-stop-circle'} ${isFrozen ? 'text-emerald-500' : 'text-cyan-500'}`}></i>
+                          <i className={`pi ${isFrozen ? 'pi-play' : 'pi-stop-circle'} ${isFrozen ? 'text-emerald-400' : 'text-cyan-400'}`}></i>
                           <span>{isFrozen ? "إلغاء التجميد" : "تجميد الرحلة"}</span>
                         </button>
-                        <div className="h-px bg-gray-50 mx-2" />
+                        <div className="h-px bg-white/5 mx-2" />
                         <button
                           onClick={() => {
                             setActiveMenuTripId(null);
                             setDeleteTripId(trip.id);
                           }}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-rose-600 hover:bg-rose-50 transition border-none bg-transparent font-bold cursor-pointer"
+                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-rose-500 hover:bg-white/10 transition border-none bg-transparent font-bold cursor-pointer"
                         >
-                          <i className="pi pi-trash text-rose-500"></i>
+                          <i className="pi pi-trash text-rose-400"></i>
                           <span>حذف الرحلة</span>
                         </button>
-                      </div>
+                      </motion.div>
                     </>
                   )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Trip Icon / Visual with Glow */}
@@ -898,31 +906,31 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
            initial={{ opacity: 0, scale: 0.95 }}
            animate={{ opacity: 1, scale: 1 }}
            transition={{ delay: 0.1 }}
-           className="w-full max-w-sm mx-auto mb-10 flex gap-4 bg-white/60 backdrop-blur-xl border border-indigo-50 p-4 rounded-[2rem] shadow-sm"
+           className="w-full max-w-sm mx-auto mb-10 flex gap-4 bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 backdrop-blur-xl border border-white/10 p-4 rounded-[2rem] shadow-[0_10px_30px_rgba(37,99,235,0.15)]"
            dir="rtl"
         >
-           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-gradient-to-b from-indigo-50 to-white rounded-2xl border border-indigo-100/50 shadow-sm relative overflow-hidden group hover:scale-105 transition-transform cursor-default">
-              <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:rotate-12 transition-transform">
+           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-white/5 rounded-2xl border border-white/10 shadow-sm relative overflow-hidden group hover:bg-white/10 transition-all cursor-default">
+              <div className="w-10 h-10 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:rotate-12 transition-transform border border-indigo-500/30">
                 <i className="pi pi-star-fill text-lg drop-shadow-sm"></i>
               </div>
-              <span className="font-extrabold text-2xl text-indigo-950 font-mono tracking-tight">{Math.floor(treeXp / 100) + 1}</span>
-              <span className="text-[10px] font-black text-indigo-400 uppercase mt-1">المستوى</span>
+              <span className="font-extrabold text-2xl text-white font-mono tracking-tight">{Math.floor(treeXp / 100) + 1}</span>
+              <span className="text-[10px] font-black text-indigo-300 uppercase mt-1">المستوى</span>
            </div>
            
-           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-gradient-to-b from-amber-50/50 to-white rounded-2xl border border-amber-100/50 shadow-sm relative overflow-hidden group hover:scale-105 transition-transform cursor-default">
-              <div className="w-10 h-10 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform">
+           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-white/5 rounded-2xl border border-white/10 shadow-sm relative overflow-hidden group hover:bg-white/10 transition-all cursor-default">
+              <div className="w-10 h-10 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform border border-amber-500/30">
                 <i className="pi pi-bolt text-lg drop-shadow-sm"></i>
               </div>
-              <span className="font-extrabold text-2xl text-amber-950 font-mono tracking-tight">{treeXp}</span>
-              <span className="text-[10px] font-black text-amber-500 uppercase mt-1">نقاط المعرفة</span>
+              <span className="font-extrabold text-2xl text-white font-mono tracking-tight">{treeXp}</span>
+              <span className="text-[10px] font-black text-amber-300 uppercase mt-1">نقاط المعرفة</span>
            </div>
 
-           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-gradient-to-b from-emerald-50/50 to-white rounded-2xl border border-emerald-100/50 shadow-sm relative overflow-hidden group hover:scale-105 transition-transform cursor-default">
-              <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:-rotate-12 transition-transform">
+           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-white/5 rounded-2xl border border-white/10 shadow-sm relative overflow-hidden group hover:bg-white/10 transition-all cursor-default">
+              <div className="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:-rotate-12 transition-transform border border-emerald-500/30">
                 <i className="pi pi-key text-lg drop-shadow-sm"></i>
               </div>
-              <span className="font-extrabold text-2xl text-emerald-950 font-mono tracking-tight">{treeKeys}</span>
-              <span className="text-[10px] font-black text-emerald-500 uppercase mt-1">المفاتيح</span>
+              <span className="font-extrabold text-2xl text-white font-mono tracking-tight">{treeKeys}</span>
+              <span className="text-[10px] font-black text-emerald-300 uppercase mt-1">المفاتيح</span>
            </div>
         </motion.div>
 
@@ -931,14 +939,14 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
            initial={{ opacity: 0, scale: 0.95 }}
            animate={{ opacity: 1, scale: 1 }}
            transition={{ delay: 0.2 }}
-           className="w-full max-w-sm mx-auto mb-6 bg-white/40 backdrop-blur-xl border border-slate-100 p-4 rounded-3xl shadow-sm text-right"
+           className="w-full max-w-sm mx-auto mb-6 bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 backdrop-blur-xl border border-white/10 p-4 rounded-3xl shadow-[0_10px_30px_rgba(37,99,235,0.15)] text-right"
            dir="rtl"
         >
            <div className="flex justify-between items-center mb-2">
-              <span className="text-[10px] font-black tracking-widest text-slate-500 uppercase">التقدم نحو المستوى {Math.floor(treeXp / 100) + 2}</span>
-              <span className="text-xs font-bold font-mono text-indigo-600">{treeXp % 100} / 100</span>
+              <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">التقدم نحو المستوى {Math.floor(treeXp / 100) + 2}</span>
+              <span className="text-xs font-bold font-mono text-indigo-400">{treeXp % 100} / 100</span>
            </div>
-           <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+           <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden border border-white/5">
                <motion.div 
                  initial={{ width: 0 }}
                  animate={{ width: `${treeXp % 100}%` }}

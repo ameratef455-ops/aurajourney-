@@ -317,7 +317,17 @@ body {
   z-index: 2147483647 !important;
 }
 
-/* Ensure ALL dialogs and masks render high, but allow dynamic stacking */
+/* Notes styling */
+.notes-dataview .p-dataview-content {
+    background: transparent !important;
+}
+.notes-dataview .p-dataview-emptymessage {
+    background: transparent !important;
+    color: #cbd5e1 !important;
+    border: none !important;
+    text-align: right !important;
+    padding: 2rem !important;
+}
 .p-dialog-mask {
   z-index: auto;
 }

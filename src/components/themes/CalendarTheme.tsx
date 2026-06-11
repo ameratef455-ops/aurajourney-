@@ -274,17 +274,17 @@ export function CalendarTheme({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="bg-white rounded-[32px] shadow-lg border border-slate-100 overflow-hidden w-full"
+          className="bg-white/5 backdrop-blur-xl rounded-[32px] shadow-xl border border-white/10 overflow-hidden w-full"
         >
           <div className="p-6 md:p-8">
             {/* Weekly Calendar switcher/navigator */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-white/10 pb-6">
                   <div className="flex items-center gap-4">
-                     <div className="w-11 h-11 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                     <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0 border border-indigo-500/30">
                         <CalendarIcon className="w-5 h-5" />
                      </div>
                      <div>
-                        <h3 className="text-lg font-black text-slate-800">توزيع المهام طول الإسبوع</h3>
+                        <h3 className="text-lg font-black text-white">توزيع المهام طول الإسبوع</h3>
                         <p className="text-[11px] font-bold text-slate-400 mt-1">
                            أسبوع: {format(weekStart, 'd MMMM', { locale: ar })} - {format(weekEnd, 'd MMMM yyyy', { locale: ar })}
                         </p>
@@ -294,19 +294,19 @@ export function CalendarTheme({
                   <div className="flex gap-2 self-end sm:self-auto items-center">
                     <button 
                       onClick={handleOpenArrangeModal}
-                      className="px-4 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black text-[11px] transition-all border border-indigo-100 cursor-pointer flex items-center justify-center shadow-3xs"
+                      className="px-4 py-2.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-black text-[11px] transition-all border border-indigo-500/30 cursor-pointer flex items-center justify-center shadow-sm"
                     >
                       <i className="pi pi-sort-amount-down ml-1.5" />
                       رتب المواعيد
                     </button>
                     <div className="flex gap-1">
-                      <button onClick={prevWeek} className="p-2 rounded-xl bg-white border border-slate-150 hover:border-blue-200 text-slate-705 cursor-pointer flex items-center justify-center shrink-0" title="الإسبوع اللي فات">
+                      <button onClick={prevWeek} className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-indigo-400/30 text-slate-300 cursor-pointer flex items-center justify-center shrink-0" title="الإسبوع اللي فات">
                          <ChevronRight size={15} />
                       </button>
-                      <button onClick={jumpToToday} className="px-3.5 py-2 rounded-xl bg-white border border-slate-150 hover:border-blue-200 text-slate-705 cursor-pointer font-black text-[10px]">
+                      <button onClick={jumpToToday} className="px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-indigo-400/30 text-slate-300 cursor-pointer font-black text-[10px]">
                          النهاردة
                       </button>
-                      <button onClick={nextWeek} className="p-2 rounded-xl bg-white border border-slate-150 hover:border-blue-200 text-slate-705 cursor-pointer flex items-center justify-center shrink-0" title="الإسبوع اللي جاي">
+                      <button onClick={nextWeek} className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-indigo-400/30 text-slate-300 cursor-pointer flex items-center justify-center shrink-0" title="الإسبوع اللي جاي">
                          <ChevronLeft size={15} />
                       </button>
                     </div>
@@ -322,7 +322,7 @@ export function CalendarTheme({
                    transition={{ duration: 0.2 }}
                  >
                 <div className="flex flex-col gap-6 mt-4">
-                  <div className="w-full border border-slate-100 bg-slate-50/20 rounded-2xl p-5 shadow-3xs">
+                  <div className="w-full border border-white/10 bg-white/5 rounded-2xl p-5 shadow-sm">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {Array.from({ length: 4 }).map((_, colIdx) => {
                         const daysInCol = calendarDays.slice(colIdx * 2, colIdx * 2 + 2);
@@ -347,8 +347,8 @@ export function CalendarTheme({
                                 labelClasses = "text-slate-200 font-black text-sm";
                                 dayNameClasses = "text-[9px] text-slate-300/80 font-bold mb-1";
                               } else if (state === 'rest' && !isToday(day)) {
-                                styleClasses = isRestDay ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100 hover:border-blue-200 shadow-sm" : "bg-white border-slate-150 hover:bg-slate-50";
-                                labelClasses = "text-slate-700 font-black text-sm";
+                                styleClasses = isRestDay ? "bg-white/5 border-white/10 hover:border-blue-400/30 shadow-sm" : "bg-white/5 border-white/10 hover:bg-white/10";
+                                labelClasses = "text-slate-300 font-black text-sm";
                                 dayNameClasses = "text-[9px] text-slate-400 font-semibold mb-1";
                               } else {
                                 switch (state) {
@@ -427,7 +427,6 @@ export function CalendarTheme({
                                         }`}
                                       >
                                         <div className="flex items-center gap-1.5 truncate">
-                                          <Circle size={8} className={task.isCompleted ? "fill-emerald-400 text-emerald-400 shrink-0" : "text-slate-400 shrink-0"} />
                                           <span className="truncate">{task.title}</span>
                                         </div>
                                       </div>

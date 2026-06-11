@@ -1389,9 +1389,23 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         position="left"
         modal={!isSidebarPinned}
         showCloseIcon={false}
+        header={
+          <div className="flex justify-between items-center w-full px-1 mb-2 mt-1">
+            <span className="text-lg font-black text-white px-2">قائمة الخطة</span>
+            {!isSidebarPinned && (
+              <button
+                onClick={() => setMapsSidebarVisible(false)}
+                className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all border border-white/10 active:scale-95 text-indigo-400 group cursor-pointer shadow-sm"
+                title="إغلاق"
+              >
+                <i className="pi pi-times text-sm group-hover:rotate-90 transition-transform duration-300"></i>
+              </button>
+            )}
+          </div>
+        }
         className="w-full md:w-[360px] font-sans bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 border-l border-white/10 shadow-2xl custom-left-sidebar"
       >
-        <div className="h-full flex flex-col pt-2" dir="rtl">
+        <div className="h-full flex flex-col pt-0" dir="rtl">
           <TabView className="custom-spaced-tabs flex-1" dir="rtl">
             <TabPanel headerTemplate={createTabHeader("pi-th-large", "تطبيقات الخطة")}>
               <div className="flex flex-col gap-3.5 py-4 px-1">
@@ -1405,12 +1419,12 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                           vibrate(HAPITCS.MAJOR_CLICK);
                           item.action();
                         }}
-                        className="flex items-center gap-4 w-full p-4 pl-12 rounded-2xl bg-gradient-to-l from-slate-900/80 to-blue-950/80 hover:from-blue-900/80 hover:to-indigo-900/80 border border-blue-500/20 hover:border-blue-400/40 shadow-sm shadow-blue-900/40 transition-all duration-300 active:scale-95 text-right outline-none cursor-pointer group backdrop-blur-md"
+                        className="flex items-center gap-4 w-full p-4 pl-12 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-400/30 shadow-sm transition-all duration-300 active:scale-95 text-right outline-none cursor-pointer group backdrop-blur-md"
                       >
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-inner transition-transform group-hover:scale-110 ${item.color}`}>
                           <i className={`${item.icon} text-lg`} />
                         </div>
-                        <span className="font-extrabold text-sm text-slate-200 font-sans tracking-wide flex-1">{item.title}</span>
+                        <span className="font-extrabold text-sm text-white font-sans tracking-wide flex-1">{item.title}</span>
                       </button>
                       
                       <button 
@@ -1435,40 +1449,42 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     vibrate(HAPITCS.MAJOR_CLICK);
                     setShowRoutinePopup(true);
                   }}
-                  className="flex items-center gap-4 w-full p-4 rounded-2xl bg-gradient-to-l from-indigo-600/20 to-blue-600/20 hover:from-indigo-600/30 hover:to-blue-600/30 border border-indigo-500/30 transition-all active:scale-95 text-right outline-none cursor-pointer group shadow-lg shadow-indigo-900/20"
+                  className="flex items-center gap-4 w-full p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-400/30 shadow-sm transition-all active:scale-95 text-right outline-none cursor-pointer group"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center border border-indigo-400/20 group-hover:rotate-90 transition-transform duration-500">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30 group-hover:rotate-90 transition-transform duration-500">
                     <i className="pi pi-cog text-lg" />
                   </div>
-                  <span className="font-black text-sm text-indigo-100 font-sans tracking-wide flex-1">إعدادات الخطة والروتين</span>
+                  <span className="font-extrabold text-sm text-white font-sans tracking-wide flex-1">إعدادات الخطة والروتين</span>
                 </button>
               </div>
             </TabPanel>
 
             <TabPanel headerTemplate={createTabHeader("pi-bullseye", "أهداف ومخرجات الخطة")}>
-              <div className="flex flex-col gap-5 py-6 px-1 text-right" dir="rtl">
-                <div className="bg-gradient-to-br from-blue-900/40 to-indigo-900/40 p-6 rounded-[32px] border border-blue-500/20 shadow-xl backdrop-blur-md">
+              <div className="flex flex-col gap-4 py-4 px-1 text-right" dir="rtl">
+                <div className="bg-white/5 border border-white/10 p-5 rounded-3xl shadow-lg relative overflow-hidden backdrop-blur-md">
+                  <div className="absolute right-0 top-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-500 border border-amber-500/30">
                       <i className="pi pi-target text-lg" />
                     </div>
-                    <h3 className="text-white font-black text-lg">أهداف الرحلة الكبرى</h3>
+                    <h3 className="text-white font-black text-sm">أهداف الرحلة الكبرى</h3>
                   </div>
-                  <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5 min-h-[100px]">
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5 min-h-[100px]">
                     <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-medium">
                       {user.planGoals || "لم يتم تحديد أهداف كبرى لهذه الرحلة بعد. يمكنك إضافتها من خلال إعدادات الخطة."}
                     </p>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-emerald-900/40 to-teal-900/40 p-6 rounded-[32px] border border-emerald-500/20 shadow-xl backdrop-blur-md">
+                <div className="bg-white/5 border border-white/10 p-5 rounded-3xl shadow-lg relative overflow-hidden backdrop-blur-md">
+                  <div className="absolute left-0 bottom-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-500 border border-emerald-500/30">
                       <i className="pi pi-check-circle text-lg" />
                     </div>
-                    <h3 className="text-white font-black text-lg">نتائج التعلم المستهدفة</h3>
+                    <h3 className="text-white font-black text-sm">نتائج التعلم المستهدفة</h3>
                   </div>
-                  <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5 min-h-[100px]">
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5 min-h-[100px]">
                     <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-medium">
                       {user.planOutcomes || "لم يتم تحديد نتائج تعلم متوقعة لهذه الرحلة بعد."}
                     </p>
@@ -2289,19 +2305,31 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       <Dialog
         visible={showLinksPopup}
         onHide={() => setShowLinksPopup(false)}
+        showCloseIcon={false}
         header={
-          <div className="flex items-center gap-3 pr-2 text-right w-full" dir="rtl">
-            <i className="pi pi-book text-blue-400 text-2xl animate-pulse"></i>
-            <span className="text-xl font-black text-white">مصادر التعلم 📚</span>
+          <div className="flex items-center justify-between w-full pr-4 pb-2" dir="rtl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 shadow-inner">
+                <i className="pi pi-book text-indigo-400"></i>
+              </div>
+              <span className="text-xl font-black text-white">مصادر التعلم 📚</span>
+            </div>
+            <button
+              onClick={() => setShowLinksPopup(false)}
+              className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all border border-white/10 active:scale-95 text-indigo-400 group cursor-pointer ml-4 shadow-sm"
+              title="إغلاق"
+            >
+              <i className="pi pi-times text-sm group-hover:rotate-90 transition-transform duration-300"></i>
+            </button>
           </div>
         }
-        className="w-[98vw] max-w-2xl font-sans text-xl topmost-dialog border-none shadow-2xl"
-        contentClassName="bg-gradient-to-br from-[#090e1a] to-[#03050a] p-6 text-white"
-        headerClassName="bg-[#090e1a] border-b border-white/5 pb-4"
-        closable
+        className="w-screen h-screen font-sans m-0 p-0 rounded-none border-none topmost-dialog"
+        style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0 }}
+        contentClassName="bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 p-6 text-white no-scrollbar"
+        headerClassName="bg-[#020617] border-b border-white/5 pb-4"
         dismissableMask
         baseZIndex={30000}
-        maskClassName="topmost-mask backdrop-blur-sm"
+        maskClassName="topmost-mask backdrop-blur-xl"
       >
         <AnimatePresence>
           {showLinksPopup && (
@@ -2722,21 +2750,35 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
                   {/* Note Filters */}
                   <div className="flex flex-wrap gap-2">
-                    <select 
-                      className="p-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black outline-none text-white cursor-pointer"
+                    <Dropdown
                       value={noteFilterPriority}
-                      onChange={(e) => setNoteFilterPriority(e.target.value)}
-                    >
-                      <option value="all" className="text-slate-900">كل الأولويات</option>
-                      <option value="high" className="text-slate-900">عالية 🔥</option>
-                      <option value="medium" className="text-slate-900">متوسطة 🟡</option>
-                      <option value="low" className="text-slate-900">منخفضة ⚪</option>
-                    </select>
+                      onChange={(e) => setNoteFilterPriority(e.value)}
+                      options={[
+                        { label: 'كل الأولويات', value: 'all' },
+                        { label: 'عالية 🔥', value: 'high' },
+                        { label: 'متوسطة 🟡', value: 'medium' },
+                        { label: 'منخفضة ⚪', value: 'low' }
+                      ]}
+                      className="bg-white/5 border border-white/10 rounded-xl text-xs font-black shadow-sm"
+                      panelClassName="bg-[#0f172a] border border-white/10 text-white shadow-xl rounded-xl"
+                      pt={{
+                        root: { className: 'flex items-center p-1 px-3 text-white' },
+                        input: { className: 'text-white text-xs font-black' },
+                        trigger: { className: 'text-indigo-400 w-8' },
+                        item: { className: 'text-white text-xs font-bold p-3 hover:bg-white/10 transition-colors cursor-pointer rounded-lg m-1' },
+                        list: { className: 'p-1' }
+                      }}
+                      transitionOptions={{
+                        classNames: "p-connected-overlay",
+                        timeout: { enter: 200, exit: 200 }
+                      }}
+                    />
                   </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto px-4 md:px-8 pb-24 no-scrollbar">
                   <DataView 
+                    className="notes-dataview bg-transparent *:bg-transparent"
                     value={Object.entries(user?.notes || {}).flatMap(([stId, notesArray]: [string, any]) => {
                       const arr = Array.isArray(notesArray) ? notesArray : [notesArray];
                       return arr.map((note, index) => {
@@ -2887,16 +2929,25 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 {!activeNoteStationId && !editingStationId && (
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">الخطة التابعة لها:</label>
-                    <select
-                      className="w-full p-4 bg-white/5 border border-white/10 rounded-[20px] font-bold outline-none focus:bg-white/10 focus:border-indigo-400 transition-all text-white text-sm cursor-pointer appearance-none"
-                      onChange={(e) => setEditingStationId(e.target.value)}
-                      value={editingStationId || ""}
-                    >
-                      <option className="text-slate-900" value="">-- اختر المسار أو الخطة --</option>
-                      {stations.map(st => (
-                        <option className="text-slate-900" key={st.id} value={st.id}>{st.name}</option>
-                      ))}
-                    </select>
+                    <Dropdown
+                      value={editingStationId}
+                      onChange={(e) => setEditingStationId(e.value)}
+                      options={stations.map(st => ({ label: st.name, value: st.id }))}
+                      placeholder="-- اختر المسار أو الخطة --"
+                      className="w-full bg-white/5 border border-white/10 rounded-[20px] font-bold outline-none text-white text-sm shadow-inner"
+                      panelClassName="bg-[#0f172a] border border-white/10 text-white shadow-xl rounded-xl"
+                      pt={{
+                        root: { className: 'flex items-center p-2 px-4 text-white' },
+                        input: { className: 'text-white text-sm font-bold' },
+                        trigger: { className: 'text-indigo-400 w-8' },
+                        item: { className: 'text-white text-xs font-bold p-3 hover:bg-white/10 transition-colors cursor-pointer rounded-lg m-1' },
+                        list: { className: 'p-1' }
+                      }}
+                      transitionOptions={{
+                        classNames: "p-connected-overlay",
+                        timeout: { enter: 200, exit: 200 }
+                      }}
+                    />
                   </div>
                 )}
 
@@ -2929,7 +2980,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">محتوى التدوينة:</label>
                   <textarea
-                    className="w-full p-5 bg-white/5 border border-white/10 rounded-[24px] font-bold outline-none focus:bg-white/10 focus:border-indigo-400 transition-all text-white text-sm resize-none min-h-[160px] shadow-inner placeholder:text-slate-500"
+                    className="w-full p-5 bg-white/5 border border-white/10 rounded-[24px] font-bold outline-none focus:bg-white/10 focus:border-indigo-400 transition-all text-white text-sm resize-none min-h-[220px] shadow-inner placeholder:text-slate-500"
                     placeholder="ماذا يجول في خاطرك الآن بخصوص رحلة التعلم؟"
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
@@ -4153,27 +4204,28 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           setSelectedStation(null);
           setViewMode('journey');
         }}
+        showCloseIcon={false}
         header={
           <div className="flex items-center justify-between w-full pr-4 pb-2" dir="rtl">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
-                 <Rocket className="w-5 h-5 text-blue-300 animate-pulse" />
+              <div className="w-10 h-10 rounded-xl bg-[#1A2B6B]/20 flex items-center justify-center border border-white/10 shadow-inner">
+                 <Rocket className="w-5 h-5 text-indigo-400" />
               </div>
               <div className="flex flex-col">
                 <span className="text-xl font-black tracking-tight text-white">{stations.find(s => s.id === selectedStation)?.name}</span>
-                <span className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">غرفة التحكم في العمليات والمهام التنفيذية</span>
               </div>
             </div>
             
-            {/* Active Station Options (Station FAB) Inside Modal Header */}
-            {selectedStation && (() => {
-              const activeSt = stations?.find(s => s.id === selectedStation);
-              if (!activeSt) return null;
-              return (
-                <div className="relative z-50 ml-6" dir="rtl">
-                </div>
-              );
-            })()}
+            <button
+              onClick={() => {
+                setSelectedStation(null);
+                setViewMode('journey');
+              }}
+              className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all border border-white/10 active:scale-95 text-indigo-400 group cursor-pointer ml-4 shadow-sm"
+              title="إغلاق"
+            >
+              <i className="pi pi-times text-sm group-hover:rotate-90 transition-transform duration-300"></i>
+            </button>
           </div>
         }
         className="w-screen h-screen font-sans rounded-none border-none bg-transparent p-0 m-0 max-w-none max-h-none"

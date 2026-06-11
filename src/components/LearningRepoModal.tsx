@@ -201,21 +201,33 @@ export function LearningRepoModal({ visible, onHide, tripId, isLanguageJourney }
         visible={visible}
         onHide={onHide}
         fullScreen
+        showCloseIcon={false}
         header={
-          <div className="flex items-center gap-3 pr-2 text-right w-full" dir="rtl">
-            <Trees className="w-6 h-6 text-blue-400 animate-pulse" />
-            <span className="text-xl font-black text-white">غابة المعرفة الخاصة بك</span>
+          <div className="flex items-center justify-between w-full pr-4 pb-2" dir="rtl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 shadow-inner">
+                <Trees className="w-5 h-5 text-indigo-400" />
+              </div>
+              <span className="text-xl font-black text-white">غابة المعرفة الخاصة بك</span>
+            </div>
+            <button
+              onClick={onHide}
+              className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all border border-white/10 active:scale-95 text-indigo-400 group cursor-pointer ml-4 shadow-sm"
+              title="إغلاق"
+            >
+              <i className="pi pi-times text-sm group-hover:rotate-90 transition-transform duration-300"></i>
+            </button>
           </div>
         }
-        className="font-sans border-none shadow-2xl sidebar-rtl dark-blue-repo-sidebar"
+        className="font-sans border-none shadow-2xl sidebar-rtl dark-blue-repo-sidebar bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950"
         dismissable
       >
         <div className="flex flex-col gap-6 py-2 h-full text-right" dir="rtl">
           {view === 'list' ? (
             <div className="flex flex-col gap-6 h-full overflow-hidden">
                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-black text-blue-300 text-right flex items-center gap-2">
-                    <Trees className="w-5 h-5 text-blue-400" />
+                  <h3 className="text-lg font-black text-white text-right flex items-center gap-2">
+                    <Trees className="w-5 h-5 text-indigo-400" />
                     أشجارك المثمرة
                   </h3>
                   <Button 
@@ -225,7 +237,7 @@ export function LearningRepoModal({ visible, onHide, tripId, isLanguageJourney }
                       vibrate(HAPITCS.MAJOR_CLICK);
                       setCreationVisible(true);
                     }}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl px-5 py-2.5 font-bold text-xs border-none shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-5 py-2.5 font-bold text-xs border-none shadow-md shadow-indigo-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
                   />
                </div>
 
