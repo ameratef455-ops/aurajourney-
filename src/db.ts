@@ -23,6 +23,8 @@ export interface TaskActivity {
   title: string;
   description?: string;
   guidance?: string;
+  type?: "cognitive" | "applied" | "interactive";
+  puzzleHint?: string;
   duration?: number; // Expected duration in minutes
   isCompleted: boolean;
   steps?: { id: string; title: string, isCompleted: boolean }[];

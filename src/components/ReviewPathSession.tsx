@@ -77,29 +77,35 @@ export function ReviewPathSession({
   const [localActivities, setLocalActivities] = useState<any[]>(task?.activities || []);
 
   const [activeGuidedActivity, setActiveGuidedActivity] = useState<any | null>(null);
-  const [guideStep, setGuideStep] = useState<1 | 2 | 3>(1);
+  const [forceReviewDetails, setForceReviewDetails] = useState(false);
+  const [guideStep, setGuideStep] = useState<1 | 2>(1);
   const [activityNotes, setActivityNotes] = useState("");
   const [activityLearnings, setActivityLearnings] = useState("");
+  const [puzzleAnswer, setPuzzleAnswer] = useState("");
+  const [puzzleFeedback, setPuzzleFeedback] = useState("");
+  const [showFinalPuzzle, setShowFinalPuzzle] = useState(false);
 
   const startGuidedActivity = (act: any) => {
     vibrate(HAPITCS.MAJOR_CLICK);
     setActiveGuidedActivity(act);
+    setForceReviewDetails(false);
     setGuideStep(1);
     setActivityNotes(act.notes || "");
     setActivityLearnings(act.learnings || "");
+    setPuzzleAnswer("");
+    setPuzzleFeedback("");
   };
 
-  const completeGuidedActivity = async () => {
+  const suspendGuidedActivity = async () => {
     if (!task || !activeGuidedActivity) return;
     vibrate(HAPITCS.SUCCESS);
 
     const updatedActivities = localActivities.map(act => {
       if (act.id === activeGuidedActivity.id) {
-        const updatedSteps = (act.steps || []).map((s: any) => ({ ...s, isCompleted: true }));
         return { 
           ...act, 
-          isCompleted: true, 
-          steps: updatedSteps,
+          isSuspended: true, 
+          isCompleted: false, 
           notes: activityNotes,
           learnings: activityLearnings
         };
@@ -109,23 +115,63 @@ export function ReviewPathSession({
 
     setLocalActivities(updatedActivities);
 
+    await (db.tasks as any).update(task.id, {
+      activities: updatedActivities,
+      isCompleted: updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted)
+    });
+
+    toast.success("تم تعليق النشاط وبدء العمل بنجاح 🧭 النشاط معلّق الآن!");
+    setActiveGuidedActivity(null);
+  };
+
+  const finalizeCompletedActivity = async (activityId: string) => {
+    if (!task) return;
+    vibrate(HAPITCS.SUCCESS);
+
+    const updatedActivities = localActivities.map(act => {
+      if (act.id === activityId) {
+        const updatedSteps = (act.steps || []).map((s: any) => ({ ...s, isCompleted: true }));
+        return { 
+          ...act, 
+          isCompleted: true, 
+          isSuspended: false,
+          steps: updatedSteps,
+          notes: activeGuidedActivity && activeGuidedActivity.id === activityId ? activityNotes : (act.notes || "")
+        };
+      }
+      return act;
+    });
+
+    setLocalActivities(updatedActivities);
+
     const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
-    const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
 
     await (db.tasks as any).update(task.id, {
       activities: updatedActivities,
       isCompleted: allActivitiesCompleted
     });
 
-    if (taskJustCompleted) {
+    if (allActivitiesCompleted) {
       vibrate(HAPITCS.SUCCESS);
-      confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 } });
-      toast.success("أحسنت! أنهيت جميع الأنشطة بنجاح 🏆");
+      if (task?.riddleDetails) {
+        setShowFinalPuzzle(true);
+      } else {
+        confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        toast.success("أحسنت! أنهيت جميع الأنشطة بنجاح 🏆");
+      }
     } else {
-      toast.success("تم تسجيل الملاحظات وإتمام النشاط بنجاح! 🎉");
+      toast.success("تم إتمام وإنهاء النشاط بنجاح! 🎉");
     }
 
     setActiveGuidedActivity(null);
+    setForceReviewDetails(false);
+  };
+
+  const completeGuidedActivity = async () => {
+    if (!task || !activeGuidedActivity) return;
+    // By user logic: When clicking complete/done from within the interactive stepper flow,
+    // we suspend it first, so user can finish it after clicking again!
+    await suspendGuidedActivity();
   };
 
   React.useEffect(() => {
@@ -195,6 +241,45 @@ export function ReviewPathSession({
           className="fixed inset-0 z-[6200000] bg-[#0A0F2C]/95 backdrop-blur-md flex flex-col font-sans overflow-x-hidden overflow-y-auto"
           dir="rtl"
         >
+          {/* Final puzzle modal open after completing all activities */}
+          {showFinalPuzzle && (
+            <div className="fixed inset-0 bg-[#0A0F2C]/98 backdrop-blur-xl text-white flex flex-col font-sans p-4 md:p-8 overflow-y-auto" style={{ zIndex: 65000400 }} dir="rtl">
+              <div className="max-w-2xl w-full mx-auto my-auto bg-[#131B4E]/90 border border-amber-500/30 rounded-[2.5rem] p-8 md:p-12 shadow-2xl flex flex-col space-y-6 text-center relative">
+                <div className="absolute top-0 right-1/4 w-32 h-32 bg-amber-500/20 rounded-full blur-[45px] pointer-events-none" />
+                <Sparkles className="w-16 h-16 text-amber-500 mx-auto animate-pulse" />
+                <h2 className="text-2xl md:text-3xl font-black text-amber-400">لقد أنهيت جميع الأنشطة! 🏆</h2>
+                <p className="text-[#A0B4E8] text-sm leading-relaxed max-w-lg mx-auto font-bold mb-6">
+                  الآن وبعد اكتمال إنجازك، تأمل في لغز المهمة مرة أخرى لتحصد ثمار الاستيعاب الكامل.
+                </p>
+
+                <div className="bg-black/30 p-6 rounded-3xl border border-white/5 text-slate-300 text-base leading-relaxed whitespace-pre-wrap font-black">
+                  {task?.riddleDetails}
+                </div>
+
+                <div className="text-right space-y-2 mt-4">
+                  <h4 className="text-white text-xs font-black">اكتب قناعتك وإجابتك النهائية للغز:</h4>
+                  <input
+                    type="text"
+                    className="w-full p-4 rounded-xl bg-black/40 border border-amber-500/30 text-white focus:border-amber-500 outline-none transition-all font-bold"
+                    placeholder="استلهم إجابتك وأكدها هنا..."
+                  />
+                </div>
+
+                <button
+                  onClick={() => {
+                    vibrate(HAPITCS.SUCCESS);
+                    setShowFinalPuzzle(false);
+                    confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                    toast.success("أحسنت! المهمة اكتملت بسلام. 🎉");
+                  }}
+                  className="mt-8 px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white transition-all text-sm font-black shadow-lg shadow-amber-500/20 cursor-pointer border-none"
+                >
+                  استيعاب وفهم كامل للغز ✨
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Custom Elegant confirmation pop-up */}
           {showConfirmStart && (
             <div 
@@ -304,10 +389,12 @@ export function ReviewPathSession({
               <div className="max-w-2xl w-full mx-auto my-auto bg-[#131B4E]/90 border border-white/10 rounded-[2.5rem] p-6 md:p-8 shadow-2xl relative flex flex-col space-y-6">
                 <div className="absolute top-0 right-1/4 w-32 h-32 bg-[#2D52CC]/15 rounded-full blur-[45px] pointer-events-none" />
                 
-                {/* Header with Title and Stepper */}
+                {/* Header with Title */}
                 <div className="flex justify-between items-center border-b border-white/10 pb-4">
                   <div className="space-y-1 text-right">
-                    <span className="text-xs font-black text-[#4D7FFF] uppercase tracking-wider">النشاط التطبيقي ⚡</span>
+                    <span className="text-xs font-black text-[#4D7FFF] uppercase tracking-wider">
+                      {activeGuidedActivity.isSuspended ? 'النشاط التطبيقي معلَّق حالياً 🧭' : 'النشاط التطبيقي ⚡'}
+                    </span>
                     <h2 className="text-xl md:text-2xl font-black text-white">{activeGuidedActivity.title}</h2>
                   </div>
                   <button 
@@ -321,182 +408,205 @@ export function ReviewPathSession({
                   </button>
                 </div>
 
-                {/* Progress Stepper bar */}
-                <div className="flex items-center justify-between gap-2 px-1 py-3 bg-white/5 rounded-2xl border border-white/5 select-none text-xs font-bold text-center">
-                  <div className={`flex-1 py-2 px-1 rounded-xl transition-all ${guideStep === 1 ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-md' : 'text-[#A0B4E8] opacity-75'}`}>
-                    1. التوجيه والإرشاد 🧭
-                  </div>
-                  <div className="w-4 h-0.5 bg-white/15 shrink-0" />
-                  <div className={`flex-1 py-2 px-1 rounded-xl transition-all ${guideStep === 2 ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-md' : 'text-[#A0B4E8] opacity-75'}`}>
-                    2. مصادر النشاط والمفكرة 📝
-                  </div>
-                  <div className="w-4 h-0.5 bg-white/15 shrink-0" />
-                  <div className={`flex-1 py-2 px-1 rounded-xl transition-all ${guideStep === 3 ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-md' : 'text-[#A0B4E8] opacity-75'}`}>
-                    3. غابة المعرفة 🌳
-                  </div>
-                </div>
+                {activeGuidedActivity.isSuspended && !forceReviewDetails ? (
+                  /* Suspended State Screen to finish or review details */
+                  <div className="flex-1 space-y-6 text-center py-6 flex flex-col items-center justify-center">
+                    <div className="w-20 h-20 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 animate-pulse shadow-lg shadow-amber-500/5 mb-2">
+                      <Zap className="w-10 h-10 text-amber-400" />
+                    </div>
+                    
+                    <div className="space-y-3 max-w-md">
+                      <h3 className="text-xl font-black text-amber-400">النشاط قيد التنفيذ والتدبر 🧭</h3>
+                      <p className="text-slate-300 text-xs leading-relaxed font-bold bg-black/45 p-5 rounded-2xl border border-white/5 mt-2">
+                        لقد بدأت هذا النشاط وقمت بتعليقه مسبقاً للتركيز على العمل الفعلي والتدبر الصادق. بمجرد انتهائك، اضغط على زر "إنهاء وإتمام النشاط" ليتم نقله إلى سجل إنجازاتك المعرفية!
+                      </p>
+                    </div>
 
-                {/* Step Content */}
-                <div className="flex-1 space-y-4">
-                  {guideStep === 1 && (
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="space-y-4 text-right"
-                    >
-                      <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400 font-bold flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 shrink-0" />
-                        <span>أولاً: راجع التوجيه الخاص بهذا النشاط لتبدأ بوعي كامل</span>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md pt-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          vibrate(HAPITCS.SUCCESS);
+                          finalizeCompletedActivity(activeGuidedActivity.id);
+                        }}
+                        className="flex-1 py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black text-xs font-black shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer border-none"
+                      >
+                        إنهاء وإتمام النشاط الآن 🏆
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          setForceReviewDetails(true);
+                        }}
+                        className="flex-1 py-4 px-6 rounded-2xl bg-white/5 hover:bg-white/10 text-white text-xs font-black border border-white/10 transition-all cursor-pointer active:scale-95"
+                      >
+                        عرض الخطوات والمصادر 📖
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Standard Step Wizard Dialog Flow */
+                  <>
+                    {/* Progress Stepper bar */}
+                    <div className="flex items-center justify-between gap-1 px-1 py-3 bg-white/5 rounded-2xl border border-white/5 select-none text-[10px] font-bold text-center">
+                      <div className={`flex-1 py-2 px-1 rounded-xl transition-all ${guideStep === 1 ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-md' : 'text-[#A0B4E8] opacity-75'}`}>
+                        1. التوجيه والإرشاد 🧭
                       </div>
-                      
-                      <div className="bg-black/30 p-5 rounded-2xl border border-white/5 italic text-slate-300 text-sm leading-relaxed whitespace-pre-wrap min-h-[140px]">
-                        {activeGuidedActivity.guidance || "لا توجد توجيهات محددة لهذا النشاط، اتبع منهج السعي واقترب من المعرفة بثقة."}
+                      <div className="w-2 h-0.5 bg-white/15 shrink-0" />
+                      <div className={`flex-1 py-2 px-1 rounded-xl transition-all ${guideStep === 2 ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-md' : 'text-[#A0B4E8] opacity-75'}`}>
+                        2. مصادر النشاط وملاحظاتي 📝
                       </div>
+                    </div>
 
-                      {activeGuidedActivity.steps && activeGuidedActivity.steps.length > 0 && (
-                        <div className="space-y-2 mt-4">
-                          <h4 className="text-white text-xs font-black">خطوات التنفيذ المقترحة:</h4>
-                          {activeGuidedActivity.steps.map((st: any) => (
-                            <div key={st.id} className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5 text-xs text-slate-300">
-                              <div className="w-2 h-2 rounded-full bg-[#4D7FFF] shadow-[0_0_8px_#4d7fff]" />
-                              <span>{st.title}</span>
+                    {/* Step Content */}
+                    <div className="flex-1 space-y-4">
+                      {guideStep === 1 && (
+                        <motion.div
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="space-y-4 text-right"
+                        >
+                          {task?.riddleHint && (
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/15 rounded-2xl text-amber-500 font-bold flex items-start gap-3">
+                              <Sparkles className="w-5 h-5 shrink-0 text-amber-400 mt-1" />
+                              <div className="text-right">
+                                <span className="block text-[10px] text-amber-500/80 mb-0.5 font-black">💡 تلميح لغز المهمة:</span>
+                                <span className="text-xs font-black text-amber-300 leading-relaxed">{task.riddleHint}</span>
+                              </div>
                             </div>
-                          ))}
-                        </div>
+                          )}
+
+                          <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400 font-bold flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 shrink-0" />
+                            <span>التوجيه والتعليمات الخاصة بهذا النشاط:</span>
+                          </div>
+                          
+                          <div className="bg-black/30 p-5 rounded-2xl border border-white/5 italic text-slate-300 text-sm leading-relaxed whitespace-pre-wrap min-h-[140px]">
+                            {activeGuidedActivity.guidance || "لا توجد توجيهات محددة لهذا النشاط، اتبع منهج السعي واقترب من المعرفة بثقة."}
+                          </div>
+
+                          {activeGuidedActivity.steps && activeGuidedActivity.steps.length > 0 && (
+                            <div className="space-y-2 mt-4 font-sans text-right">
+                              <h4 className="text-white text-xs font-black">خطوات التنفيذ المقترحة:</h4>
+                              {activeGuidedActivity.steps.map((st: any) => (
+                                <div key={st.id} className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5 text-xs text-slate-300">
+                                  <div className="w-2 h-2 rounded-full bg-[#4D7FFF] shadow-[0_0_8px_#4d7fff]" />
+                                  <span>{st.title}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </motion.div>
                       )}
-                    </motion.div>
-                  )}
 
-                  {guideStep === 2 && (
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="space-y-4 text-right"
-                    >
-                      <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-400 font-bold flex items-center gap-2">
-                        <BookOpen className="w-5 h-5 shrink-0" />
-                        <span>ثانياً: مصادر النشاط وتدوين أفكارك الصافية</span>
-                      </div>
-
-                      {/* Render Resources */}
-                      <div className="bg-white/5 p-4 rounded-xl border border-white/5 space-y-2">
-                        <h4 className="text-white text-xs font-bold">مصادر التعلم الداعمة للنشاط:</h4>
-                        {task?.learningResources ? (
-                          <div className="text-slate-300 text-xs bg-black/20 p-3 rounded-lg border border-white/5 font-mono whitespace-pre-wrap">
-                            {task.learningResources}
+                      {guideStep === 2 && (
+                        <motion.div
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="space-y-4 text-right"
+                        >
+                          <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-[#4D7FFF] font-bold flex items-center gap-2">
+                            <BookOpen className="w-5 h-5 shrink-0" />
+                            <span>مصادر النشاط ومفكرتك الخاصة</span>
                           </div>
-                        ) : (
-                          <p className="text-slate-500 text-xs italic">مصادر المهمة العامة متاحة لتمكينك المعرفي.</p>
-                        )}
-                        
-                        {(task?.youtubeUrl || task?.googleDriveUrl) && (
-                          <div className="flex flex-flow gap-2 pt-2">
-                            {task.youtubeUrl && (
-                              <a 
-                                href={task.youtubeUrl} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs rounded-lg font-bold border border-red-500/30 transition-all flex items-center gap-1.5 w-fit no-underline"
-                              >
-                                🎥 فيديو يوتيوب الداعم
-                              </a>
+
+                          {/* Render Resources */}
+                          <div className="bg-white/5 p-4 rounded-xl border border-white/5 space-y-2">
+                            <h4 className="text-white text-xs font-bold">مصادر التعلم الداعمة للنشاط:</h4>
+                            {activeGuidedActivity?.learningResources ? (
+                              <div className="text-slate-300 text-xs bg-black/20 p-3 rounded-lg border border-white/5 font-mono whitespace-pre-wrap">
+                                {activeGuidedActivity.learningResources}
+                              </div>
+                            ) : (
+                              <p className="text-slate-500 text-xs italic">لا توجد مصادر خاصة مضافة لهذا النشاط تحديداً.</p>
                             )}
-                            {task.googleDriveUrl && (
-                              <a 
-                                href={task.googleDriveUrl} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-lg font-bold border border-blue-500/30 transition-all flex items-center gap-1.5 w-fit no-underline"
-                              >
-                                📂 مستندات جوجل درايف
-                              </a>
+                            
+                            {(activeGuidedActivity?.youtubeUrl || activeGuidedActivity?.googleDriveUrl) && (
+                              <div className="flex flex-flow gap-2 pt-2">
+                                {activeGuidedActivity.youtubeUrl && (
+                                  <a 
+                                    href={activeGuidedActivity.youtubeUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs rounded-lg font-bold border border-red-500/30 transition-all flex items-center gap-1.5 w-fit no-underline"
+                                  >
+                                    🎥 فيديو يوتيوب للنشاط
+                                  </a>
+                                )}
+                                {activeGuidedActivity.googleDriveUrl && (
+                                  <a 
+                                    href={activeGuidedActivity.googleDriveUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-lg font-bold border border-blue-500/30 transition-all flex items-center gap-1.5 w-fit no-underline"
+                                  >
+                                    📂 مستند نشاط درايف
+                                  </a>
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
-                      </div>
 
-                      {/* Notes area */}
-                      <div className="space-y-2">
-                        <h4 className="text-[#A0B4E8] text-xs font-black">محرر الملاحظات والأفكار:</h4>
-                        <textarea
-                          value={activityNotes}
-                          onChange={(e) => setActivityNotes(e.target.value)}
-                          placeholder="اكتب فكرة ملهمة، تلخيصاً سريعاً، أو مسودة عملك للنشاط هنا..."
-                          className="w-full h-32 p-4 rounded-2xl bg-black/40 border border-white/10 text-white placeholder-slate-500 font-sans text-xs focus:border-[#4D7FFF] focus:outline-none focus:ring-1 focus:ring-[#4D7FFF] outline-none transition-all leading-relaxed"
-                        />
-                      </div>
-                    </motion.div>
-                  )}
+                          {/* Notes area */}
+                          <div className="space-y-2">
+                            <h4 className="text-[#A0B4E8] text-xs font-black">جاهز لتدوين المخرجات والأفكار المكتسبة في المفكرة؟ 📝</h4>
+                            <textarea
+                              value={activityNotes}
+                              onChange={(e) => setActivityNotes(e.target.value)}
+                              placeholder="اكتب فكرة ملهمة، تلخيصاً سريعاً، أو مسودة عملك للنشاط هنا..."
+                              className="w-full h-40 p-4 rounded-2xl bg-black/40 border border-white/10 text-white placeholder-slate-500 font-sans text-xs focus:border-[#4D7FFF] focus:outline-none focus:ring-1 focus:ring-[#4D7FFF] outline-none transition-all leading-relaxed"
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
 
-                  {guideStep === 3 && (
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="space-y-4 text-right"
-                    >
-                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 font-bold flex items-center gap-2">
-                        <Target className="w-5 h-5 shrink-0" />
-                        <span>ثالثاً: غابة المعرفة - ما لذي تعلمته وتثبته الآن؟</span>
-                      </div>
+                    {/* Footer Buttons */}
+                    <div className="flex gap-2 justify-end pt-4 border-t border-white/10">
+                      <button
+                        onClick={() => {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          setActiveGuidedActivity(null);
+                        }}
+                        className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-xs font-bold border-none cursor-pointer"
+                      >
+                        خروج
+                      </button>
 
-                      <div className="space-y-2">
-                        <p className="text-slate-300 text-xs leading-relaxed font-bold">
-                          اغرس شتلة أثر جديدة في غابة معرفتك وتثبيتك الذاتي بالكتابة الآن. اكتب خلاصة الدروس، الحكمة الجوهرية، أو المخرج المعرفي الذي نلته من هذا النشاط:
-                        </p>
-                        <textarea
-                          value={activityLearnings}
-                          onChange={(e) => setActivityLearnings(e.target.value)}
-                          placeholder="مثال: من خلال هذا النشاط، أدركت أن الفهم الجوهري يبدأ بالتبسيط، وقمت بتثبيت كروت المراجعة لتكرار دوري متباعد..."
-                          className="w-full h-36 p-4 rounded-2xl bg-black/40 border border-[#10b981]/20 text-white placeholder-slate-500 font-sans text-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 outline-none transition-all leading-relaxed"
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
+                      {guideStep > 1 && (
+                        <button
+                          onClick={() => {
+                            vibrate(HAPITCS.MAJOR_CLICK);
+                            setGuideStep((prev) => (prev - 1) as any);
+                          }}
+                          className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all text-xs font-bold border border-white/10 cursor-pointer"
+                        >
+                          ← السابق
+                        </button>
+                      )}
 
-                {/* Footer Buttons */}
-                <div className="flex gap-2 justify-end pt-4 border-t border-white/10">
-                  <button
-                    onClick={() => {
-                      vibrate(HAPITCS.MAJOR_CLICK);
-                      setActiveGuidedActivity(null);
-                    }}
-                    className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-xs font-bold border-none cursor-pointer"
-                  >
-                    خروج
-                  </button>
-
-                  {guideStep > 1 && (
-                    <button
-                      onClick={() => {
-                        vibrate(HAPITCS.MAJOR_CLICK);
-                        setGuideStep((prev) => (prev - 1) as any);
-                      }}
-                      className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all text-xs font-bold border border-white/10 cursor-pointer"
-                    >
-                      ← السابق
-                    </button>
-                  )}
-
-                  {guideStep < 3 ? (
-                    <button
-                      onClick={() => {
-                        vibrate(HAPITCS.MAJOR_CLICK);
-                        setGuideStep((prev) => (prev + 1) as any);
-                      }}
-                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] hover:brightness-110 text-white transition-all text-xs font-black shadow-lg cursor-pointer border-none"
-                    >
-                      التالي →
-                    </button>
-                  ) : (
-                    <button
-                      onClick={completeGuidedActivity}
-                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:brightness-110 text-white transition-all text-xs font-black shadow-lg cursor-pointer border-none animate-pulse"
-                    >
-                      تأكيد وإتمام النشاط والنمو المعرفي! 🏆
-                    </button>
-                  )}
-                </div>
+                      {guideStep < 2 ? (
+                        <button
+                          onClick={() => {
+                            vibrate(HAPITCS.MAJOR_CLICK);
+                            setGuideStep((prev) => (prev + 1) as any);
+                          }}
+                          className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] hover:brightness-110 text-white transition-all text-xs font-black shadow-lg cursor-pointer border-none"
+                        >
+                          التالي →
+                        </button>
+                      ) : (
+                        <button
+                          onClick={completeGuidedActivity}
+                          className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 hover:brightness-110 text-black transition-all text-xs font-black shadow-lg cursor-pointer border-none animate-pulse"
+                        >
+                          تم (تعليق وبدء تنفيذ النشاط 🧭)
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -869,25 +979,62 @@ export function ReviewPathSession({
                                   <div 
                                     key={act.id} 
                                     onClick={() => startGuidedActivity(act)}
-                                    className={`group/act relative cursor-pointer border rounded-2xl p-5 bg-white/5 transition-all duration-300 hover:bg-white/10 ${act.isCompleted ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-white/5'}`}
+                                    className={`group/act relative cursor-pointer border rounded-2xl p-5 bg-white/5 transition-all duration-300 hover:bg-white/10 ${act.isCompleted ? 'border-emerald-500/30 bg-emerald-500/5' : act.isSuspended ? 'border-amber-500/40 bg-amber-500/5 shadow-lg shadow-amber-500/10' : 'border-white/5'}`}
                                   >
                                      <div className="flex justify-between items-start mb-3">
                                         <div className="flex items-center gap-3">
-                                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-all duration-300 ${act.isCompleted ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white'}`}>
+                                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-all duration-300 ${act.isCompleted ? 'bg-emerald-500 text-white' : act.isSuspended ? 'bg-amber-500 text-black shadow-md font-bold' : 'bg-blue-600 text-white'}`}>
                                               {idx + 1}
                                            </div>
-                                           <h4 className={`font-black text-base transition-colors ${act.isCompleted ? 'text-emerald-400 line-through' : 'text-white'}`}>{act.title}</h4>
+                                           <div className="text-right">
+                                             <div className="flex flex-wrap items-center gap-2 mb-1">
+                                               <h4 className={`font-black text-base transition-colors ${act.isCompleted ? 'text-slate-400 line-through' : act.isSuspended ? 'text-amber-400 font-black' : 'text-white'}`}>{act.title}</h4>
+                                               <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${
+                                                 act.type === 'applied' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                                 act.type === 'interactive' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+                                                 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                               }`}>
+                                                 {act.type === 'applied' ? '⚡ تطبيقي' : act.type === 'interactive' ? '🤝 تفاعلي' : '🧠 معرفي'}
+                                               </span>
+                                             </div>
+                                             {act.isSuspended && (
+                                               <span className="inline-block mt-1 text-[10px] text-amber-400 font-bold bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/25 animate-pulse">
+                                                 ⏳ نشاط معلّق (تحت التنفيذ والتدبر الآن)
+                                               </span>
+                                             )}
+                                           </div>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            startGuidedActivity(act);
-                                          }}
-                                          className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all cursor-pointer ${act.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/30 hover:border-white/60 bg-white/5'}`}
-                                        >
-                                           {act.isCompleted && <CheckCircle2 className="w-4 h-4 text-white fill-emerald-500 shrink-0" />}
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                          {act.isSuspended && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                finalizeCompletedActivity(act.id);
+                                              }}
+                                              className="px-3 py-1.5 bg-gradient-to-l from-amber-500 to-orange-400 hover:from-amber-600 hover:to-orange-500 text-black text-[10px] font-black rounded-lg cursor-pointer border-none shadow-md hover:scale-105 transition-all flex items-center gap-1"
+                                              title="إنهاء النشاط وتأكيد الاكتمال"
+                                            >
+                                              <span>إنهاء النشاط 🏆</span>
+                                            </button>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              startGuidedActivity(act);
+                                            }}
+                                            className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${act.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : act.isSuspended ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'border-white/30 hover:border-white/60 bg-white/5'}`}
+                                          >
+                                             {act.isCompleted ? (
+                                               <CheckCircle2 className="w-4 h-4 text-white fill-emerald-500 shrink-0" />
+                                             ) : act.isSuspended ? (
+                                               <i className="pi pi-play text-[9px] animate-pulse" />
+                                             ) : (
+                                               <i className="pi pi-lock-open text-[9px]" />
+                                             )}
+                                          </button>
+                                        </div>
                                      </div>
 
                                      {/* Notes and Knowledge Forest tags */}
@@ -961,15 +1108,8 @@ export function ReviewPathSession({
                              <span>تصفح الجلسة وتفاصيلها مجدداً 🔗</span>
                            </button>
                         </>
-                      ) : (
-                        <button 
-                          onClick={() => confirmStartSession(selectedTarget)}
-                          className={`w-full py-6 rounded-[24px] bg-gradient-to-tr ${selectedTarget.color} text-white text-xl md:text-2xl font-black shadow-2xl transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-4 group cursor-pointer`}
-                        >
-                           بدء الجلسة الآن 🚀
-                           <Play className="w-6 h-6 fill-white group-hover:translate-x-[-4px] transition-transform" />
-                        </button>
-                      )}
+                      ) : null }
+                      {/* We removed start session button */}
                       <button 
                         onClick={() => setSelectedTarget(null)}
                         className="w-full py-4 rounded-[20px] bg-white/5 text-slate-400 font-bold hover:text-white hover:bg-white/10 transition-all border border-white/5 cursor-pointer"

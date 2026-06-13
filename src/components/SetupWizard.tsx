@@ -44,6 +44,32 @@ export function SetupWizard({
   }, []);
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDeleteTrip = async () => {
+    if (!editingTripId) return;
+    try {
+      vibrate(HAPITCS.SUCCESS);
+      // Delete trip settings
+      await db.userSettings.delete(editingTripId);
+      // Delete associated stations
+      const dStations = await db.stations.toArray();
+      for (const st of dStations) {
+        await db.stations.delete(st.id);
+      }
+      // Delete associated tasks
+      const dTasks = await db.tasks.toArray();
+      for (const t of dTasks) {
+        await db.tasks.delete(t.id);
+      }
+      vibrate(HAPITCS.MAJOR_CLICK);
+      setShowDeleteConfirm(false);
+      if (onCancel) onCancel();
+    } catch (err) {
+      console.error("Error deleting trip inside wizard:", err);
+    }
+  };
+
   const [state, setState] = useState<WizardState>({
     learningGoal: "",
     psychology: { reason: "", motivation: "", target: "", anxieties: "" },
@@ -182,6 +208,24 @@ export function SetupWizard({
     }
 
     setState({ ...state, stations: arr });
+    setIsTaskModalVisible(false);
+    setTaskToEdit(null);
+  };
+
+  const deleteTaskFromModal = (stationIdx: number, taskIdx: number) => {
+    if (stationIdx === null || taskIdx === undefined) return;
+    const arr = [...state.stations];
+    const taskToRemove = arr[stationIdx].tasks[taskIdx];
+    if (taskToRemove) {
+      if (taskToRemove.type === "main") {
+        arr[stationIdx].tasks = arr[stationIdx].tasks.filter(
+          (t: any) => t.id !== taskToRemove.id && t.parentId !== taskToRemove.id,
+        );
+      } else {
+        arr[stationIdx].tasks.splice(taskIdx, 1);
+      }
+      setState({ ...state, stations: arr });
+    }
     setIsTaskModalVisible(false);
     setTaskToEdit(null);
   };
@@ -395,6 +439,48 @@ export function SetupWizard({
           </div>
         </Dialog>
 
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          visible={showDeleteConfirm}
+          onHide={() => setShowDeleteConfirm(false)}
+          header={
+            <div
+              className="flex items-center gap-2 text-rose-600 font-extrabold pr-4 text-2xl font-sans"
+              dir="rtl"
+            >
+              <i className="pi pi-trash text-2xl text-rose-500 animate-bounce"></i>
+              <span>تأكيد حذف الخطة</span>
+            </div>
+          }
+          className="w-[98vw] max-w-sm font-sans mx-4 text-xl"
+          closable
+          dismissableMask
+        >
+          <div className="space-y-5 pt-2 text-right font-sans mb-1" dir="rtl">
+            <p className="text-xl font-medium text-gray-800 leading-snug">
+              هل أنت متأكد من رغبتك في حذف هذه الخطة الشاملة؟
+              <br />
+              <span className="text-base text-rose-500 block mt-2 font-bold bg-rose-50 p-2.5 rounded-lg border border-rose-100">
+                ⚠️ سيتم حذف الخطة وجميع محطاتها ومهماتها نهائياً ولا يمكن استعادتها.
+              </span>
+            </p>
+            <div className="flex gap-2 pt-2">
+              <Button
+                label="نعم، حذف نهائياً"
+                icon="pi pi-trash"
+                className="flex-1 bg-gradient-to-r from-rose-600 via-rose-700 to-rose-800 text-white rounded-xl py-3 text-lg font-bold border-none hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                onClick={handleDeleteTrip}
+              />
+              <Button
+                label="تراجع"
+                icon="pi pi-check"
+                className="flex-1 bg-gray-105 text-gray-750 rounded-xl py-3 text-lg font-semibold border-none hover:bg-gray-200 active:scale-95 transition-all cursor-pointer"
+                onClick={() => setShowDeleteConfirm(false)}
+              />
+            </div>
+          </div>
+        </Dialog>
+
         <TaskEditorModal
           visible={isTaskModalVisible}
           onHide={() => setIsTaskModalVisible(false)}
@@ -408,20 +494,52 @@ export function SetupWizard({
           }
           isSetupWizard={true}
           onSave={saveTaskFromModal}
+          onDelete={
+            taskToEdit && taskToEdit._idx !== undefined && editingStationIdx !== null
+              ? () => {
+                  vibrate(HAPITCS.MAJOR_CLICK);
+                  deleteTaskFromModal(editingStationIdx, taskToEdit._idx);
+                }
+              : undefined
+          }
         />
       </div>
 
       {/* Footer Action */}
       <div className="px-6 md:px-12 py-6 md:py-8 bg-gray-50/50 flex justify-between items-center border-t border-gray-100 shrink-0 relative z-50">
         {step > 1 ? (
-          <button
-            onClick={prevStep}
-            className="text-gray-400 font-medium hover:text-gray-700 transition border-none bg-transparent cursor-pointer"
-          >
-            ارجع
-          </button>
+          <div className="flex gap-4 items-center">
+            <button
+              onClick={prevStep}
+              className="text-gray-400 font-medium hover:text-gray-700 transition border-none bg-transparent cursor-pointer"
+            >
+              ارجع
+            </button>
+            {editingTripId && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-rose-650 bg-rose-50 hover:bg-rose-100 font-black px-4 py-2 border-none rounded-xl transition cursor-pointer flex items-center gap-1.5 text-xs shadow-3xs"
+              >
+                <Trash2 size={13} />
+                <span>حذف الخطة</span>
+              </button>
+            )}
+          </div>
         ) : (
-          <div className="w-10"></div>
+          <div className="flex items-center gap-4">
+            <div className="w-10"></div>
+            {editingTripId && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-rose-650 bg-rose-50 hover:bg-rose-100 font-black px-4 py-2.5 border-none rounded-xl transition cursor-pointer flex items-center gap-1.5 text-xs shadow-3xs"
+              >
+                <Trash2 size={13} />
+                <span>حذف هذه الخطة</span>
+              </button>
+            )}
+          </div>
         )}
 
         {step === 7 ? (
@@ -861,7 +979,8 @@ const Step4 = ({ state, setState }: any) => {
 };
 
 const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => {
-  const [selectedStation, setSelectedStation] = useState(0);
+  const [selectedStationRaw, setSelectedStation] = useState(0);
+  const selectedStation = selectedStationRaw >= (state.stations || []).length ? 0 : selectedStationRaw;
   const [secretName, setSecretName] = useState("");
   const [secretUrl, setSecretUrl] = useState("");
   const [secretDesc, setSecretDesc] = useState("");
@@ -971,20 +1090,22 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
     setState({ ...state, stations: arr });
   };
 
-  const currentStation = state.stations[selectedStation];
-  const mainTasks = currentStation.tasks.filter(
+  // Safeguarding against out of bounds station indexes when stations are deleted
+  const activeStationIdx = selectedStation >= state.stations.length ? 0 : selectedStation;
+  const currentStation = state.stations[activeStationIdx] || { tasks: [] };
+  const mainTasks = (currentStation.tasks || []).filter(
     (t: any) => (t as any).type === "main",
   );
-  const subTasks = currentStation.tasks.filter(
+  const subTasks = (currentStation.tasks || []).filter(
     (t: any) => (t as any).type === "sub",
   );
-  const sideTasks = currentStation.tasks.filter(
+  const sideTasks = (currentStation.tasks || []).filter(
     (t: any) => (t as any).type === "side",
   );
-  const practicalTasks = currentStation.tasks.filter(
+  const practicalTasks = (currentStation.tasks || []).filter(
     (t: any) => (t as any).type === "practical",
   );
-  const projectTasks = currentStation.tasks.filter(
+  const projectTasks = (currentStation.tasks || []).filter(
     (t: any) => (t as any).type === "project",
   );
 
@@ -1001,7 +1122,7 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
           <button
             key={idx}
             onClick={() => setSelectedStation(idx)}
-            className={`px-5 py-2.5 rounded-xl font-bold transition-all border-none cursor-pointer ${selectedStation === idx ? "bg-blue-900 text-white shadow-md scale-105" : "bg-slate-100 text-slate-500"}`}
+            className={`px-5 py-2.5 rounded-xl font-bold transition-all border-none cursor-pointer ${activeStationIdx === idx ? "bg-blue-900 text-white shadow-md scale-105" : "bg-slate-100 text-slate-500"}`}
           >
             {st.name || `خطة ${idx + 1}`}
           </button>
@@ -1088,8 +1209,9 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                             </div>
                           )}
                         </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex flex-col sm:flex-row gap-2 shrink-0 ml-2">
                           <button
+                            type="button"
                             onClick={() =>
                               openTaskModal(
                                 selectedStation,
@@ -1097,17 +1219,23 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                                 absoluteIdx,
                               )
                             }
-                            className="p-2 bg-slate-50 text-blue-600 rounded-xl border-none cursor-pointer"
+                            className="p-2 px-3 bg-blue-50 text-blue-900 duration-200 rounded-xl border-none cursor-pointer hover:bg-blue-100 flex items-center justify-center gap-1.5 text-xs font-black shadow-sm"
+                            title="تعديل المهمة"
                           >
-                            <i className="pi pi-pencil text-xs" />
+                            <i className="pi pi-pencil text-[10px]" />
+                            <span>تعديل</span>
                           </button>
                           <button
-                            onClick={() =>
-                              removeTask(selectedStation, absoluteIdx)
-                            }
-                            className="p-2 bg-rose-50 text-rose-500 rounded-xl border-none cursor-pointer"
+                            type="button"
+                            onClick={() => {
+                              vibrate(HAPITCS.MAJOR_CLICK);
+                              removeTask(selectedStation, absoluteIdx);
+                            }}
+                            className="p-2 px-3 bg-rose-50 text-rose-600 hover:bg-rose-100 duration-200 rounded-xl border-none cursor-pointer flex items-center justify-center gap-1.5 text-xs font-black shadow-sm"
+                            title="حذف المهمة بالكامل"
                           >
-                            <i className="pi pi-trash text-xs" />
+                            <Trash2 size={12} className="text-rose-600" />
+                            <span>حذف المهمة</span>
                           </button>
                         </div>
                       </div>
@@ -1188,15 +1316,19 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                             </div>
                           )}
                         </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-1.5 shrink-0 ml-2">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
+                              vibrate(HAPITCS.MAJOR_CLICK);
                               removeTask(selectedStation, absoluteIdx);
                             }}
-                            className="p-2 text-rose-500 border-none bg-transparent cursor-pointer"
+                            className="p-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-650 duration-255 rounded-xl border-none cursor-pointer flex items-center justify-center gap-1 text-[10px] font-black shadow-sm"
+                            title="حذف المهمة الفرعية"
                           >
-                            <i className="pi pi-trash text-xs" />
+                            <Trash2 size={12} className="text-rose-600" />
+                            <span>حذف المهمة</span>
                           </button>
                         </div>
                       </div>
@@ -1246,10 +1378,16 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                         </h4>
                       </div>
                       <button
-                        onClick={() => removeTask(selectedStation, absoluteIdx)}
-                        className="p-2 text-rose-500 opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
+                        type="button"
+                        onClick={() => {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          removeTask(selectedStation, absoluteIdx);
+                        }}
+                        className="p-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 duration-200 rounded-xl border-none cursor-pointer flex items-center gap-1.5 text-[10px] font-black shadow-sm"
+                        title="حذف المهارة"
                       >
-                        <i className="pi pi-trash text-xs" />
+                        <Trash2 size={12} className="text-rose-600 animate-pulse" />
+                        <span>حذف المهارة</span>
                       </button>
                     </div>
                   );
@@ -1303,10 +1441,16 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                         </h4>
                       </div>
                       <button
-                        onClick={() => removeTask(selectedStation, absoluteIdx)}
-                        className="p-2 text-rose-500 opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
+                        type="button"
+                        onClick={() => {
+                          vibrate(HAPITCS.MAJOR_CLICK);
+                          removeTask(selectedStation, absoluteIdx);
+                        }}
+                        className="p-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 duration-200 rounded-xl border-none cursor-pointer flex items-center gap-1.5 text-[10px] font-black shadow-sm"
+                        title="حذف المشروع"
                       >
-                        <i className="pi pi-trash text-xs" />
+                        <Trash2 size={12} className="text-rose-600 animate-pulse" />
+                        <span>حذف المشروع</span>
                       </button>
                     </div>
                   );

@@ -1,6 +1,7 @@
 import { Sidebar } from "primereact/sidebar";
 import { TabView, TabPanel } from "primereact/tabview";
 import { Dialog } from "primereact/dialog";
+import { Dropdown } from "primereact/dropdown";
 import { OverlayPanel } from "primereact/overlaypanel";
 import { InputText } from "primereact/inputtext";
 import { InputNumber } from "primereact/inputnumber";
@@ -227,6 +228,8 @@ export function EvaluationSidebar({
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [newActivityTitle, setNewActivityTitle] = useState("");
   const [newActivityDuration, setNewActivityDuration] = useState<number | null>(30);
+  const [newActivityType, setNewActivityType] = useState<string>("cognitive");
+  const [newActivityPuzzleHint, setNewActivityPuzzleHint] = useState("");
   const [showStartConfirmation, setShowStartConfirmation] = useState(false);
 
   useEffect(() => {
@@ -316,6 +319,8 @@ export function EvaluationSidebar({
 
     setNewActivityTitle("");
     setNewActivityDuration(30);
+    setNewActivityType("cognitive");
+    setNewActivityPuzzleHint("");
   };
 
   const addActivity = async (parentId?: string) => {
@@ -325,6 +330,8 @@ export function EvaluationSidebar({
       id: safeRandomUUID(),
       title: newActivityTitle.trim(),
       duration: newActivityDuration || undefined,
+      type: newActivityType as any,
+      puzzleHint: newActivityPuzzleHint,
       isCompleted: false,
       children: []
     };
@@ -975,6 +982,18 @@ export function EvaluationSidebar({
         baseZIndex={LAYERS.ANALYTICS_DIALOG}
       >
         <style>{`
+          .custom-dark-dropdown .p-dropdown-label {
+            color: white !important;
+            font-size: 11px;
+            font-weight: 900;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+          }
+          .custom-dark-dropdown .p-dropdown-trigger {
+            color: white !important;
+            width: 2rem;
+          }
           .force-blue-gradient {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e3a8a 100%) !important;
             color: white !important;
@@ -996,7 +1015,7 @@ export function EvaluationSidebar({
                   placeholder="اسم النشاط الجديد..."
                   className="flex-1 p-3 text-white text-xs font-bold border border-white/10 rounded-xl focus:border-indigo-500 bg-white/5 placeholder-slate-400"
                 />
-                <div className="w-24">
+                <div className="w-24 shrink-0">
                   <InputNumber 
                     value={newActivityDuration}
                     onValueChange={(e) => setNewActivityDuration(e.value)}
@@ -1006,6 +1025,31 @@ export function EvaluationSidebar({
                     inputClassName="p-3 text-white text-xs font-black text-center border border-white/10 rounded-xl focus:border-indigo-500 bg-white/5"
                   />
                 </div>
+              </div>
+              
+              <div className="flex gap-2">
+                 <div className="flex-1">
+                    <InputText 
+                       value={newActivityPuzzleHint}
+                       onChange={(e) => setNewActivityPuzzleHint(e.target.value)}
+                       placeholder="تلميح اللغز للنشاط (اختياري)..."
+                       className="w-full p-3 text-white text-xs font-bold border border-white/10 rounded-xl focus:border-purple-500 bg-white/5 placeholder-slate-400"
+                    />
+                 </div>
+                 <div className="w-[140px] shrink-0 custom-dark-dropdown">
+                    <Dropdown
+                       value={newActivityType}
+                       options={[
+                          { label: 'نشاط معرفي 🧠', value: 'cognitive' },
+                          { label: 'نشاط تطبيقي ⚡', value: 'applied' },
+                          { label: 'نشاط تفاعلي 🤝', value: 'interactive' }
+                       ]}
+                       onChange={(e) => setNewActivityType(e.value)}
+                       style={{ alignContent: 'center', height: '42px', padding: '0px' }}
+                       className="w-full bg-white/5 border border-white/10 rounded-xl text-xs font-black text-white flex items-center h-[42px]"
+                       panelClassName="text-xs font-black bg-slate-900 border border-slate-700 text-white"
+                    />
+                 </div>
               </div>
               <Button 
                 label="ضيف نشاط جديد"

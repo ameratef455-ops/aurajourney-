@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog } from "primereact/dialog";
 import { TabView, TabPanel } from "primereact/tabview";
+import { Dropdown } from "primereact/dropdown";
 import { Youtube, FileText, Sparkles, Plus, Trash2, X, AlertCircle } from "lucide-react";
 import { safeRandomUUID } from "../lib/uuid";
 import { vibrate, HAPITCS } from "../lib/haptics";
@@ -201,6 +202,7 @@ interface TaskEditorModalProps {
   onSave: (task: any) => void;
   mainTasks?: any[];
   isSetupWizard?: boolean;
+  onDelete?: () => void;
 }
 
 export function TaskEditorModal({
@@ -210,6 +212,7 @@ export function TaskEditorModal({
   onSave,
   mainTasks = [],
   isSetupWizard = false,
+  onDelete,
 }: TaskEditorModalProps) {
   const [localTask, setLocalTask] = useState<any>(null);
   const [selectedSubTaskForEdit, setSelectedSubTaskForEdit] = useState<any | null>(null);
@@ -244,6 +247,8 @@ export function TaskEditorModal({
       resources: "مثال: مقال أو رابط فيديو...",
       duration: 15,
       isCompleted: false,
+      type: "cognitive",
+      puzzleHint: "",
       steps: [],
     });
     updateField("activities", acts);
@@ -520,7 +525,7 @@ export function TaskEditorModal({
                         <span className="text-[7px] font-black -mt-0.5">حذف</span>
                       </button>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
                         <div className="flex items-center gap-3 md:col-span-2">
                           <div className="w-8 h-8 rounded-lg bg-blue-900 text-white flex items-center justify-center font-black text-sm">
                             {aIdx + 1}
@@ -539,11 +544,25 @@ export function TaskEditorModal({
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-black text-slate-400">المدة بالدقائق</label>
+                          <label className="text-[10px] font-black text-slate-400 mb-1 block">نوع النشاط</label>
+                          <select
+                            value={act.type || "cognitive"}
+                            onChange={(e) => updateActivity(aIdx, "type", e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-xl text-xs font-black text-blue-950 flex items-center h-[38px] px-3 shadow-sm hover:border-blue-400 focus:border-blue-500 transition-all outline-none text-right"
+                            dir="rtl"
+                          >
+                            <option value="cognitive">🧠 نشاط معرفي</option>
+                            <option value="applied">⚡ نشاط تطبيقي</option>
+                            <option value="interactive">🤝 نشاط تفاعلي</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 block mb-1">المدة بالدقائق</label>
                           <div className="relative">
                             <input
                               type="number"
-                              className="w-full p-2.5 bg-white border border-slate-250 rounded-xl text-xs font-black text-blue-955 text-center"
+                              className="w-full p-2.5 h-[38px] bg-white border border-slate-200 rounded-xl text-xs font-black text-blue-950 text-center shadow-sm"
                               value={act.duration}
                               onChange={(e) =>
                                 updateActivity(
@@ -560,6 +579,21 @@ export function TaskEditorModal({
 
                       {/* Integrated Activity Guidance & Resources inside card */}
                       <div className="space-y-4 mt-4 pt-4 border-t border-slate-100/80">
+                        {/* Puzzle Hint */}
+                        <div className="space-y-1.5 text-right w-full">
+                          <label className="text-[10px] font-black text-purple-600 flex items-center gap-1.5 justify-start">
+                            <i className="pi pi-key text-[11px]" />
+                            <span>تلميح اللغز للنشاط (يظهر عند بدء النشاط)</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:border-purple-300 text-right shadow-sm"
+                            placeholder="أضف تلميحاً للغز خاص بهذا النشاط..."
+                            value={act.puzzleHint || ""}
+                            onChange={(e) => updateActivity(aIdx, "puzzleHint", e.target.value)}
+                          />
+                        </div>
+
                         {/* Guidance text area */}
                         <div className="space-y-1.5 text-right w-full">
                           <label className="text-[10px] font-black text-amber-600 flex items-center gap-1.5 justify-start">
@@ -920,59 +954,26 @@ export function TaskEditorModal({
                 </div>
               </div>
 
-              {/* Hidden/Secret sources puzzle */}
-              <div className="p-6 bg-purple-50/20 border-2 border-purple-100/30 rounded-[32px] space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black">
-                    🔮
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-black text-slate-800">اللغز الخفي الخاص بالمصادر الخفية للمهمة</h4>
-                    <p className="text-[10px] text-slate-400">لغز إضافي مخصص للمصادر والمستندات الخفية المودعة بالمهمة.</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-700 block">تفاصيل اللغز الخفي للمهمة:</label>
-                    <textarea
-                      rows={3}
-                      className="w-full p-5 bg-white border border-purple-100 rounded-[24px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right resize-y"
-                      placeholder="اكتب لغز المصادر الخفية الذي يتعين على الطالب حله لرؤية المصار الكاملة الخاصة بهذه المهمة..."
-                      value={localTask.hiddenRiddleDetails || ""}
-                      onChange={(e) => updateField("hiddenRiddleDetails", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-3 flex flex-col justify-between">
-                    <div>
-                      <label className="text-xs font-black text-slate-700 block">إجابة اللغز الخفي المعتمدة للمهمة:</label>
-                      <input
-                        type="text"
-                        className="w-full p-4.5 bg-white border border-purple-100 rounded-[20px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right"
-                        placeholder="إجابة لغز المصادر الخفية..."
-                        value={localTask.hiddenRiddleAnswer || ""}
-                        onChange={(e) => updateField("hiddenRiddleAnswer", e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-black text-slate-700 block mt-1">تلميح اللغز الخفي للمهمة (Hint):</label>
-                      <input
-                        type="text"
-                        className="w-full p-4.5 bg-white border border-purple-100 rounded-[20px] text-sm font-bold text-purple-950 outline-none focus:ring-4 ring-purple-500/10 transition-all text-right"
-                        placeholder="تلميح لفك عقدة هذا اللغز..."
-                        value={localTask.hiddenRiddleHint || ""}
-                        onChange={(e) => updateField("hiddenRiddleHint", e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
             </div>
           </TabPanel>
         </TabView>
 
-        <div className="flex gap-4 pt-6 pb-2 border-t border-slate-100/50 sticky bottom-0 bg-white z-10 mx-[-8px] px-2">
+        <div className="flex flex-col sm:flex-row gap-4 pt-6 pb-2 border-t border-slate-100/50 sticky bottom-0 bg-white z-10 mx-[-8px] px-2 w-full">
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("هل أنت متأكد من حذف هذه المهمة بالكامل وكل ما تحتويه من أنشطة؟")) {
+                  onDelete();
+                }
+              }}
+              className="px-6 py-5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-[24px] font-black text-xs transition-all border border-rose-200 cursor-pointer flex items-center justify-center gap-2"
+              title="حذف هذه المهمة بالكامل"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>حذف المهمة</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onSave(localTask)}
@@ -992,18 +993,36 @@ export function TaskEditorModal({
       </div>
 
       <style>{`
+        .custom-light-dropdown .p-dropdown-label {
+          color: #172554 !important;
+          font-size: 11px;
+          font-weight: 900;
+          padding: 8px 12px;
+          display: flex;
+          align-items: center;
+        }
+        .custom-light-dropdown .p-dropdown-trigger {
+          color: #94a3b8 !important;
+          width: 2rem;
+        }
         .custom-wizard-tabs .p-tabview-nav {
           display: flex;
-          gap: 8px;
+          flex-wrap: wrap;
+          gap: 4px;
           border-bottom: 2px solid #f8fafc;
           background: transparent;
           justify-content: center;
           padding-bottom: 4px;
         }
+        @media (min-width: 768px) {
+          .custom-wizard-tabs .p-tabview-nav {
+            gap: 8px;
+          }
+        }
         .custom-wizard-tabs .p-tabview-nav li .p-tabview-nav-link {
-          padding: 14px 24px;
+          padding: 8px 12px;
           font-weight: 900;
-          font-size: 12px;
+          font-size: 11px;
           color: #94a3b8;
           background: transparent;
           border: none;
@@ -1012,6 +1031,12 @@ export function TaskEditorModal({
           margin-bottom: -2px;
           outline: none !important;
           box-shadow: none !important;
+        }
+        @media (min-width: 768px) {
+          .custom-wizard-tabs .p-tabview-nav li .p-tabview-nav-link {
+            padding: 14px 24px;
+            font-size: 12px;
+          }
         }
         .custom-wizard-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
           color: #1e3a8a;
