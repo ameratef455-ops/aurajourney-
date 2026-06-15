@@ -682,17 +682,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const openTaskAnalytics = async (task: any) => {
     vibrate(HAPITCS.MAJOR_CLICK);
 
-    // Only allow opening the main task evaluation once all of its subtasks are completed
-    if (task.type === "main" || !task.parentId) {
-      const subtasks = tasks.filter((t: any) => t.parentId === task.id && t.type === "sub");
-      const hasUncompletedSubs = subtasks.some((t: any) => !t.isCompleted);
-      
-      if (hasUncompletedSubs) {
-        toastHot.error("لا يمكن فتح التقييم الأصلي للمهمة الرئيسية إلا بعد الانتهاء من جميع المهام الفرعية التابعة لها! 🔒");
-        return;
-      }
-    }
-
     setSelectedTaskForAnalytics(task);
     setIsAnalyticsLoading(true);
     setTaskReflectionData(null);

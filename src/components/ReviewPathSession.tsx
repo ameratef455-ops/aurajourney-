@@ -273,7 +273,7 @@ export function ReviewPathSession({
     }
   };
 
-  const handleStart = (target: any, isLocked: boolean) => {
+  const handleStart = async (target: any, isLocked: boolean) => {
     if (isLocked) {
       vibrate(HAPITCS.GUIDANCE);
       toast.error('يجب إكمال المسار السابق لفتح هذا المسار 🔒', {
@@ -281,6 +281,24 @@ export function ReviewPathSession({
       });
       return;
     }
+
+    if (target.id === 'original' && task?.type === 'main') {
+      try {
+        const subtasks = await db.tasks.where('parentId').equals(task.id).filter(t => t.type === 'sub').toArray();
+        const hasUncompletedSubs = subtasks.some(t => !t.isCompleted);
+        
+        if (hasUncompletedSubs) {
+          vibrate(HAPITCS.ERROR);
+          toast.error("لا يمكن الاستمرار في التقييم الأصلي للمهمة الرئيسية إلا بعد الانتهاء من جميع المهام الفرعية التابعة لها! 🔒", {
+            style: { borderRadius: '24px', background: '#ef4444', color: '#fff', direction: 'rtl', fontWeight: 'bold' }
+          });
+          return;
+        }
+      } catch (err) {
+        console.error("Error fetching subtasks", err);
+      }
+    }
+
     vibrate(HAPITCS.MAJOR_CLICK);
     setSelectedTarget(target);
   };
