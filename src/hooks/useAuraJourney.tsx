@@ -13,6 +13,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   const settings = useLiveQuery(() => db.userSettings.toArray());
   const stations = useLiveQuery(() => db.stations.orderBy("order").toArray());
   const tasks = useLiveQuery(() => db.tasks.toArray());
+  const reflections = useLiveQuery(() => db.reflections.toArray()) || [];
 
   const [gamificationSidebar, setGamificationSidebar] = useState(false);
   const [reflectionSidebar, setReflectionSidebar] = useState(false);
@@ -27,6 +28,9 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     currentKeys: number;
     prevStationName: string;
     prevStationEnergy: number;
+    allMainCompleted?: boolean;
+    completedReviewsCount?: number;
+    missingMain?: number;
   } | null>(null);
 
   // Tab indexes inside drawers
@@ -307,18 +311,20 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       const prevMainTasks = prevStTasks.filter(t => t.type === 'main');
       const allMainCompleted = prevMainTasks.length > 0 ? prevMainTasks.every(t => t.isCompleted) : true;
       
-      // At least 2 practical/sub tasks completed
-      const prevSubTasks = prevStTasks.filter(t => t.type === 'sub');
-      const completedSubCount = prevSubTasks.filter(t => t.isCompleted).length;
-      const subCompletedEnough = completedSubCount >= 2;
+      // At least 2 review plans completed
+      const prevStTaskIds = prevStTasks.map(t => t.id);
+      const completedReviewReflections = reflections.filter(r => r.type === 'review' && prevStTaskIds.includes(r.taskId)).length;
+      const completedReviewTasks = prevStTasks.filter(t => t.parentId !== undefined && (t.title?.includes("المراجعة") || t.title?.includes("خطة المراجعة") || t.title?.includes("مراجعة")) && t.isCompleted).length;
+      const completedReviewsCount = Math.max(completedReviewTasks, completedReviewReflections);
+      const reviewsCompletedEnough = completedReviewsCount >= 2;
 
       const missingMain = prevMainTasks.filter(t => !t.isCompleted).length;
       
-      if (!allMainCompleted || !subCompletedEnough) {
+      if (!allMainCompleted || !reviewsCompletedEnough) {
         toast.current?.show({
           severity: "error",
           summary: "الخطة السابقة غير مكتملة الشروط! ⚠️",
-          detail: `لفتح الخطة التالية، يجب إنهاء جميع المهام الأساسية (المتبقي: ${missingMain}) ومهمتين تطبيقيتين على الأقل (المكتمل من التطبيقية: ${completedSubCount}/2).`,
+          detail: `لفتح الخطة التالية، يجب إنهاء جميع المهام الأساسية (المتبقي: ${missingMain}) وخطي مراجعة على الأقل بحد أدنى (المكتمل من خطط المراجعة: ${completedReviewsCount}/2).`,
           life: 5500,
         });
         return;

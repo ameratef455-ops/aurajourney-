@@ -688,9 +688,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       const hasUncompletedSubs = subtasks.some((t: any) => !t.isCompleted);
       
       if (hasUncompletedSubs) {
-        toast.error("لا يمكن فتح التقييم الأصلي للمهمة الرئيسية إلا بعد الانتهاء من جميع المهام الفرعية التابعة لها! 🔒", {
-          style: { background: '#ef4444', color: 'white', borderRadius: '24px', fontWeight: 'bold' }
-        });
+        toastHot.error("لا يمكن فتح التقييم الأصلي للمهمة الرئيسية إلا بعد الانتهاء من جميع المهام الفرعية التابعة لها! 🔒");
         return;
       }
     }
@@ -907,6 +905,23 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       const prevEnergy = prevSt
         ? stationEnergy[prevSt.id] || 0
         : 0;
+
+      let allMainCompleted = true;
+      let completedReviewsCount = 0;
+      let missingMain = 0;
+
+      if (prevSt) {
+        const prevStTasks = (tasks || []).filter((t: any) => t.stationId === prevSt.id);
+        const prevMainTasks = prevStTasks.filter((t: any) => t.type === 'main');
+        missingMain = prevMainTasks.filter((t: any) => !t.isCompleted).length;
+        allMainCompleted = prevMainTasks.length > 0 ? prevMainTasks.every((t: any) => t.isCompleted) : true;
+
+        const prevStTaskIds = prevStTasks.map((t: any) => t.id);
+        const completedReviewReflections = (reflections || []).filter((r: any) => r.type === 'review' && prevStTaskIds.includes(r.taskId)).length;
+        const completedReviewTasks = prevStTasks.filter((t: any) => t.parentId !== undefined && (t.title?.includes("المراجعة") || t.title?.includes("خطة المراجعة") || t.title?.includes("مراجعة")) && t.isCompleted).length;
+        completedReviewsCount = Math.max(completedReviewTasks, completedReviewReflections);
+      }
+
       setLockedDialogData({
         stationName: st.name,
         stationIcon: st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill",
@@ -914,6 +929,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         currentKeys: gData.keys,
         prevStationName: prevName,
         prevStationEnergy: prevEnergy,
+        allMainCompleted,
+        completedReviewsCount,
+        missingMain,
       });
       setLockedDialogVisible(true);
     }
@@ -2387,29 +2405,48 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 <span>متطلبات فك القفل:</span>
               </h4>
 
-              {/* Condition 1: Previous Station must be 130% completed */}
+              {/* Condition 1: All Main/Essential Tasks completed */}
               <div className="flex items-center gap-4 p-4 rounded-[24px] bg-gradient-to-br from-[#0b142d] to-[#040816] border border-white/5 shadow-xs transition duration-250">
                 <div className="flex-none w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 border border-white/10 shadow-sm">
-                  {lockedDialogData.prevStationEnergy >= 130 ? (
+                  {lockedDialogData.allMainCompleted ? (
                     <i className="pi pi-check text-emerald-400 font-extrabold text-sm"></i>
                   ) : (
-                    <i className="pi pi-lock text-rose-400 text-xs"></i>
+                    <i className="pi pi-lock text-rose-400 text-xs text-center block"></i>
                   )}
                 </div>
                 <div className="flex-1">
                   <p className="text-xs font-black text-white">
-                    إكمال الخطة السابقة بنسبة 130% (الأسواق + التطبيقية)
+                    إنهاء جميع المهام الأساسية للرحلة السابقة 🎯
                   </p>
                   <p className="text-[10px] text-blue-200/50 font-medium mt-0.5 leading-tight">
-                    الخطة السابقة: <span className="text-indigo-300 font-bold">{lockedDialogData.prevStationName}</span> ({lockedDialogData.prevStationEnergy}% مكتملة)
+                    الخطة السابقة: <span className="text-indigo-300 font-bold">{lockedDialogData.prevStationName}</span> ({lockedDialogData.missingMain === 0 ? 'مكتملة بالكامل' : `المتبقي: ${lockedDialogData.missingMain} مهام`})
                   </p>
                 </div>
               </div>
 
-              {/* Condition 2: Focus Keys required count */}
+              {/* Condition 2: Minimum 2 Review Plans */}
               <div className="flex items-center gap-4 p-4 rounded-[24px] bg-gradient-to-br from-[#0b142d] to-[#040816] border border-white/5 shadow-xs transition duration-250">
                 <div className="flex-none w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 border border-white/10 shadow-sm">
-                  {lockedDialogData.currentKeys >= lockedDialogData.requiredKeys ? (
+                  {(lockedDialogData.completedReviewsCount || 0) >= 2 ? (
+                    <i className="pi pi-check text-emerald-400 font-extrabold text-sm"></i>
+                  ) : (
+                    <i className="pi pi-lock text-rose-400 text-xs text-center block"></i>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-black text-white">
+                    إنهاء خطتي مراجعة بحد أدنى 📚
+                  </p>
+                  <p className="text-[10px] text-blue-200/50 font-medium mt-0.5 leading-tight">
+                    المكتمل من خطط المراجعة: <span className="text-indigo-300 font-bold">{(lockedDialogData.completedReviewsCount || 0)} / 2</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Condition 3: Focus Keys required count */}
+              <div className="flex items-center gap-4 p-4 rounded-[24px] bg-gradient-to-br from-[#0b142d] to-[#040816] border border-white/5 shadow-xs transition duration-250">
+                <div className="flex-none w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 border border-white/10 shadow-sm">
+                  {lockedDialogData.currentKeys >= 10 ? (
                     <i className="pi pi-check text-emerald-400 font-extrabold text-sm"></i>
                   ) : (
                     <i className="pi pi-lock text-rose-400 text-xs text-center block"></i>
@@ -2420,31 +2457,43 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     امتلاك عدد كافٍ من مفاتيح التركيز 🔑
                   </p>
                   <p className="text-[10px] text-blue-200/50 font-medium mt-0.5 leading-tight">
-                    تحتاج إلى <span className="font-bold text-amber-400">{lockedDialogData.requiredKeys}</span> مفاتيح (لديك حالياً <span className="font-bold text-blue-300">{lockedDialogData.currentKeys}</span> مفاتيح)
+                    تحتاج إلى <span className="font-bold text-amber-400">10</span> مفاتيح (لديك حالياً <span className="font-bold text-blue-300">{lockedDialogData.currentKeys}</span> مفاتيح)
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="pt-2 flex flex-col gap-2">
-              <Button
-                label={lockedDialogData.currentKeys >= 10 && lockedDialogData.prevStationEnergy >= 130 ? "فك قفل الخطة الآن (10 مفاتيح) 🔓" : "استمرار الرحلة والسعي 🎯"}
-                className={`w-full ${lockedDialogData.currentKeys >= 10 && lockedDialogData.prevStationEnergy >= 130 ? "bg-gradient-to-r from-emerald-600 to-teal-700 shadow-[0_4px_20px_rgba(16,185,129,0.3)]" : "bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-800 shadow-[0_4px_20px_rgba(37,99,235,0.25)]"} text-white rounded-2xl py-3.5 font-black text-xs border-none hover:brightness-110 active:scale-98 transition-all cursor-pointer`}
-                onClick={() => {
-                  if (lockedDialogData.currentKeys >= 10 && lockedDialogData.prevStationEnergy >= 130) {
-                    const st = stations.find(s => s.name === lockedDialogData.stationName);
-                    if (st) unlockStation(st.id);
-                  } else {
-                    setLockedDialogVisible(false);
-                  }
-                }}
-              />
-              {lockedDialogData.currentKeys < 10 && (
-                <p className="text-[9px] text-center text-rose-400 font-black">عذراً، تحتاج إلى {10 - lockedDialogData.currentKeys} مفاتيح إضافية لفك القفل.</p>
-              )}
-              {lockedDialogData.prevStationEnergy < 130 && (
-                <p className="text-[9px] text-center text-rose-400 font-black">يجب شحن بطارية الخطة السابقة إلى 130% أولاً بالمهام التطبيقية لتطوير السلسلة الفكرية.</p>
-              )}
+              {(() => {
+                const canUnlock = lockedDialogData.currentKeys >= 10 && 
+                                  lockedDialogData.allMainCompleted && 
+                                  (lockedDialogData.completedReviewsCount || 0) >= 2;
+                return (
+                  <>
+                    <Button
+                      label={canUnlock ? "فك قفل الخطة الآن (10 مفاتيح) 🔓" : "استمرار الرحلة والسعي 🎯"}
+                      className={`w-full ${canUnlock ? "bg-gradient-to-r from-emerald-600 to-teal-700 shadow-[0_4px_20px_rgba(16,185,129,0.3)]" : "bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-800 shadow-[0_4px_20px_rgba(37,99,235,0.25)]"} text-white rounded-2xl py-3.5 font-black text-xs border-none hover:brightness-110 active:scale-98 transition-all cursor-pointer`}
+                      onClick={() => {
+                        if (canUnlock) {
+                          const st = stations.find(s => s.name === lockedDialogData.stationName);
+                          if (st) unlockStation(st.id);
+                        } else {
+                          setLockedDialogVisible(false);
+                        }
+                      }}
+                    />
+                    {lockedDialogData.currentKeys < 10 && (
+                      <p className="text-[9px] text-center text-rose-400 font-black">عذراً، تحتاج إلى {10 - lockedDialogData.currentKeys} مفاتيح إضافية لفك القفل.</p>
+                    )}
+                    {!lockedDialogData.allMainCompleted && (
+                      <p className="text-[9px] text-center text-rose-400 font-black">يجب إنهاء جميع المهام الأساسية للرحلة السابقة أولاً.</p>
+                    )}
+                    {(lockedDialogData.completedReviewsCount || 0) < 2 && (
+                      <p className="text-[9px] text-center text-rose-400 font-black">يجب إنهاء خطتي مراجعة بحد أدنى للبدء في الخطة التالية.</p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             </motion.div>
           )}
@@ -3357,14 +3406,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         className="w-screen h-screen font-sans border-0 rounded-none bg-transparent dark-dialog custom-task-dialog"
         style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0, border: 'none' }}
         headerStyle={{ 
-          background: 'var(--blue-dark)', 
+          background: 'linear-gradient(to bottom right, #090d1a, #0d1527)', 
           color: '#ffffff', 
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)', 
           padding: '24px' 
         }}
         contentClassName="no-scrollbar"
         contentStyle={{ 
-          background: 'var(--gradient-main)', 
+          background: 'linear-gradient(to bottom right, #060913, #090d1a)', 
           color: '#ffffff', 
           padding: '24px', 
           overflowY: 'auto' 

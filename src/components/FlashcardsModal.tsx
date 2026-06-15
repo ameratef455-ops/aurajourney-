@@ -118,55 +118,86 @@ export function FlashcardsModal({
   };
 
   return (
-    <Dialog
-      visible={visible}
-      onHide={() => {
-        setFlippedCardId(null);
-        onHide();
-      }}
-      header={
-        <div
-          className="flex items-center gap-2 text-indigo-900 font-black pr-2 text-sm"
-          dir="rtl"
-        >
-          <BookOpen className="w-5 h-5" /> كروت المراجعة: {task?.title}
-        </div>
-      }
-      className="w-[95vw] sm:w-[85vw] max-w-2xl font-sans m-4"
-      closable
-      dismissableMask
-    >
-      <div className="p-2 sm:p-4" dir="rtl">
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 bg-slate-100 p-1.5 rounded-2xl">
-          <button
-            onClick={() => {
-              setActiveTab("saved");
-              setEditingCardId(null);
-              setQuestion("");
-              setAnswer("");
-            }}
-            className={`flex-1 py-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 border-none cursor-pointer ${
-              activeTab === "saved"
-                ? "bg-white text-indigo-700 shadow-sm"
-                : "text-slate-500 hover:text-slate-700 hover:bg-slate-50/50"
-            }`}
+    <>
+      <style>{`
+        .flashcards-dialog {
+          border-radius: 24px !important;
+          overflow: hidden !important;
+          border: 1px solid rgba(255, 255, 255, 0.08) !important;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+        }
+        .flashcards-dialog .p-dialog-header {
+          background: linear-gradient(to bottom right, #090d1a, #0d1527) !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+          padding: 1.5rem 1.75rem 1.25rem 1.75rem !important;
+        }
+        .flashcards-dialog .p-dialog-content {
+          background: linear-gradient(to bottom right, #060913, #090d1a) !important;
+          padding: 1.5rem 1.75rem !important;
+          overflow-x: hidden !important;
+        }
+        .flashcards-dialog .p-dialog-header-close {
+          color: rgba(255, 255, 255, 0.6) !important;
+          background: rgba(255, 255, 255, 0.05) !important;
+          border-radius: 9999px !important;
+          width: 32px !important;
+          height: 32px !important;
+          transition: all 0.2s !important;
+        }
+        .flashcards-dialog .p-dialog-header-close:hover {
+          color: #ffffff !important;
+          background: rgba(255, 255, 255, 0.15) !important;
+        }
+      `}</style>
+      <Dialog
+        visible={visible}
+        onHide={() => {
+          setFlippedCardId(null);
+          onHide();
+        }}
+        header={
+          <div
+            className="flex items-center gap-2 text-white font-black pr-2 text-sm"
+            dir="rtl"
           >
-            <i className="pi pi-clone"></i> الكروت المحفوظة (
-            {taskFlashcards.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("add")}
-            className={`flex-1 py-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 border-none cursor-pointer ${
-              activeTab === "add"
-                ? "bg-white text-indigo-700 shadow-sm"
-                : "text-slate-500 hover:text-slate-700 hover:bg-slate-50/50"
-            }`}
-          >
-            <Plus className="w-4 h-4" />{" "}
-            {editingCardId ? "تعديل الكارت" : "إضافة كارت جديد"}
-          </button>
-        </div>
+            <BookOpen className="w-5 h-5 text-indigo-400" /> كروت المراجعة: <span className="text-indigo-200">{task?.title}</span>
+          </div>
+        }
+        className="w-[95vw] sm:w-[85vw] max-w-2xl font-sans m-4 flashcards-dialog"
+        closable
+        dismissableMask
+      >
+        <div className="p-1 sm:p-2" dir="rtl">
+          {/* Tabs */}
+          <div className="flex gap-2 mb-6 bg-white/5 border border-white/5 p-1.5 rounded-2xl">
+            <button
+              onClick={() => {
+                setActiveTab("saved");
+                setEditingCardId(null);
+                setQuestion("");
+                setAnswer("");
+              }}
+              className={`flex-1 py-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 border-none cursor-pointer ${
+                activeTab === "saved"
+                  ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-600/20"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <i className="pi pi-clone"></i> الكروت المحفوظة (
+              {taskFlashcards.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("add")}
+              className={`flex-1 py-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 border-none cursor-pointer ${
+                activeTab === "add"
+                  ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-600/20"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <Plus className="w-4 h-4" />{" "}
+              {editingCardId ? "تعديل الكارت" : "إضافة كارت جديد"}
+            </button>
+          </div>
 
         {activeTab === "add" && (
           <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 p-6 rounded-3xl border border-indigo-800 shadow-xl space-y-4">
@@ -205,9 +236,9 @@ export function FlashcardsModal({
         {activeTab === "saved" && (
           <div className="space-y-4">
             {taskFlashcards.length === 0 ? (
-              <div className="text-center py-10 bg-slate-50 rounded-3xl border border-slate-100 flex flex-col items-center gap-3">
-                <BookOpen className="w-8 h-8 text-slate-300" />
-                <p className="text-slate-400 font-bold text-xs">
+              <div className="text-center py-10 bg-white/5 rounded-3xl border border-white/5 flex flex-col items-center gap-3">
+                <BookOpen className="w-8 h-8 text-indigo-400" />
+                <p className="text-slate-300 font-bold text-xs">
                   لم يتم إضافة كروت بعد لهذه المهمة
                 </p>
               </div>
@@ -253,7 +284,7 @@ export function FlashcardsModal({
                             e.stopPropagation();
                             startEditingCard(card);
                           }}
-                          className="w-7 h-7 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center cursor-pointer border-none shadow-sm hover:scale-110 transition-transform"
+                          className="w-7 h-7 bg-indigo-900 border border-indigo-700 text-indigo-200 rounded-full flex items-center justify-center cursor-pointer shadow-sm hover:scale-110 transition-transform"
                           title="تعديل"
                         >
                           <i className="pi pi-pencil text-[11px]"></i>
@@ -263,7 +294,7 @@ export function FlashcardsModal({
                             e.stopPropagation();
                             deleteCard(card.id);
                           }}
-                          className="w-7 h-7 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center cursor-pointer border-none shadow-sm hover:scale-110 transition-transform"
+                          className="w-7 h-7 bg-rose-950 border border-rose-800 text-rose-200 rounded-full flex items-center justify-center cursor-pointer shadow-sm hover:scale-110 transition-transform"
                           title="حذف"
                         >
                           <i className="pi pi-times text-[11px]"></i>
@@ -322,29 +353,29 @@ export function FlashcardsModal({
                         </div>
 
                         {/* Back */}
-                        <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] bg-white rounded-3xl p-6 border-2 border-indigo-100 flex flex-col justify-center items-center text-center shadow-lg">
-                          <span className="absolute top-4 right-4 text-slate-300 font-black text-[10px]">
+                        <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 rounded-3xl p-6 border border-indigo-800/60 flex flex-col justify-center items-center text-center shadow-lg">
+                          <span className="absolute top-4 right-4 text-indigo-400/30 font-black text-[10px]">
                             A.
                           </span>
-                          <div className="overflow-y-auto w-full max-h-[120px] no-scrollbar font-sans text-slate-800">
+                          <div className="overflow-y-auto w-full max-h-[120px] no-scrollbar font-sans text-slate-100">
                             <p className="font-bold leading-relaxed">
                               {card.a}
                             </p>
                           </div>
 
                           {/* Attempt stats badge - back */}
-                          <div className="absolute bottom-18 right-4 flex items-center gap-1.5 text-[9px] font-black text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/50">
-                            <span className="text-emerald-600">
+                          <div className="absolute bottom-18 right-4 flex items-center gap-1.5 text-[9px] font-black text-slate-300 bg-black/40 px-2.5 py-0.5 rounded-lg border border-indigo-800/30">
+                            <span className="text-emerald-400">
                               ✓ {card.correctAttempts || 0}
                             </span>
-                            <span className="text-slate-400">/</span>
-                            <span className="text-rose-600">
+                            <span className="text-slate-500">/</span>
+                            <span className="text-rose-400">
                               ✗ {card.wrongAttempts || 0}
                             </span>
                           </div>
 
-                          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-50 bg-slate-50/50 rounded-b-3xl">
-                            <p className="text-[10px] font-black text-slate-500 mb-2 font-sans">
+                          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/5 bg-black/20 rounded-b-3xl">
+                            <p className="text-[10px] font-black text-indigo-300 mb-2 font-sans">
                               هل أجبت بشكل صحيح؟
                             </p>
                             <div className="flex gap-2 justify-center">
@@ -354,7 +385,7 @@ export function FlashcardsModal({
                                   updateCardStatus(card.id, "correct");
                                   setFlippedCardId(null);
                                 }}
-                                className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex items-center justify-center transition-colors border-none cursor-pointer"
+                                className="w-8 h-8 rounded-full bg-emerald-950 border border-emerald-800 text-emerald-400 hover:bg-emerald-900 flex items-center justify-center transition-colors cursor-pointer"
                               >
                                 <CheckCircle2 className="w-5 h-5" />
                               </button>
@@ -364,7 +395,7 @@ export function FlashcardsModal({
                                   updateCardStatus(card.id, "wrong");
                                   setFlippedCardId(null);
                                 }}
-                                className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 hover:bg-rose-200 flex items-center justify-center transition-colors border-none cursor-pointer"
+                                className="w-8 h-8 rounded-full bg-rose-950 border border-rose-800 text-rose-400 hover:bg-rose-900 flex items-center justify-center transition-colors cursor-pointer"
                               >
                                 <XCircle className="w-5 h-5" />
                               </button>
@@ -381,5 +412,6 @@ export function FlashcardsModal({
         )}
       </div>
     </Dialog>
-  );
+  </>
+);
 }
