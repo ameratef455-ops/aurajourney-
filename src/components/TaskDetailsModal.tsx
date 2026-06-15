@@ -31,14 +31,16 @@ interface TaskDetailsModalProps {
   taskId: string | null;
   onCompleteTask?: (taskId: string) => void;
   onOpenReflection?: (task: Task) => void;
+  onUndoAction?: (actionType: 'activity' | 'task' | 'path', activityId?: string) => void;
 }
 
-export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOpenReflection }: TaskDetailsModalProps) {
+export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOpenReflection, onUndoAction }: TaskDetailsModalProps) {
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [newActivityTitle, setNewActivityTitle] = useState("");
   const stepInputRef = useRef<HTMLInputElement>(null);
 
   const [showPostponeDialog, setShowPostponeDialog] = useState(false);
+  const [showUndoDialog, setShowUndoDialog] = useState(false);
   const [selectedForPostpone, setSelectedForPostpone] = useState<string[]>([]);
   const [isTaskLoading, setIsTaskLoading] = useState(false);
 
@@ -390,18 +392,15 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                     <span>أجل الأنشطة 🗓️</span>
                   </button>
                 )}
-                {!hasReflection && task.isCompleted && (
-                  <button
-                    onClick={() => {
-                      vibrate(HAPITCS.MAJOR_CLICK);
-                      if (onOpenReflection) onOpenReflection(task);
-                    }}
-                    className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-2xl text-[11px] font-black shadow-xl shadow-amber-500/20 border-none transition-all flex items-center gap-2 cursor-pointer animate-bounce mt-2"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>قيم المهمة الآن ✨</span>
-                  </button>
-                )}
+                
+                <button
+                  type="button"
+                  onClick={() => setShowUndoDialog(true)}
+                  className="bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 px-4 py-2 rounded-xl text-xs font-black shadow-3xs transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <i className="pi pi-undo text-xs"></i>
+                  <span>تراجع</span>
+                </button>
               </div>
             )}
           </div>
@@ -1053,6 +1052,85 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
         >
           تراجع وإلغاء
         </button>
+      </div>
+    </Dialog>
+
+    <Dialog
+      visible={showUndoDialog}
+      onHide={() => setShowUndoDialog(false)}
+      header="تراجع عن خطوة سابقة ↩️"
+      className="w-[95vw] md:w-[450px] font-sans"
+      modal
+      dismissableMask
+      baseZIndex={LAYERS.TASK_REVIEW + 30}
+      contentClassName="bg-[#0A0F2C] text-white p-6 rounded-b-[24px]"
+      headerClassName="bg-[#0A0F2C] text-white border-b border-rose-500/10 rounded-t-[24px]"
+    >
+      <div className="flex flex-col gap-4 text-right" dir="rtl">
+        <p className="text-slate-400 text-xs leading-relaxed font-bold mb-2">
+          اختر المستوى الذي ترغب في التراجع عنه. التراجع سيؤدي إلى خصم نقاط الخبرة المكتسبة، وإعادة المهام والأنشطة كـ "غير مكتملة".
+        </p>
+        
+        {/* Undo Activity Options */}
+        {(task?.activities || []).filter(a => a.isCompleted).length > 0 && (
+          <div className="space-y-2">
+            <h5 className="text-rose-400 font-bold text-[10px]">تراجع عن الأنشطة المكتملة</h5>
+            {(task?.activities || []).filter(a => a.isCompleted).map(act => (
+              <button
+                key={act.id}
+                onClick={() => {
+                  if(onUndoAction) onUndoAction('activity', act.id);
+                  setShowUndoDialog(false);
+                }}
+                className="w-full text-right p-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all cursor-pointer flex justify-between items-center"
+              >
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-rose-200">النشاط: {act.title}</span>
+                  <span className="text-[9px] text-rose-400/80 mt-0.5">سيتم خصم 10 XP</span>
+                </div>
+                <i className="pi pi-undo text-rose-400 text-sm"></i>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Undo Task */}
+        {task?.isCompleted && (
+          <div className="space-y-2 mt-2">
+            <h5 className="text-rose-400 font-bold text-[10px]">تراجع عن المهمة بأكملها</h5>
+            <button
+              onClick={() => {
+                if(onUndoAction) onUndoAction('task');
+                setShowUndoDialog(false);
+              }}
+              className="w-full text-right p-3 bg-rose-900/40 hover:bg-rose-900/60 border border-rose-500/30 rounded-xl transition-all cursor-pointer flex justify-between items-center"
+            >
+              <div className="flex flex-col">
+                <span className="text-xs font-bold pl-2 text-rose-100">المهمة: {task.title}</span>
+                <span className="text-[9px] text-rose-300/80 mt-0.5 whitespace-pre-wrap">يلغي ختم المهمة والتقييمات، ويخصم نقاط أنشطتها وتقييمها.</span>
+              </div>
+              <i className="pi pi-undo text-rose-300 text-sm"></i>
+            </button>
+          </div>
+        )}
+
+        {/* Undo Path */}
+        <div className="space-y-2 mt-2">
+          <h5 className="text-rose-400 font-bold text-[10px]">تراجع عن مسار / جلسة المراجعة</h5>
+          <button
+            onClick={() => {
+              if(onUndoAction) onUndoAction('path');
+              setShowUndoDialog(false);
+            }}
+            className="w-full text-right p-3 bg-red-950 hover:bg-red-900 border border-red-500/40 rounded-xl transition-all cursor-pointer flex justify-between items-center"
+          >
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-red-100">التراجع عن המסار بالكامل</span>
+              <span className="text-[9px] text-red-300/80 mt-0.5">يلغي كافة التقييمات ويخصم جميع XP المكتسبة في مسار هذه المهمة.</span>
+            </div>
+            <i className="pi pi-exclamation-triangle text-red-400 text-sm"></i>
+          </button>
+        </div>
       </div>
     </Dialog>
     </>

@@ -1768,7 +1768,7 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                   </div>
 
                   {/* Station Riddle Hint */}
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2 md:col-span-1">
                     <label className="text-xs font-black text-slate-800 block">💡 تلميح لحل لغز الخطة (Hint):</label>
                     <input
                       type="text"
@@ -1780,6 +1780,25 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                         arr[selectedStation] = {
                           ...arr[selectedStation],
                           riddleHint: e.target.value,
+                        };
+                        setState({ ...state, stations: arr });
+                      }}
+                    />
+                  </div>
+
+                  {/* Station Riddle Explanation */}
+                  <div className="space-y-2 md:col-span-1">
+                    <label className="text-xs font-black text-slate-800 block">📖 شرح وإفادة لغز الخطة:</label>
+                    <input
+                      type="text"
+                      className="w-full p-4 bg-white border border-amber-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-right"
+                      placeholder="اشرح المغزى من اللغز بعد حله..."
+                      value={currentStation.riddleExplanation || ""}
+                      onChange={(e) => {
+                        const arr = [...state.stations];
+                        arr[selectedStation] = {
+                          ...arr[selectedStation],
+                          riddleExplanation: e.target.value,
                         };
                         setState({ ...state, stations: arr });
                       }}

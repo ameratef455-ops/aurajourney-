@@ -90,7 +90,7 @@ export function VisSession({ visible, onHide, task, onCompleteTask, onOpenReflec
       maskClassName="vis-session-dialog-mask"
       className="vis-session-dialog font-sans"
       showHeader={false}
-      contentClassName="p-0 bg-[#05091a] text-white overflow-hidden"
+      contentClassName="p-0 bg-gradient-to-br from-[#0A0F2C] to-[#1A2250] text-white overflow-hidden"
     >
       <div className="flex flex-col h-screen overflow-hidden" dir="rtl">
         {/* Header */}

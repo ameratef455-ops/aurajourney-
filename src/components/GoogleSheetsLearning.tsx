@@ -298,8 +298,7 @@ export function GoogleSheetsLearning({ visible, onHide, user }: GoogleSheetsLear
           if (user) {
             const currentGData = user.gameData || { xp: 0, fuel: 100, keys: 0, lastReflectionDate: "" };
             const updatedGData = {
-              ...currentGData,
-              xp: (currentGData.xp || 0) + 15
+              ...currentGData
             };
             await db.userSettings.update(user.id, { gameData: updatedGData });
           }

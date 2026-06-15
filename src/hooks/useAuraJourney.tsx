@@ -480,21 +480,14 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     let newXp = gData.xp;
     let newKeys = gData.keys;
 
-    if (type === "main") {
-      newXp = Math.max(0, newXp - 30);
-    }
-    if (type === "sub") {
-      newXp = Math.max(0, newXp - 15);
-    }
     if (type === "side") {
-      newXp = Math.max(0, newXp - 25);
       newKeys = Math.max(0, newKeys - 1);
     }
     
     toast.current?.show({
       severity: "info",
       summary: "تم إلغاء المهمة",
-      detail: "تم التراجع عن إكمال هذه المهمة وخُصمت نقاط الخبرة وتمت إعادة تصفير الأنشطة.",
+      detail: "تم التراجع عن إكمال هذه المهمة وتمت إعادة تصفير الأنشطة.",
       life: 2000,
     });
 
@@ -647,22 +640,17 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       let xpToAdd = 0;
       let keysToAdd = 0;
 
-      if (task.type === "main") xpToAdd = 30;
-      else if (task.type === "sub") xpToAdd = 15;
-      else if (task.type === "practical") {
-         xpToAdd = 25;
+      if (task.type === "practical") {
          keysToAdd = 1;
       }
       else if (task.type === "project") {
-         xpToAdd = 25;
          keysToAdd = 1;
       }
       else if (task.type === "side") {
-         xpToAdd = 20;
          keysToAdd = 1;
       }
 
-      const currentXp = (u.gameData.xp || 0) + xpToAdd;
+      const currentXp = u.gameData.xp || 0;
       const currentKeys = (u.gameData.keys || 0) + keysToAdd;
 
       const baseGameData = { 
@@ -687,7 +675,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     toast.current?.show({
       severity: "success",
       summary: task.type === 'main' ? "إنجاز رائع! ⚡" : task.type === 'practical' ? "تطبيق عملي ناجح! 🧪" : task.type === 'sub' ? "خطوة بخطوة! 🧩" : task.type === 'project' ? "مشروع الخطة ناجح! 📁" : "مهارة استثنائية! ⭐",
-      detail: task.type === 'main' ? `أكملت مهمة أساسية بنجاح! +30 XP` : task.type === 'practical' ? `أكملت تطبيقًا عمليًا! +25 XP ومفتاح إضافي.` : task.type === 'sub' ? `أكملت مهمة فرعية! +15 XP` : task.type === 'project' ? `أكملت مشروع الخطة بنجاح! +25 XP ومفتاح إضافي.` : `أنجزت مهارة بونص! +20 XP ومفتاح إضافي.`,
+      detail: task.type === 'main' ? `أكملت مهمة أساسية بنجاح!` : task.type === 'practical' ? `أكملت تطبيقًا عمليًا بنجاح ومفتاح إضافي.` : task.type === 'sub' ? `أكملت مهمة فرعية!` : task.type === 'project' ? `أكملت مشروع الخطة بنجاح ومفتاح إضافي.` : `أنجزت مهارة بونص ومفتاح إضافي.`,
       life: 3000,
     });
 
@@ -709,26 +697,21 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
     if (!user) return;
     vibrate(isCompleted ? HAPITCS.COMPLETE : HAPITCS.MAJOR_CLICK);
     
-    // User requested: 10XP should only be calculated by main activities, not executive activities
-    // Executive activities (sub-bullets) should not give XP
-    if (isCompleted && user && activity && activity._isRoot) {
-      const xpToAdd = 10;
-      
-      if (xpToAdd > 0) {
-        await db.userSettings.where('id').equals(user.id).modify(u => {
-           if (u.gameData) {
-              u.gameData.xp = (u.gameData.xp || 0) + xpToAdd;
-           }
-        });
-        
-        toast.current?.show({
-          severity: "success",
-          summary: "إنجاز نشاط! ⚡",
-          detail: `أنجزت نشاطاً بنجاح! نلت +${xpToAdd} XP وزادت طاقة الخطة بـ 15%.`,
-          life: 3000,
-        });
-      }
-    }
+    // Every activity completed counts for 10 XP, and uncompleted deducts 10 XP
+    const xpToAdd = isCompleted ? 10 : -10;
+    
+    await db.userSettings.where('id').equals(user.id).modify(u => {
+       if (u.gameData) {
+          u.gameData.xp = Math.max(0, (u.gameData.xp || 0) + xpToAdd);
+       }
+    });
+    
+    toast.current?.show({
+      severity: isCompleted ? "success" : "info",
+      summary: isCompleted ? "إنجاز نشاط! ⚡" : "تراجع عن النشاط ↩️",
+      detail: isCompleted ? `أنجزت نشاطاً بنجاح! نلت +10 XP وزادت طاقة الخطة بـ 15%.` : `تم التراجع عن النشاط وخُصمت 10 XP.`,
+      life: 3000,
+    });
   };
 
   const undertakeReflection = async () => {
@@ -768,7 +751,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       return;
     }
     vibrate(HAPITCS.GUIDANCE);
-    const updatedXp = (gData.xp || 0) + 5;
+    const updatedXp = gData.xp || 0;
     await db.userSettings.update(user.id, {
       gameData: { ...gData, fuel: 100, lastReflectionDate: today, streak: 0, xp: updatedXp },
     });
@@ -776,7 +759,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       severity: "success",
       summary: "يوم راحة فكري مبارك! ☀️",
       detail:
-        "أخذ قسط من الراحة والاستراحة يجدد ملكتك الإبداعية! ربحت +5 XP كهدية توازن.",
+        "أخذ قسط من الراحة والاستراحة يجدد ملكتك الإبداعية!",
       life: 3000,
     });
   };
@@ -1290,7 +1273,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       
       const baseGameData = { ...u.gameData };
       if (!wasAlreadyCompleted) {
-        baseGameData.xp = (baseGameData.xp || 0) + 25;
+        // No XP addition
       }
       
       const updatedGameData = processWorkdayAndStreak(baseGameData);

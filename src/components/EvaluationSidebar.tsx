@@ -455,8 +455,8 @@ export function EvaluationSidebar({
     toggleInList(updatedActivities);
     await saveActivities(updatedActivities);
 
-    if (targetAct && targetAct.isCompleted && onRewardActivity) {
-      onRewardActivity(true, { ...targetAct, _isRoot: actDepth === 0 });
+    if (targetAct && onRewardActivity) {
+      onRewardActivity(targetAct.isCompleted, { ...targetAct, _isRoot: actDepth === 0 });
     }
 
     // Check for task completion
@@ -974,8 +974,8 @@ export function EvaluationSidebar({
           </div>
         }
         className="w-[95vw] max-w-xl font-sans border border-white/10 shadow-2xl overflow-hidden"
-        contentClassName="bg-[#020617] text-white p-6"
-        headerClassName="bg-[#020617] border-b border-white/5 pb-4 text-white p-4"
+        contentClassName="bg-gradient-to-br from-[#0A0F2C] to-[#1A2250] text-white p-6"
+        headerClassName="bg-gradient-to-br from-[#0A0F2C] to-[#1A2250] border-b border-white/5 pb-4 text-white p-4"
         closable
         dismissableMask
         blockScroll

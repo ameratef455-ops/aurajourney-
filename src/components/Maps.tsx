@@ -1622,6 +1622,32 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 </div>
               </div>
             </TabPanel>
+
+            <TabPanel headerTemplate={createTabHeader("pi-asterisk", "تتبع اللغز")}>
+              <div className="flex flex-col gap-4 py-4 px-1 text-right" dir="rtl">
+                 <h4 className="text-amber-400 font-extrabold text-sm mb-2 flex items-center gap-2">
+                    <i className="pi pi-asterisk text-amber-300"></i>
+                    تتبع ألغاز المهام المكتملة
+                 </h4>
+                 {tasks.filter(t => t.isCompleted && t.riddleDetails).length === 0 ? (
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-3xl text-center">
+                       <i className="pi pi-compass text-3xl text-slate-500 mb-3 block"></i>
+                       <p className="text-slate-400 text-xs leading-relaxed font-bold">لم تكمل أي مهام تحتوي على ألغاز بعد. أكمل مهامك لجمع الألغاز وحلها للوصول للغز الخطة الأكبر.</p>
+                    </div>
+                 ) : (
+                    tasks.filter(t => t.isCompleted && t.riddleDetails).map(t => (
+                      <div key={t.id} className="bg-white/5 border border-amber-500/20 p-5 rounded-3xl shadow-lg relative overflow-hidden backdrop-blur-md">
+                         <span className="text-[10px] text-amber-300 font-black mb-1 block flex items-center gap-1"><i className="pi pi-check-circle text-[10px]"></i> مهمة: {t.title}</span>
+                         <p className="text-white text-xs leading-relaxed whitespace-pre-wrap font-bold mb-3">{t.riddleDetails}</p>
+                         <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl">
+                           <span className="text-[10px] font-black text-amber-500 block mb-1">إجابتك / الحل:</span>
+                           <p className="text-amber-100 text-xs font-bold leading-relaxed">{t.riddleAnswer || "تم الحل بنجاح"}</p>
+                         </div>
+                      </div>
+                    ))
+                 )}
+              </div>
+            </TabPanel>
           </TabView>
         </div>
       </Sidebar>
@@ -1722,6 +1748,85 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
              }
            }
         }}
+        onUndoAction={async (actionType, activityId) => {
+          if (!selectedTaskForDetails || !user) return;
+          const currentTask = tasks.find(x => x.id === selectedTaskForDetails.id);
+          if (!currentTask) return;
+
+          let newXp = user.gameData?.xp || 0;
+          let changed = false;
+
+          if (actionType === 'activity' && activityId) {
+            newXp = Math.max(0, newXp - 10);
+            const updatedActivities = (currentTask.activities || []).map(a => {
+              if (a.id === activityId) return { ...a, isCompleted: false, isSuspended: false };
+              return a;
+            });
+            await (db.tasks as any).update(currentTask.id, {
+              activities: updatedActivities,
+              isCompleted: false
+            });
+            changed = true;
+            toastHot.success("تم التراجع عن النشاط واستعادة حالته السابقة. وتم خصم 10 XP.");
+          } else if (actionType === 'task') {
+            const activitiesCount = currentTask.activities?.length || 0;
+            const xpToDeduct = (activitiesCount * 10) + 30; 
+            newXp = Math.max(0, newXp - xpToDeduct);
+            
+            await db.reflections.where('taskId').equals(currentTask.id).filter(r => r.type === 'initial').delete();
+
+            const resetActivities = (currentTask.activities || []).map((act: any) => ({
+              ...act,
+              isCompleted: false,
+              isSuspended: false,
+              steps: (act.steps || []).map((s: any) => ({ ...s, isCompleted: false }))
+            }));
+
+            await (db.tasks as any).update(currentTask.id, {
+              activities: resetActivities,
+              isCompleted: false,
+              xpAwarded: false
+            });
+            changed = true;
+            toastHot.success("تم التراجع عن المهمة بأكملها، خصم تقييماتها، ومقدار XP المرتبط بها.");
+          } else if (actionType === 'path') {
+            const activitiesCount = currentTask.activities?.length || 0;
+            const allReflections = await db.reflections.where('taskId').equals(currentTask.id).toArray();
+            const xpFromReflections = allReflections.length * 30; 
+            const xpToDeduct = (activitiesCount * 10) + xpFromReflections;
+            newXp = Math.max(0, newXp - xpToDeduct);
+
+            await db.reflections.where('taskId').equals(currentTask.id).delete();
+
+            const resetActivities = (currentTask.activities || []).map((act: any) => ({
+              ...act,
+              isCompleted: false,
+              isSuspended: false,
+              steps: (act.steps || []).map((s: any) => ({ ...s, isCompleted: false }))
+            }));
+
+            await (db.tasks as any).update(currentTask.id, {
+              activities: resetActivities,
+              isCompleted: false,
+              xpAwarded: false
+            });
+
+            // Reset the user's review session progress
+            await db.userSettings.update(user.id, {
+              reviewSessionProgress: []
+            });
+
+            changed = true;
+            toastHot.success("تم التراجع عن المسار وإلغاء كافة التقييمات المتعلقة به وخصم كل نقاط XP.");
+          }
+
+          if (changed) {
+            const currentGData = user.gameData || { xp: 0, fuel: 100, keys: 0, lastReflectionDate: "" };
+            await db.userSettings.update(user.id, {
+              gameData: { ...currentGData, xp: newXp }
+            });
+          }
+        }}
         onOpenReflection={(t) => {
           setReviewingTask(t);
           setInitialReflectionVisible(true);
@@ -1750,10 +1855,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             let reflectionsDeleted = false;
             if (currentTask) {
               if (type === 'original') {
-                const deletedCount = await db.reflections.where({ taskId: currentTask.id, type: 'initial' }).delete();
+                const deletedCount = await db.reflections.where('taskId').equals(currentTask.id).filter(r => r.type === 'initial').delete();
                 if (deletedCount > 0) reflectionsDeleted = true;
               } else {
-                const taskReviews = await db.reflections.where({ taskId: currentTask.id, type: 'review' }).toArray();
+                const taskReviews = await db.reflections.where('taskId').equals(currentTask.id).filter(r => r.type === 'review').toArray();
                 taskReviews.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
                 let delIdx = -1;
                 if (type === 'review1') delIdx = 0;
@@ -1767,13 +1872,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               }
             }
 
-            // Deduct 30 XP if a reflection was actually deleted or reverted
-            let xpDeductedMsg = "";
-            let newXp = user.gameData?.xp || 0;
-            if (reflectionsDeleted) {
-              newXp = Math.max(0, newXp - 30);
-              xpDeductedMsg = " وتم خصم 30 XP وإلغاء تسجيل التقييم في التحليلات.";
-            }
+            // Deduct exact XP gained from the session activities
+            const activityCount = currentTask && currentTask.activities ? currentTask.activities.length : 2;
+            const xpToDeduct = activityCount * 10;
+            let xpDeductedMsg = ` وتم خصم ${xpToDeduct} XP وإلغاء تسجيل التقييم في التحليلات.`;
+            let newXp = Math.max(0, (user.gameData?.xp || 0) - xpToDeduct);
 
             const currentGData = user.gameData || { xp: 0, fuel: 100, keys: 0, lastReflectionDate: "" };
 
@@ -1789,11 +1892,13 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               const resetActivities = (currentTask.activities || []).map((act: any) => ({
                 ...act,
                 isCompleted: false,
+                isSuspended: false,
                 steps: (act.steps || []).map((s: any) => ({ ...s, isCompleted: false }))
               }));
               await (db.tasks as any).update(currentTask.id, {
                 activities: resetActivities,
-                isCompleted: false
+                isCompleted: false,
+                xpAwarded: false
               });
               toastHot.success(`تم التراجع وإلغاء إتمام الأنشطة بنجاح${xpDeductedMsg} ↩️`);
             } else {
@@ -1801,11 +1906,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             }
           }
         }}
-        onOpenReflection={(t) => {
-          setReviewPathVisible(false);
-          setReviewingTask(t);
-          setInitialReflectionVisible(true);
-        }}
+        onOpenReflection={
+          selectedTaskForVis && !reflections.some(r => r.taskId === selectedTaskForVis.id) 
+          ? (t) => {
+              setReviewPathVisible(false);
+              setReviewingTask(t);
+              setInitialReflectionVisible(true);
+            }
+          : undefined
+        }
         onOpenFlashcards={(t) => {
           setReviewPathVisible(false);
           setFlashcardTask(t);
@@ -1924,7 +2033,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 taskTitle: currentTask.title || '',
                 stationId: currentTask.stationId || '',
                 stationName: stationName,
-                focus: data.focus,
+                focus: 0,
                 mastery: data.mastery,
                 strengths: data.strengths || '',
                 weaknesses: data.weaknesses || '',
@@ -1933,6 +2042,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 practicalIssues: data.practicalIssues || '',
                 languageLearning: data.languageLearning,
                 aiPromptEvaluation: data.aiPromptEvaluation,
+                sheetsEvaluation: data.sheetsEvaluation,
                 type: 'initial',
                 createdAt: new Date().toISOString()
               });
@@ -1944,10 +2054,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                  await completeTask(currentTask);
               }
 
-              toastHot.success("تم حفظ تقييم الإنجاز وختم المهمة بنجاح! ✨");
+              toastHot.success("تم حفظ تقييم الإنجاز وبدء مسار المراجعة! ✨");
               setInitialReflectionVisible(false);
               setReviewingTask(null);
               vibrate(HAPITCS.SUCCESS);
+              openReviewPath(currentTask);
            } catch (err) {
               console.error(err);
               toastHot.error("فشل حفظ التقييم وختم المهمة");
@@ -1979,7 +2090,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 taskTitle: currentTask.title || '',
                 stationId: currentTask.stationId || '',
                 stationName: stationName,
-                focus: data.focus,
+                focus: 0,
                 mastery: data.mastery,
                 strengths: data.strengths || '',
                 weaknesses: data.weaknesses || '',
@@ -1988,6 +2099,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 practicalIssues: data.practicalIssues || '',
                 languageLearning: data.languageLearning,
                 aiPromptEvaluation: data.aiPromptEvaluation,
+                sheetsEvaluation: data.sheetsEvaluation,
                 type: 'review',
                 createdAt: new Date().toISOString()
               });

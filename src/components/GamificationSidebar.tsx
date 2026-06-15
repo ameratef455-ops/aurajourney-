@@ -361,6 +361,8 @@ export function GamificationSidebar({
       onHide={() => setGamificationSidebar(false)}
       className="font-sans"
       style={{ borderRadius: '28px' }}
+      contentClassName="bg-gradient-to-br from-[#0A0F2C] to-[#1A2250] text-white p-6"
+      headerClassName="bg-gradient-to-br from-[#0A0F2C] to-[#1A2250] border-b border-white/5 pb-4 text-white p-4"
       maskClassName="backdrop-blur-md bg-blue-950/40"
       closable
       dismissableMask

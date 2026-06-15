@@ -39,7 +39,6 @@ interface TaskReflectionModalProps {
 }
 
 export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isReview, baseZIndex }: TaskReflectionModalProps) {
-  const [focus, setFocus] = useState<number>(3);
   const [mastery, setMastery] = useState<number>(5);
   const [strengths, setStrengths] = useState('');
   const [weaknesses, setWeaknesses] = useState('');
@@ -69,16 +68,20 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
   const [promptAI, setPromptAI] = useState<string>(''); // 'Gemini' | 'ChatGPT' | 'Claude' | 'Copilot' | 'Other'
   const [customAI, setCustomAI] = useState('');
 
+  // Sheets Learning States
+  const [sheetsFunction, setSheetsFunction] = useState('');
+  const [sheetsUse, setSheetsUse] = useState('');
+
   const settings = useLiveQuery(() => db.userSettings.toArray());
   const isLanguageLearning = settings?.[0]?.learningGoal === 'اللغات الأجنبية';
   const isAIBasics = settings?.[0]?.learningGoal === 'اساسيات الذكاء الاصطناعي' || 
                      settings?.[0]?.learningGoal === 'أساسيات الذكاء الاصطناعي' ||
                      settings?.[0]?.learningGoal?.includes('الذكاء الاصطناعي');
+  const isSheetsLearning = settings?.[0]?.learningGoal?.toLowerCase().includes('sheet');
 
   // Reset state when modal opens
   useEffect(() => {
     if (visible) {
-      setFocus(3);
       setMastery(5);
       setStrengths('');
       setWeaknesses('');
@@ -97,35 +100,38 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
       setPromptExpected(null);
       setPromptAI('');
       setCustomAI('');
+
+      setSheetsFunction('');
+      setSheetsUse('');
     }
   }, [visible]);
 
-  const focusLevels = [
-    { value: 1, color: 'bg-rose-100 text-rose-600', active: 'bg-rose-500 text-white shadow-rose-200' },
-    { value: 2, color: 'bg-orange-100 text-orange-600', active: 'bg-orange-500 text-white shadow-orange-200' },
-    { value: 3, color: 'bg-amber-100 text-amber-600', active: 'bg-amber-500 text-white shadow-amber-200' },
-    { value: 4, color: 'bg-blue-100 text-blue-600', active: 'bg-blue-500 text-white shadow-blue-200' },
-    { value: 5, color: 'bg-emerald-100 text-emerald-600', active: 'bg-emerald-500 text-white shadow-emerald-200' },
-  ];
-
   const handleSubmit = () => {
     // Validation
-    if (mastery < 1 || focus < 1) {
-      toastHot.error("يرجى إكمال التقييم العام أولاً (التركيز والإتقان)");
+    if (mastery < 1) {
+      toastHot.error("يرجى إكمال التقييم العام أولاً (الإتقان)");
       setActiveIndex(0);
       return;
     }
 
     if (!strengths.trim() || !weaknesses.trim() || !learnings.trim()) {
       toastHot.error("يرجى ملئ التاب الثاني كاملاً (نقاط القوة، الضعف، والتعلم)");
-      setActiveIndex(1);
+      setActiveIndex(isSheetsLearning ? 2 : 1);
       return;
     }
 
     if (isLanguageLearning && sentences.length === 0) {
       toastHot.error("يرجى إضافة جملة واحدة على الأقل في سجل اللغات");
-      setActiveIndex(1);
+      setActiveIndex(isSheetsLearning ? 2 : 1);
       return;
+    }
+
+    if (isSheetsLearning) {
+      if (!sheetsFunction.trim() || !sheetsUse.trim()) {
+        toastHot.error("يرجى توضيح المهارة/الدالة التي تم التدرب عليها واستخدامها في الجداول");
+        setActiveIndex(1); // Sheets is tab index 1
+        return;
+      }
     }
 
     if (isAIBasics) {
@@ -160,7 +166,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
 
     vibrate(HAPITCS.COMPLETE);
     onSubmit({
-      focus,
+      focus: 0,
       mastery,
       strengths,
       weaknesses,
@@ -179,6 +185,10 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
         promptExpected: promptCreated ? promptExpected : null,
         promptAI: promptCreated ? (promptAI === 'Other' ? customAI : promptAI) : '',
         promptAIKey: promptCreated ? promptAI : ''
+      } : undefined,
+      sheetsEvaluation: isSheetsLearning ? {
+        functionName: sheetsFunction,
+        usageDescription: sheetsUse
       } : undefined
     });
     onHide();
@@ -347,27 +357,6 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
         <TabView activeIndex={activeIndex} onTabChange={(e) => setActiveIndex(e.index)} className="custom-reflection-tabs">
           <TabPanel header="التقييم العام" leftIcon="pi pi-check-circle mr-2 ml-2">
             <div className="space-y-8 py-4 mt-2 max-h-[55vh] overflow-y-auto px-1 custom-scrollbar">
-              {/* Focus Level */}
-              <div className="space-y-4">
-                <label className="flex items-center gap-2 text-sm font-black text-slate-700">
-                  <Brain className="w-5 h-5 text-indigo-500" />
-                  مدى التركيز أثناء المهمة:
-                </label>
-                <div className="flex justify-between gap-2">
-                  {focusLevels.map((lvl) => (
-                    <button
-                      key={lvl.value}
-                      onClick={() => setFocus(lvl.value)}
-                      className={`flex-1 py-3 px-2 rounded-xl text-lg font-black transition-all ${
-                        focus === lvl.value ? lvl.active + ' scale-105 ring-2 ring-white ring-offset-2' : lvl.color + ' opacity-60 hover:opacity-100'
-                      }`}
-                    >
-                      {lvl.value}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Mastery Slider */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -467,6 +456,48 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
               </div>
             </div>
           </TabPanel>
+
+          {isSheetsLearning && (
+            <TabPanel header="تقييم الجداول 📊" leftIcon="pi pi-table mr-2 ml-2">
+              <div className="space-y-6 py-4 mt-2 max-h-[55vh] overflow-y-auto px-1 custom-scrollbar w-full">
+                <div className="bg-emerald-50/50 border border-emerald-100 rounded-3xl p-6 shadow-sm">
+                  <h3 className="text-lg font-black text-emerald-800 mb-6 flex items-center gap-2">
+                    <Sparkles className="w-6 h-6 text-emerald-500" />
+                    خبرات Google Sheets المكتسبة
+                  </h3>
+
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-emerald-600 block flex items-center gap-2">
+                        <Type className="w-4 h-4 ml-1" />
+                        اسم الدالة / الميزة التي طبقتها:
+                      </label>
+                      <input 
+                        type="text"
+                        value={sheetsFunction}
+                        onChange={(e) => setSheetsFunction(e.target.value)}
+                        placeholder="مثل: VLOOKUP, Pivot Tables, FILTER..."
+                        className="w-full p-4 bg-white border border-emerald-200 rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-300 focus:border-emerald-500 transition-colors shadow-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-emerald-600 block flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 ml-1" />
+                        كيف قمت باستخدامها وتوظيفها عملياً للمشكلة؟
+                      </label>
+                      <InputTextarea 
+                        value={sheetsUse}
+                        onChange={(e) => setSheetsUse(e.target.value)}
+                        placeholder="استخدمت هذه الدالة لحل مشكلة..."
+                        className="w-full min-h-[100px] bg-white border-emerald-200 rounded-2xl p-4 text-sm font-medium focus:border-emerald-500 transition-colors shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabPanel>
+          )}
 
           {isLanguageLearning && (
             <TabPanel header="سجل اللغات" leftIcon="pi pi-language mr-2 ml-2">

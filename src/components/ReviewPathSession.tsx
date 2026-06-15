@@ -84,6 +84,7 @@ export function ReviewPathSession({
   const [puzzleAnswer, setPuzzleAnswer] = useState("");
   const [puzzleFeedback, setPuzzleFeedback] = useState("");
   const [showFinalPuzzle, setShowFinalPuzzle] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState(4);
 
   const startGuidedActivity = (act: any) => {
     vibrate(HAPITCS.MAJOR_CLICK);
@@ -120,6 +121,20 @@ export function ReviewPathSession({
       isCompleted: updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted)
     });
 
+    if (user && user.id && activityNotes.trim()) {
+      await db.userSettings.where('id').equals(user.id).modify(u => {
+        const prevNotes = { ...(u.notes || {}) };
+        const stationId = task.stationId || 'general';
+        const stationNotes = Array.isArray(prevNotes[stationId]) ? [...prevNotes[stationId]] : [];
+        stationNotes.push({
+          text: `[نشاط معلق: ${activeGuidedActivity.title}] ${activityNotes.trim()}`,
+          date: new Date().toISOString(),
+          priority: 'medium'
+        });
+        u.notes = { ...prevNotes, [stationId]: stationNotes };
+      });
+    }
+
     toast.success("تم تعليق النشاط وبدء العمل بنجاح 🧭 النشاط معلّق الآن!");
     setActiveGuidedActivity(null);
   };
@@ -151,16 +166,39 @@ export function ReviewPathSession({
       isCompleted: allActivitiesCompleted
     });
 
+    const currentAct = localActivities.find(a => a.id === activityId);
+    if (user && user.id && activityNotes.trim()) {
+      await db.userSettings.where('id').equals(user.id).modify(u => {
+        const prevNotes = { ...(u.notes || {}) };
+        const stationId = task.stationId || 'general';
+        const stationNotes = Array.isArray(prevNotes[stationId]) ? [...prevNotes[stationId]] : [];
+        stationNotes.push({
+          text: `[نشاط مكتمل: ${currentAct?.title || activeGuidedActivity?.title || 'عام'}] ${activityNotes.trim()}`,
+          date: new Date().toISOString(),
+          priority: 'high'
+        });
+        u.notes = { ...prevNotes, [stationId]: stationNotes };
+      });
+    }
+
+    if (user && user.id) {
+      await db.userSettings.where('id').equals(user.id).modify(u => {
+        if (u.gameData) {
+          u.gameData.xp = (u.gameData.xp || 0) + 10;
+        }
+      });
+    }
+
     if (allActivitiesCompleted) {
       vibrate(HAPITCS.SUCCESS);
-      if (task?.riddleDetails) {
-        setShowFinalPuzzle(true);
-      } else {
-        confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 } });
-        toast.success("أحسنت! أنهيت جميع الأنشطة بنجاح 🏆");
+      confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 } });
+      toast.success("أحسنت! أنهيت جميع الأنشطة بنجاح 🏆 نلت +10 XP!");
+      if (onOpenReflection) {
+        onOpenReflection(task);
       }
+      onClose();
     } else {
-      toast.success("تم إتمام وإنهاء النشاط بنجاح! 🎉");
+      toast.success("تم إتمام وإنهاء النشاط بنجاح! 🎉 نلت +10 XP!");
     }
 
     setActiveGuidedActivity(null);
@@ -184,6 +222,13 @@ export function ReviewPathSession({
     if (!task) return;
     vibrate(HAPITCS.MAJOR_CLICK);
     
+    const actToToggle = localActivities.find(a => a.id === activityId);
+    let xpDiff = 0;
+    if (actToToggle) {
+      const isNowCompleted = !actToToggle.isCompleted;
+      xpDiff = isNowCompleted ? 10 : -10;
+    }
+
     const updatedActivities = localActivities.map(act => {
       if (act.id === activityId) {
         const newStatus = !act.isCompleted;
@@ -203,12 +248,28 @@ export function ReviewPathSession({
       isCompleted: allActivitiesCompleted
     });
 
+    if (user && user.id && xpDiff !== 0) {
+      await db.userSettings.where('id').equals(user.id).modify(u => {
+        if (u.gameData) {
+          u.gameData.xp = Math.max(0, (u.gameData.xp || 0) + xpDiff);
+        }
+      });
+    }
+
     if (taskJustCompleted) {
       vibrate(HAPITCS.SUCCESS);
       confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 } });
       toast.success("أحسنت! أنهيت جميع الأنشطة بنجاح 🏆");
+      if (onOpenReflection) {
+        onOpenReflection(task);
+      }
+      onClose();
     } else {
-      toast.success("تم تحديث حالة النشاط");
+      if (xpDiff > 0) {
+        toast.success("تم إنجاز النشاط بنجاح! +10 XP");
+      } else {
+        toast("تم التراجع عن النشاط. -10 XP");
+      }
     }
   };
 
@@ -242,43 +303,6 @@ export function ReviewPathSession({
           dir="rtl"
         >
           {/* Final puzzle modal open after completing all activities */}
-          {showFinalPuzzle && (
-            <div className="fixed inset-0 bg-[#0A0F2C]/98 backdrop-blur-xl text-white flex flex-col font-sans p-4 md:p-8 overflow-y-auto" style={{ zIndex: 65000400 }} dir="rtl">
-              <div className="max-w-2xl w-full mx-auto my-auto bg-[#131B4E]/90 border border-amber-500/30 rounded-[2.5rem] p-8 md:p-12 shadow-2xl flex flex-col space-y-6 text-center relative">
-                <div className="absolute top-0 right-1/4 w-32 h-32 bg-amber-500/20 rounded-full blur-[45px] pointer-events-none" />
-                <Sparkles className="w-16 h-16 text-amber-500 mx-auto animate-pulse" />
-                <h2 className="text-2xl md:text-3xl font-black text-amber-400">لقد أنهيت جميع الأنشطة! 🏆</h2>
-                <p className="text-[#A0B4E8] text-sm leading-relaxed max-w-lg mx-auto font-bold mb-6">
-                  الآن وبعد اكتمال إنجازك، تأمل في لغز المهمة مرة أخرى لتحصد ثمار الاستيعاب الكامل.
-                </p>
-
-                <div className="bg-black/30 p-6 rounded-3xl border border-white/5 text-slate-300 text-base leading-relaxed whitespace-pre-wrap font-black">
-                  {task?.riddleDetails}
-                </div>
-
-                <div className="text-right space-y-2 mt-4">
-                  <h4 className="text-white text-xs font-black">اكتب قناعتك وإجابتك النهائية للغز:</h4>
-                  <input
-                    type="text"
-                    className="w-full p-4 rounded-xl bg-black/40 border border-amber-500/30 text-white focus:border-amber-500 outline-none transition-all font-bold"
-                    placeholder="استلهم إجابتك وأكدها هنا..."
-                  />
-                </div>
-
-                <button
-                  onClick={() => {
-                    vibrate(HAPITCS.SUCCESS);
-                    setShowFinalPuzzle(false);
-                    confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 } });
-                    toast.success("أحسنت! المهمة اكتملت بسلام. 🎉");
-                  }}
-                  className="mt-8 px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white transition-all text-sm font-black shadow-lg shadow-amber-500/20 cursor-pointer border-none"
-                >
-                  استيعاب وفهم كامل للغز ✨
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Custom Elegant confirmation pop-up */}
           {showConfirmStart && (
@@ -687,19 +711,7 @@ export function ReviewPathSession({
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2 shrink-0">
-                      {onOpenReflection && (
-                        <button
-                          onClick={() => {
-                            vibrate(HAPITCS.MAJOR_CLICK);
-                            onOpenReflection(task);
-                          }}
-                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white text-xs font-black shadow-lg transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer border-none"
-                          title="الانعكاس المعرفي"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>تأمل / تقييم</span>
-                        </button>
-                      )}
+
                       
                       {onOpenFlashcards && (
                         <button
@@ -859,18 +871,6 @@ export function ReviewPathSession({
                                       
                                       {/* Quick Actions buttons inside detail mode */}
                                       <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
-                                        {onOpenReflection && (
-                                          <button
-                                            onClick={() => {
-                                              vibrate(HAPITCS.MAJOR_CLICK);
-                                              onOpenReflection(task);
-                                            }}
-                                            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:brightness-110 text-white text-xs font-bold shadow-md transition-all active:scale-95 flex items-center gap-1 cursor-pointer border-none"
-                                          >
-                                            <Sparkles className="w-3 h-3" />
-                                            <span>تأمل / تقييم</span>
-                                          </button>
-                                        )}
                                         
                                         {onOpenFlashcards && (
                                           <button
@@ -957,19 +957,7 @@ export function ReviewPathSession({
                                    <div className="text-xs font-semibold text-[#A0B4E8]">أنجزت كافة الخطوات التنفيذية لتعزيز الفهم والتمكين.</div>
                                  </div>
                                </div>
-                               {onOpenReflection && (
-                                 <button
-                                   type="button"
-                                   onClick={() => {
-                                     vibrate(HAPITCS.MAJOR_CLICK);
-                                     onOpenReflection(task);
-                                   }}
-                                   className="bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white px-5 py-3 rounded-xl text-xs font-black shadow-xl shrink-0 transition-all active:scale-95 flex items-center gap-2 cursor-pointer border-none"
-                                 >
-                                   <Sparkles className="w-4 h-4" />
-                                   <span>قيم الانعكاس المعرفي الآن ✨</span>
-                                 </button>
-                               )}
+
                              </div>
                            )}
 

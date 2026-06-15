@@ -951,6 +951,84 @@ export function TaskEditorModal({
                       onChange={(e) => updateField("riddleHint", e.target.value)}
                     />
                   </div>
+                  <div>
+                    <label className="text-xs font-black text-rose-600 px-1 mt-2 flex items-center gap-2">
+                      <span className="text-sm">📖</span>
+                      <span>شرح لغز المهمة (Explanation)</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-4 bg-white border border-rose-100/50 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-rose-500/5 transition-all text-right mt-1"
+                      placeholder="لشرح المغزى والحكمة من اللغز بعد حله..."
+                      value={localTask.riddleExplanation || ""}
+                      onChange={(e) => updateField("riddleExplanation", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Hidden Riddle Block */}
+                <div className="bg-indigo-50/50 p-6 rounded-[24px] border border-indigo-100/40 mt-4">
+                  <div className="flex items-start gap-4 mb-3">
+                    <div className="bg-indigo-100/50 w-10 h-10 rounded-xl flex items-center justify-center shrink-0">
+                      <span className="text-lg">🕵️</span>
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-black text-indigo-950">اللغز الخفي (Hidden Riddle) 🎯</h5>
+                      <p className="text-[10px] text-indigo-700/80 font-bold mt-1 leading-relaxed">لغز إضافي وسري يُكشف فقط في ظروف معينة أو مسارات محددة.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-black text-indigo-900 px-1 flex items-center gap-2 mb-2">
+                        <span>نص اللغز الخفي</span>
+                      </label>
+                      <textarea
+                        className="w-full p-4 bg-white border border-indigo-100 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-indigo-500/5 transition-all text-right min-h-[80px]"
+                        placeholder="اكتب نص اللغز السري هنا..."
+                        value={localTask.hiddenRiddleDetails || ""}
+                        onChange={(e) => updateField("hiddenRiddleDetails", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-black text-indigo-900 px-1 mb-2 block">
+                            <span>الإجابة المفتاحية</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full p-4 bg-white border border-indigo-100 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-indigo-500/5 transition-all text-right"
+                            placeholder="كلمة السر..."
+                            value={localTask.hiddenRiddleAnswer || ""}
+                            onChange={(e) => updateField("hiddenRiddleAnswer", e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-black text-indigo-900 px-1 mb-2 block">
+                            <span>تلميح (Hint)</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full p-4 bg-white border border-indigo-100 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-indigo-500/5 transition-all text-right"
+                            placeholder="تلميح..."
+                            value={localTask.hiddenRiddleHint || ""}
+                            onChange={(e) => updateField("hiddenRiddleHint", e.target.value)}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="text-xs font-black text-indigo-900 px-1 mb-2 block">
+                            <span>الشرح (Explanation)</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full p-4 bg-white border border-indigo-100 rounded-[20px] text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-indigo-500/5 transition-all text-right"
+                            placeholder="الشرح والإفادة..."
+                            value={localTask.hiddenRiddleExplanation || ""}
+                            onChange={(e) => updateField("hiddenRiddleExplanation", e.target.value)}
+                          />
+                        </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

@@ -10,9 +10,11 @@ export interface Station {
   riddleDetails?: string;
   riddleAnswer?: string;
   riddleHint?: string;
+  riddleExplanation?: string;
   secretResourcesRiddleDetails?: string;
   secretResourcesRiddleAnswer?: string;
   secretResourcesRiddleHint?: string;
+  secretResourcesRiddleExplanation?: string;
   secretResources?: { id: string; name: string; url: string; description?: string; puzzle?: string; puzzleAnswer?: string; puzzleHint?: string }[];
   targetDate: string;
   order: number;
@@ -50,9 +52,11 @@ export interface Task {
   riddleDetails?: string;
   riddleAnswer?: string;
   riddleHint?: string;
+  riddleExplanation?: string;
   hiddenRiddleDetails?: string;
   hiddenRiddleAnswer?: string;
   hiddenRiddleHint?: string;
+  hiddenRiddleExplanation?: string;
   taskGoals?: string;
   taskOutcomes?: string;
   practicalPart?: string;
@@ -142,6 +146,10 @@ export interface TaskReflection {
     promptExpected: boolean | null;
     promptAI: string;
     promptAIKey: string;
+  };
+  sheetsEvaluation?: {
+    functionName: string;
+    usageDescription: string;
   };
 }
 
