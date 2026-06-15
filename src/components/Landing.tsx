@@ -1135,7 +1135,7 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
                   <i className="pi pi-check-circle text-3xl animate-bounce" />
                 </div>
                 <h3 className="text-xl font-black text-amber-300">تم بناء خطط المراجعة الثلاث وترميم طاقتك! ✨</h3>
-                <p className="text-xs text-slate-350 mt-2">انقر على أي من خطط المراجعة الثلاث الموزعة أدناه لعرض تلميحات الجهد وحلحلة الأنشطة داخل مودال التأسيس المطور.</p>
+                <p className="text-xs text-slate-300 mt-2">انقر على أي من خطط المراجعة الثلاث الموزعة أدناه لعرض تلميحات الجهد وحلحلة الأنشطة داخل مودال التأسيس المطور.</p>
               </div>
 
               <div className="space-y-3 font-sans">

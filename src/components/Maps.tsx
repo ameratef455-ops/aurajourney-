@@ -681,6 +681,20 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
   const openTaskAnalytics = async (task: any) => {
     vibrate(HAPITCS.MAJOR_CLICK);
+
+    // Only allow opening the main task evaluation once all of its subtasks are completed
+    if (task.type === "main" || !task.parentId) {
+      const subtasks = tasks.filter((t: any) => t.parentId === task.id && t.type === "sub");
+      const hasUncompletedSubs = subtasks.some((t: any) => !t.isCompleted);
+      
+      if (hasUncompletedSubs) {
+        toast.error("لا يمكن فتح التقييم الأصلي للمهمة الرئيسية إلا بعد الانتهاء من جميع المهام الفرعية التابعة لها! 🔒", {
+          style: { background: '#ef4444', color: 'white', borderRadius: '24px', fontWeight: 'bold' }
+        });
+        return;
+      }
+    }
+
     setSelectedTaskForAnalytics(task);
     setIsAnalyticsLoading(true);
     setTaskReflectionData(null);
@@ -1350,7 +1364,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                               <i className={`pi pi-lock text-3xl ${isNextLocked ? 'text-amber-500/80 animate-pulse' : 'text-slate-400'}`} />
                             ) : (
                               <i className={`${st.icon && st.icon.startsWith("pi ") ? st.icon : "pi pi-flag-fill"} text-4xl 
-                                ${isActive ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]' : isCompleted ? 'text-indigo-300 drop-shadow-[0_0_8px_rgba(129,140,248,0.4)]' : 'text-slate-350 hover:text-white transition-colors duration-500'}`} 
+                                ${isActive ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]' : isCompleted ? 'text-indigo-300 drop-shadow-[0_0_8px_rgba(129,140,248,0.4)]' : 'text-slate-300 hover:text-white transition-colors duration-500'}`} 
                               />
                             )}
                           </div>
@@ -3340,7 +3354,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             <span className="font-black tracking-tight drop-shadow-sm">تحليلات وإنجازات المهمة 📊</span>
           </div>
         }
-        className="w-screen h-screen font-sans border-0 rounded-none bg-transparent"
+        className="w-screen h-screen font-sans border-0 rounded-none bg-transparent dark-dialog custom-task-dialog"
         style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0, border: 'none' }}
         headerStyle={{ 
           background: 'var(--blue-dark)', 
@@ -3360,6 +3374,24 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         maskClassName="backdrop-blur-md bg-[#0A0F2C]/40"
         baseZIndex={LAYERS.ANALYTICS_DIALOG}
       >
+        <style>{`
+          .dark-dialog .p-dialog-header .p-dialog-header-close {
+            background: rgba(255, 255, 255, 0.08) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+          }
+          .dark-dialog .p-dialog-header .p-dialog-header-close:hover {
+            background: rgba(255, 255, 255, 0.2) !important;
+            color: #ffffff !important;
+            transform: scale(1.1) rotate(90deg) !important;
+          }
+          .custom-task-dialog .p-tabview-panels {
+            background: transparent !important;
+            padding: 0 !important;
+            border: none !important;
+          }
+        `}</style>
         <AnimatePresence>
           {selectedTaskForAnalytics && (
             isAnalyticsLoading ? (
@@ -3384,18 +3416,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
 
                 {/* Main Glass metrics container skeleton */}
                 <div className="space-y-6 bg-white/5 backdrop-blur-xl p-6 rounded-[32px] border border-white/10 shadow-2xl">
-                  {/* Focus & Mastery metrics grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/20 p-6 rounded-[28px] h-40 flex flex-col items-center justify-center text-center shadow-xl">
-                      <div className="h-3.5 bg-indigo-950/10 rounded-full w-24 mb-3"></div>
-                      <div className="h-10 bg-gradient-to-r from-[#030712]/10 via-blue-950/5 to-[#0F172A]/10 rounded-lg w-20"></div>
-                      <div className="flex gap-1 mt-4">
-                        {[1, 2, 3, 4, 5].map(s => (
-                          <div key={s} className="w-2.5 h-2.5 rounded-full bg-indigo-950/15" />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/20 p-6 rounded-[28px] h-40 flex flex-col items-center justify-center text-center shadow-xl">
+                  {/* Mastery metric container skeleton */}
+                  <div className="w-full flex justify-center pt-2">
+                    <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/20 p-6 rounded-[28px] h-40 flex flex-col items-center justify-center text-center shadow-xl w-full max-w-md">
                       <div className="h-3.5 bg-amber-950/10 rounded-full w-32 mb-3"></div>
                       <div className="h-10 bg-gradient-to-r from-[#030712]/10 via-blue-950/5 to-[#0F172A]/10 rounded-lg w-20"></div>
                       <div className="w-32 h-2 bg-indigo-950/15 rounded-full mt-4"></div>
@@ -3427,7 +3450,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 <h3 className="font-black text-white text-base leading-snug">{selectedTaskForAnalytics.title}</h3>
               </div>
 
-              <TabView className="mt-4" dir="rtl" pt={{ nav: { className: "flex gap-2 p-1.5 bg-white/5 rounded-2xl border border-white/10 mb-4 shadow" } }}>
+              <TabView className="mt-4" dir="rtl" pt={{ nav: { className: "flex gap-2 p-1.5 bg-white/5 rounded-2xl border border-white/10 mb-4 shadow" }, panelContainer: { className: "bg-transparent border-none p-0" } }}>
                 <TabPanel
                   headerTemplate={(options) => (
                     <div
@@ -3452,30 +3475,10 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                              التقييم الأصلي 📝
                           </div>
 
-                          {/* Focus & Mastery metrics row */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                            {/* Focus metric */}
-                            <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/25 p-6 rounded-[28px] flex flex-col items-center justify-center text-center shadow-xl">
-                              <p className="text-[10px] text-indigo-950/80 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                                <Brain className="w-3.5 h-3.5 text-indigo-600 animate-pulse" /> تركيزك أثناء المهمة:
-                              </p>
-                              <div className="text-4xl font-black bg-gradient-to-r from-[#030712] via-blue-950 to-[#0F172A] bg-clip-text text-transparent font-mono">
-                                {refData.focus} <span className="text-xs font-extrabold text-[#0A0F2C]/70">/ 5</span>
-                              </div>
-                              <div className="flex gap-1 mt-2.5">
-                                {[1, 2, 3, 4, 5].map((s) => (
-                                  <div
-                                    key={s}
-                                    className={`w-2.5 h-2.5 rounded-full ${
-                                      s <= refData.focus ? "bg-indigo-600 shadow-sm" : "bg-indigo-950/15"
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-
+                          {/* Mastery Metric */}
+                          <div className="w-full flex justify-center pt-2">
                             {/* Mastery metric */}
-                            <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/25 p-6 rounded-[28px] flex flex-col items-center justify-center text-center shadow-xl">
+                            <div className="bg-gradient-to-br from-white/95 to-blue-50/90 backdrop-blur-lg border border-white/25 p-6 rounded-[28px] flex flex-col items-center justify-center text-center shadow-xl w-full max-w-md">
                               <p className="text-[10px] text-amber-950/90 font-black uppercase tracking-widest flex items-center gap-1.5 mb-2">
                                 <Trophy className="w-3.5 h-3.5 text-amber-600" /> مستوى الإتقان والفهم:
                               </p>
@@ -3550,7 +3553,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         </div>
                         <div>
                           <h4 className="text-sm font-black text-white mb-1">المهمة مكتملة بنجاح! 🚀</h4>
-                          <p className="text-xs text-slate-350 font-bold max-w-md mx-auto leading-relaxed">
+                          <p className="text-xs text-slate-300 font-bold max-w-md mx-auto leading-relaxed">
                             هذا النشاط مسجل كمكتمل في سجلاتك. لم تدوّن حالتها ضمن البوصلة أو التقييمات التفصيلية للمهارات حتى الآن، لكن تقدمك المتتالي سليم وتأثيرها محتسب في نقاط خبرتك العام.
                           </p>
                         </div>
@@ -3608,24 +3611,19 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         {taskReflectionData.length > 1 ? (
                           <div className="bg-white/5 border border-white/10 p-6 rounded-[32px] shadow-xl space-y-4">
                             <h4 className="text-xs font-black text-slate-300 tracking-widest uppercase flex items-center gap-2">
-                              <TrendingUp className="w-4 h-4 text-indigo-400" /> مخطط تطور الإتقان والتركيز عبر المراجعات
+                              <TrendingUp className="w-4 h-4 text-emerald-450" /> مخطط تطور الإتقان عبر المراجعات
                             </h4>
                             <div className="h-64 w-full">
                               <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={taskReflectionData.map((r: any, i: number) => ({
                                   name: i === 0 ? 'الأصلي' : `مراجعة ${i}`,
                                   mastery: r.mastery,
-                                  focus: r.focus,
                                   fullDate: new Date(r.createdAt).toLocaleDateString('ar-EG')
                                 }))}>
                                   <defs>
                                     <linearGradient id="colorMastery2" x1="0" y1="0" x2="0" y2="1">
                                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
                                       <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                    </linearGradient>
-                                    <linearGradient id="colorFocus2" x1="0" y1="0" x2="0" y2="1">
-                                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
-                                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
                                     </linearGradient>
                                   </defs>
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
@@ -3654,15 +3652,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                     fillOpacity={1} 
                                     fill="url(#colorMastery2)" 
                                   />
-                                  <Area 
-                                    type="monotone" 
-                                    dataKey="focus" 
-                                    name="التركيز"
-                                    stroke="#8b5cf6" 
-                                    strokeWidth={3}
-                                    fillOpacity={1} 
-                                    fill="url(#colorFocus2)" 
-                                  />
                                 </AreaChart>
                               </ResponsiveContainer>
                             </div>
@@ -3670,7 +3659,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                         ) : (
                           <div className="text-center py-6 px-4 bg-white/5 border border-white/10 rounded-3xl">
                             <p className="text-sm font-bold text-white mb-1">لم تقم بأي مراجعة بعد</p>
-                            <p className="text-xs text-slate-300">قم بمراجعة هذه المهمة لاحقاً لرؤية الرسم البياني لتطور مستواك وتركيزك.</p>
+                            <p className="text-xs text-slate-300">قم بمراجعة هذه المهمة لاحقاً لرؤية الرسم البياني لتطور مستواك.</p>
                           </div>
                         )}
 
@@ -3839,7 +3828,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                                         </div>
                                       </div>
                                       {s.notes && (
-                                        <p className="text-[10px] text-slate-350 font-medium bg-white/5 p-2 rounded-lg border border-white/5 italic">
+                                        <p className="text-[10px] text-slate-300 font-medium bg-white/5 p-2 rounded-lg border border-white/5 italic">
                                           {s.notes}
                                         </p>
                                       )}

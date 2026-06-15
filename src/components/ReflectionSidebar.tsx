@@ -110,7 +110,6 @@ export function ReflectionSidebar({
 
   const chartData = [
     { subject: 'الالتزام', score: avgCommitment, fullMark: 100 },
-    { subject: 'التركيز', score: Math.round(Number(avgFocus) * 20), fullMark: 100 },
     { subject: 'الإتقان', score: Math.round(Number(avgMastery) * 10), fullMark: 100 },
     { subject: 'التطبيق العملي', score: avgPractical, fullMark: 100 },
   ];
@@ -195,14 +194,12 @@ export function ReflectionSidebar({
                     متابعة حية لمفاتيح وعيك الذاتي ومعدلات التعلم العملي المطبقة والالتزام على إثر المحطات العلمية التي خضتها.
                   </p>
                 </div>
-                {/* Total Reflections badge */}
                 <div className="bg-white/5 border border-white/10 text-right p-4 rounded-xl flex items-center gap-4 shrink-0">
                   <div className="text-3xl font-black text-indigo-400 font-mono">
                     {filteredReflections.length}
                   </div>
                   <div>
-                    <h5 className="text-[10px] text-slate-400 font-extrabold uppercase">جلسات الوعي والتحليلات</h5>
-                    <p className="text-[10px] text-indigo-200 font-bold">جلسة مسجلة</p>
+                    <h5 className="text-[10px] text-slate-400 font-extrabold uppercase">جلسات الانعكاس</h5>
                   </div>
                 </div>
               </div>
@@ -230,8 +227,8 @@ export function ReflectionSidebar({
               </div>
             </div>
 
-            {/* Bento Grid of 4 key metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Bento Grid of key metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               
               {/* 1. Commitment Rate Metric Card */}
               <div className="bg-gradient-to-br from-indigo-500/10 via-white/5 to-indigo-500/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-indigo-500/30 transition-all">
@@ -260,43 +257,7 @@ export function ReflectionSidebar({
                 </div>
               </div>
 
-              {/* 2. Focus Rate Metric Card */}
-              <div className="bg-gradient-to-br from-purple-500/10 via-white/5 to-purple-500/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-purple-500/30 transition-all">
-                <div className="flex justify-between items-start">
-                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                    <Brain className="w-6 h-6" />
-                  </div>
-                  <div className="text-left font-mono">
-                    <span className="text-3xl font-black text-purple-200">{avgFocus}</span>
-                    <span className="text-sm font-extrabold text-purple-400"> / 5</span>
-                  </div>
-                </div>
-                <div className="mt-6 space-y-2">
-                  <h4 className="text-sm font-black text-indigo-100 flex items-center gap-1.5">
-                    متوسط التركيز الذهني
-                  </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                    معدل حضورك العقلي واندماجك الواعي أثناء إنجاز المبادئ والمهام.
-                  </p>
-                  <div className="flex items-center gap-1 mt-3">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <div
-                        key={s}
-                        className={`h-2.5 rounded-full transition-all border border-purple-500/20 ${
-                          s <= Math.round(Number(avgFocus)) 
-                            ? "bg-purple-500 w-6" 
-                            : "bg-purple-950 w-2.5"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <div className="text-[10px] text-purple-300 font-black mt-2">
-                    تم تقييمه من واقع تحليلات وانعكاساتك الذاتية للخطة.
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Mastery Rate Metric Card */}
+              {/* 2. Mastery Rate Metric Card */}
               <div className="bg-gradient-to-br from-amber-500/10 via-white/5 to-amber-500/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-amber-500/30 transition-all">
                 <div className="flex justify-between items-start">
                   <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -323,7 +284,7 @@ export function ReflectionSidebar({
                 </div>
               </div>
 
-              {/* 4. Practical Application Rate Metric Card */}
+              {/* 3. Practical Application Rate Metric Card */}
               <div className="bg-gradient-to-br from-emerald-500/10 via-white/5 to-emerald-500/5 border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all">
                 <div className="flex justify-between items-start">
                   <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
@@ -499,9 +460,9 @@ export function ReflectionSidebar({
                              <th scope="col" className="px-4 py-3 font-black border border-white/10 w-12 text-center bg-emerald-950/60 font-mono">#</th>
                              <th scope="col" className="px-4 py-3 font-black border border-white/10">المهمة</th>
                              <th scope="col" className="px-4 py-3 font-black border border-white/10">التاريخ</th>
-                             <th scope="col" className="px-4 py-3 font-black border border-white/10">معدل الفهم</th>
-                             <th scope="col" className="px-4 py-3 font-black border border-white/10">معدل الالتزام</th>
-                             <th scope="col" className="px-4 py-3 font-black border border-white/10">معدل التطويع</th>
+                             <th scope="col" className="px-4 py-3 font-black border border-white/10 text-center">معدل الفهم</th>
+                             <th scope="col" className="px-4 py-3 font-black border border-white/10 text-center">الدالة المستخدمة</th>
+                             <th scope="col" className="px-4 py-3 font-black border border-white/10">التطبيق العملي لها</th>
                          </tr>
                      </thead>
                      <tbody className="font-mono text-[13px]">
@@ -510,9 +471,17 @@ export function ReflectionSidebar({
                                  <td className="px-4 py-3 border border-white/10 text-center font-bold text-emerald-300 bg-emerald-950/20">{idx + 1}</td>
                                  <td className="px-4 py-3 border border-white/10 font-sans font-bold text-slate-100">{tasks.find((t: any) => t.id === ref.taskId)?.title || 'مهمة محذوفة'}</td>
                                  <td className="px-4 py-3 border border-white/10 text-slate-400">{new Date(ref.createdAt).toLocaleDateString('ar-EG')}</td>
-                                 <td className="px-4 py-3 border border-white/10 text-center text-amber-400">{ref.understandingRate}%</td>
-                                 <td className="px-4 py-3 border border-white/10 text-center text-sky-400">{ref.commitmentRate}%</td>
-                                 <td className="px-4 py-3 border border-white/10 text-center text-emerald-400">{ref.adaptationRate}%</td>
+                                 <td className="px-4 py-3 border border-white/10 text-center text-amber-400">{ref.understandingRate || ref.mastery ? `${ref.understandingRate || (ref.mastery * 10)}%` : '-'}</td>
+                                 <td className="px-4 py-3 border border-white/10 text-indigo-300 font-bold font-sans">
+                                     {ref.sheetsEvaluation?.functionName ? (
+                                         <code className="bg-slate-900/60 px-2 py-1 rounded text-red-400 border border-white/5 font-mono">
+                                             {ref.sheetsEvaluation.functionName}
+                                         </code>
+                                     ) : '-'}
+                                 </td>
+                                 <td className="px-4 py-3 border border-white/10 text-slate-300 font-sans leading-relaxed">
+                                     {ref.sheetsEvaluation?.usageDescription || '-'}
+                                 </td>
                              </tr>
                          )) : (
                              <tr>
@@ -555,8 +524,8 @@ export function ReflectionSidebar({
                  <p className="text-2xl font-black text-indigo-600">{avgCommitment}%</p>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200">
-                 <p className="text-sm font-bold text-slate-500 mb-1">مستوى التركيز العميق</p>
-                 <p className="text-2xl font-black text-rose-500">{avgFocus} <span className="text-sm">/ 5</span></p>
+                 <p className="text-sm font-bold text-slate-500 mb-1 hidden">مستوى التركيز العميق</p>
+                 <p className="text-2xl font-black text-rose-500 hidden">{avgFocus} <span className="text-sm">/ 5</span></p>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200">
                  <p className="text-sm font-bold text-slate-500 mb-1">التقدم الميداني والتطبيق</p>
@@ -606,7 +575,7 @@ export function ReflectionSidebar({
                            
                            <div className="flex items-center justify-end gap-2 font-mono" dir="ltr">
                               {/* Focus Badge */}
-                              <div className="bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-xl flex items-center gap-1 text-rose-700" title="مستوى التركيز العميق (من 5)">
+                              <div className="bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-xl flex items-center gap-1 text-rose-700 hidden" title="مستوى التركيز العميق (من 5)">
                                  <span className="text-[9px] font-black">التركيز:</span>
                                  <span className="text-xs font-black">{ref.focus}/5</span>
                                  {focusDiff !== 0 && (
