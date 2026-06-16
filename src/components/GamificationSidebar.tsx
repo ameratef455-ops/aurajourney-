@@ -139,42 +139,6 @@ export function GamificationSidebar({
       rewardAmount: 150,
       rewardType: "xp",
       icon: "pi-bookmark"
-    },
-    {
-      id: "title_solver_of_3_task_riddles",
-      title: "حل 3 ألغاز لثلاث مهام 🧩",
-      description: "إنجاز 3 مهام تحتوي على ألغاز منطقية بنجاح.",
-      check: () => {
-        return allAvailableTasks.filter(t => t.riddleDetails && t.riddleAnswer && t.isCompleted).length >= 3;
-      },
-      rewardText: "لقب الخريطة + 150 XP",
-      rewardAmount: 150,
-      rewardType: "xp",
-      icon: "pi-hashtag"
-    },
-    {
-      id: "title_solver_of_plan_riddle",
-      title: "إنهاء لغز الخطة 🗺️",
-      description: "النجاح في إنهاء محطة رئيسية تحتوي على لغز كبير.",
-      check: () => {
-        return allStations.some(s => s.riddleDetails && s.riddleAnswer && (s as any).isCompleted);
-      },
-      rewardText: "لقب الخريطة + 200 XP",
-      rewardAmount: 200,
-      rewardType: "xp",
-      icon: "pi-map"
-    },
-    {
-      id: "title_hidden_riddle_master",
-      title: "اللغز الخفي 👁️",
-      description: "اكتشاف وإنهاء اللغز الخفي المخصص للمصادر الخفية في إحدى المهام.",
-      check: () => {
-        return allAvailableTasks.some(t => t.hiddenRiddleDetails && t.isCompleted);
-      },
-      rewardText: "لقب الخريطة + 250 XP",
-      rewardAmount: 250,
-      rewardType: "xp",
-      icon: "pi-eye"
     }
   ];
 

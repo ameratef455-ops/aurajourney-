@@ -78,13 +78,9 @@ export function ReviewPathSession({
 
   const [activeGuidedActivity, setActiveGuidedActivity] = useState<any | null>(null);
   const [forceReviewDetails, setForceReviewDetails] = useState(false);
-  const [guideStep, setGuideStep] = useState<1 | 2>(1);
+  const [guideStep, setGuideStep] = useState<1 | 2 | 3>(1);
   const [activityNotes, setActivityNotes] = useState("");
   const [activityLearnings, setActivityLearnings] = useState("");
-  const [puzzleAnswer, setPuzzleAnswer] = useState("");
-  const [puzzleFeedback, setPuzzleFeedback] = useState("");
-  const [showFinalPuzzle, setShowFinalPuzzle] = useState(false);
-  const [attemptsLeft, setAttemptsLeft] = useState(4);
 
   const startGuidedActivity = (act: any) => {
     vibrate(HAPITCS.MAJOR_CLICK);
@@ -93,8 +89,6 @@ export function ReviewPathSession({
     setGuideStep(1);
     setActivityNotes(act.notes || "");
     setActivityLearnings(act.learnings || "");
-    setPuzzleAnswer("");
-    setPuzzleFeedback("");
   };
 
   const suspendGuidedActivity = async () => {
@@ -424,27 +418,27 @@ export function ReviewPathSession({
           {/* Custom Interactive Guided Activity Flow */}
           {activeGuidedActivity && (
             <div 
-              className="fixed inset-0 bg-[#0A0F2C]/98 backdrop-blur-lg text-white flex flex-col font-sans p-4 md:p-8 overflow-y-auto"
+              className="fixed inset-0 bg-gradient-to-b from-[#0A0F2C] via-[#0E1540] to-[#04081E] text-white flex flex-col font-sans p-6 md:p-12 overflow-y-auto"
               style={{ zIndex: 65000300 }}
               dir="rtl"
             >
-              <div className="max-w-2xl w-full mx-auto my-auto bg-[#131B4E]/90 border border-white/10 rounded-[2.5rem] p-6 md:p-8 shadow-2xl relative flex flex-col space-y-6">
-                <div className="absolute top-0 right-1/4 w-32 h-32 bg-[#2D52CC]/15 rounded-full blur-[45px] pointer-events-none" />
+              <div className="max-w-4xl w-full mx-auto my-auto relative flex flex-col space-y-8 py-4">
+                <div className="absolute top-10 right-1/4 w-64 h-64 bg-[#2D52CC]/10 rounded-full blur-[100px] pointer-events-none" />
                 
                 {/* Header with Title */}
-                <div className="flex justify-between items-center border-b border-white/10 pb-4">
-                  <div className="space-y-1 text-right">
-                    <span className="text-xs font-black text-[#4D7FFF] uppercase tracking-wider">
-                      {activeGuidedActivity.isSuspended ? 'النشاط التطبيقي معلَّق حالياً 🧭' : 'النشاط التطبيقي ⚡'}
+                <div className="flex justify-between items-center border-b border-white/5 pb-6">
+                  <div className="space-y-2 text-right">
+                    <span className="text-xs font-black text-[#5C8DFF] uppercase tracking-wider">
+                    {activeGuidedActivity.isSuspended ? 'النشاط التطبيقي معلَّق حالياً 🧭' : 'النشاط التطبيقي ⚡'}
                     </span>
-                    <h2 className="text-xl md:text-2xl font-black text-white">{activeGuidedActivity.title}</h2>
+                    <h2 className="text-2xl md:text-3xl font-black text-white">{activeGuidedActivity.title}</h2>
                   </div>
                   <button 
                     onClick={() => {
                       vibrate(HAPITCS.MAJOR_CLICK);
                       setActiveGuidedActivity(null);
                     }}
-                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#A0B4E8] hover:text-white transition-all cursor-pointer border-none"
+                    className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all cursor-pointer border border-white/10"
                   >
                     ✕
                   </button>
@@ -452,26 +446,26 @@ export function ReviewPathSession({
 
                 {activeGuidedActivity.isSuspended && !forceReviewDetails ? (
                   /* Suspended State Screen to finish or review details */
-                  <div className="flex-1 space-y-6 text-center py-6 flex flex-col items-center justify-center">
-                    <div className="w-20 h-20 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 animate-pulse shadow-lg shadow-amber-500/5 mb-2">
-                      <Zap className="w-10 h-10 text-amber-400" />
+                  <div className="flex-grow space-y-8 text-center py-12 flex flex-col items-center justify-center">
+                    <div className="w-24 h-24 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 animate-pulse shadow-2xl shadow-amber-500/10 mb-2">
+                      <Zap className="w-12 h-12 text-amber-400" />
                     </div>
                     
-                    <div className="space-y-3 max-w-md">
-                      <h3 className="text-xl font-black text-amber-400">النشاط قيد التنفيذ والتدبر 🧭</h3>
-                      <p className="text-slate-300 text-xs leading-relaxed font-bold bg-black/45 p-5 rounded-2xl border border-white/5 mt-2">
+                    <div className="space-y-4 max-w-xl">
+                      <h3 className="text-2xl font-black text-amber-400">النشاط قيد التنفيذ والتدبر 🧭</h3>
+                      <p className="text-slate-300 text-sm leading-relaxed font-bold bg-black/44 p-6 rounded-[2rem] border border-white/5 mt-2">
                         لقد بدأت هذا النشاط وقمت بتعليقه مسبقاً للتركيز على العمل الفعلي والتدبر الصادق. بمجرد انتهائك، اضغط على زر "إنهاء وإتمام النشاط" ليتم نقله إلى سجل إنجازاتك المعرفية!
                       </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md pt-6">
+                    <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg pt-6">
                       <button
                         type="button"
                         onClick={() => {
                           vibrate(HAPITCS.SUCCESS);
                           finalizeCompletedActivity(activeGuidedActivity.id);
                         }}
-                        className="flex-1 py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black text-xs font-black shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer border-none"
+                        className="flex-1 py-5 px-8 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black text-sm font-black shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer border-none"
                       >
                         إنهاء وإتمام النشاط الآن 🏆
                       </button>
@@ -481,7 +475,7 @@ export function ReviewPathSession({
                           vibrate(HAPITCS.MAJOR_CLICK);
                           setForceReviewDetails(true);
                         }}
-                        className="flex-1 py-4 px-6 rounded-2xl bg-white/5 hover:bg-white/10 text-white text-xs font-black border border-white/10 transition-all cursor-pointer active:scale-95"
+                        className="flex-1 py-5 px-8 rounded-2xl bg-white/5 hover:bg-white/10 text-white text-sm font-black border border-white/10 transition-all cursor-pointer active:scale-95"
                       >
                         عرض الخطوات والمصادر 📖
                       </button>
@@ -490,50 +484,42 @@ export function ReviewPathSession({
                 ) : (
                   /* Standard Step Wizard Dialog Flow */
                   <>
-                    {/* Progress Stepper bar */}
-                    <div className="flex items-center justify-between gap-1 px-1 py-3 bg-white/5 rounded-2xl border border-white/5 select-none text-[10px] font-bold text-center">
-                      <div className={`flex-1 py-2 px-1 rounded-xl transition-all ${guideStep === 1 ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-md' : 'text-[#A0B4E8] opacity-75'}`}>
-                        1. التوجيه والإرشاد 🧭
-                      </div>
-                      <div className="w-2 h-0.5 bg-white/15 shrink-0" />
-                      <div className={`flex-1 py-2 px-1 rounded-xl transition-all ${guideStep === 2 ? 'bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] text-white shadow-md' : 'text-[#A0B4E8] opacity-75'}`}>
-                        2. مصادر النشاط وملاحظاتي 📝
+                    {/* Clean progress indicator without step names */}
+                    <div className="flex items-center justify-between px-6 py-4 bg-white/5 rounded-2xl border border-white/5 font-sans">
+                      <span className="text-xs font-black text-indigo-300">الخطوة {guideStep} من ٣</span>
+                      <div className="flex gap-1.5">
+                        {[1, 2, 3].map((stepNum) => (
+                          <div 
+                            key={stepNum} 
+                            className={`h-1.5 rounded-full transition-all duration-300 ${stepNum === guideStep ? 'w-8 bg-[#4D7FFF]' : 'w-2 bg-white/20'}`} 
+                          />
+                        ))}
                       </div>
                     </div>
 
                     {/* Step Content */}
-                    <div className="flex-1 space-y-4">
+                    <div className="flex-1 min-h-[40vh] py-4">
                       {guideStep === 1 && (
                         <motion.div
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className="space-y-4 text-right"
+                          className="space-y-6 text-right"
                         >
-                          {task?.riddleHint && (
-                            <div className="p-4 bg-amber-500/10 border border-amber-500/15 rounded-2xl text-amber-500 font-bold flex items-start gap-3">
-                              <Sparkles className="w-5 h-5 shrink-0 text-amber-400 mt-1" />
-                              <div className="text-right">
-                                <span className="block text-[10px] text-amber-500/80 mb-0.5 font-black">💡 تلميح لغز المهمة:</span>
-                                <span className="text-xs font-black text-amber-300 leading-relaxed">{task.riddleHint}</span>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400 font-bold flex items-center gap-2">
+                          <div className="p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400 font-bold flex items-center gap-2">
                             <Sparkles className="w-5 h-5 shrink-0" />
-                            <span>التوجيه والتعليمات الخاصة بهذا النشاط:</span>
+                            <span className="text-base">التوجيه والتعليمات الخاصة بهذا النشاط:</span>
                           </div>
                           
-                          <div className="bg-black/30 p-5 rounded-2xl border border-white/5 italic text-slate-300 text-sm leading-relaxed whitespace-pre-wrap min-h-[140px]">
+                          <div className="bg-black/45 p-6 md:p-8 rounded-[2rem] border border-white/5 italic text-slate-200 text-base md:text-lg leading-relaxed whitespace-pre-wrap min-h-[180px]">
                             {activeGuidedActivity.guidance || "لا توجد توجيهات محددة لهذا النشاط، اتبع منهج السعي واقترب من المعرفة بثقة."}
                           </div>
 
                           {activeGuidedActivity.steps && activeGuidedActivity.steps.length > 0 && (
-                            <div className="space-y-2 mt-4 font-sans text-right">
-                              <h4 className="text-white text-xs font-black">خطوات التنفيذ المقترحة:</h4>
+                            <div className="space-y-3 mt-6 font-sans text-right">
+                              <h4 className="text-white text-sm font-black mb-2">خطوات التنفيذ المقترحة:</h4>
                               {activeGuidedActivity.steps.map((st: any) => (
-                                <div key={st.id} className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5 text-xs text-slate-300">
-                                  <div className="w-2 h-2 rounded-full bg-[#4D7FFF] shadow-[0_0_8px_#4d7fff]" />
+                                <div key={st.id} className="flex items-center gap-3 bg-white/5 p-4 rounded-2xl border border-white/5 text-sm text-slate-300">
+                                  <div className="w-2.5 h-2.5 rounded-full bg-[#4D7FFF] shadow-[0_0_8px_#4d7fff]" />
                                   <span>{st.title}</span>
                                 </div>
                               ))}
@@ -546,32 +532,32 @@ export function ReviewPathSession({
                         <motion.div
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className="space-y-4 text-right"
+                          className="space-y-6 text-right"
                         >
-                          <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-[#4D7FFF] font-bold flex items-center gap-2">
+                          <div className="p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-[#4D7FFF] font-bold flex items-center gap-2">
                             <BookOpen className="w-5 h-5 shrink-0" />
-                            <span>مصادر النشاط ومفكرتك الخاصة</span>
+                            <span className="text-base">مصادر النشاط</span>
                           </div>
 
                           {/* Render Resources */}
-                          <div className="bg-white/5 p-4 rounded-xl border border-white/5 space-y-2">
-                            <h4 className="text-white text-xs font-bold">مصادر التعلم الداعمة للنشاط:</h4>
+                          <div className="bg-white/5 p-6 md:p-8 rounded-[2rem] border border-white/5 space-y-4">
+                            <h4 className="text-white text-sm font-bold">مصادر التعلم الداعمة للنشاط:</h4>
                             {activeGuidedActivity?.learningResources ? (
-                              <div className="text-slate-300 text-xs bg-black/20 p-3 rounded-lg border border-white/5 font-mono whitespace-pre-wrap">
+                              <div className="text-slate-300 text-sm bg-black/40 p-5 rounded-2xl border border-white/5 font-mono whitespace-pre-wrap leading-relaxed">
                                 {activeGuidedActivity.learningResources}
                               </div>
                             ) : (
-                              <p className="text-slate-500 text-xs italic">لا توجد مصادر خاصة مضافة لهذا النشاط تحديداً.</p>
+                              <p className="text-slate-500 text-sm italic">لا توجد مصادر خاصة مضافة لهذا النشاط تحديداً.</p>
                             )}
                             
                             {(activeGuidedActivity?.youtubeUrl || activeGuidedActivity?.googleDriveUrl) && (
-                              <div className="flex flex-flow gap-2 pt-2">
+                              <div className="flex flex-wrap gap-3 pt-4">
                                 {activeGuidedActivity.youtubeUrl && (
                                   <a 
                                     href={activeGuidedActivity.youtubeUrl} 
                                     target="_blank" 
                                     rel="noreferrer" 
-                                    className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs rounded-lg font-bold border border-red-500/30 transition-all flex items-center gap-1.5 w-fit no-underline"
+                                    className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs rounded-xl font-bold border border-red-500/30 transition-all flex items-center gap-2 w-fit no-underline"
                                   >
                                     🎥 فيديو يوتيوب للنشاط
                                   </a>
@@ -581,7 +567,7 @@ export function ReviewPathSession({
                                     href={activeGuidedActivity.googleDriveUrl} 
                                     target="_blank" 
                                     rel="noreferrer" 
-                                    className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-lg font-bold border border-blue-500/30 transition-all flex items-center gap-1.5 w-fit no-underline"
+                                    className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-xl font-bold border border-blue-500/30 transition-all flex items-center gap-2 w-fit no-underline"
                                   >
                                     📂 مستند نشاط درايف
                                   </a>
@@ -589,29 +575,45 @@ export function ReviewPathSession({
                               </div>
                             )}
                           </div>
+                        </motion.div>
+                      )}
 
-                          {/* Notes area */}
-                          <div className="space-y-2">
-                            <h4 className="text-[#A0B4E8] text-xs font-black">جاهز لتدوين المخرجات والأفكار المكتسبة في المفكرة؟ 📝</h4>
-                            <textarea
-                              value={activityNotes}
-                              onChange={(e) => setActivityNotes(e.target.value)}
-                              placeholder="اكتب فكرة ملهمة، تلخيصاً سريعاً، أو مسودة عملك للنشاط هنا..."
-                              className="w-full h-40 p-4 rounded-2xl bg-black/40 border border-white/10 text-white placeholder-slate-500 font-sans text-xs focus:border-[#4D7FFF] focus:outline-none focus:ring-1 focus:ring-[#4D7FFF] outline-none transition-all leading-relaxed"
-                            />
+                      {guideStep === 3 && (
+                        <motion.div
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="space-y-6 text-right"
+                        >
+                          <div className="bg-gradient-to-b from-[#1A2B6B] to-[#0A102E] border border-blue-500/20 p-8 md:p-12 rounded-[2.5rem] text-center space-y-6 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-1/4 w-32 h-32 bg-[#4D7FFF]/10 rounded-full blur-[40px] pointer-events-none" />
+                            <div className="w-20 h-20 rounded-full mx-auto bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-xl shadow-blue-500/5">
+                              <Target className="w-10 h-10 text-blue-300" />
+                            </div>
+                            <h4 className="text-white text-2xl font-black">الآن، حان وقت العمل الفعلي! ✨</h4>
+                            <p className="text-[#A0B4E8] text-sm font-bold leading-relaxed max-w-[80%] mx-auto">
+                              قم بتعليق هذا النشاط لتنفيذه في العالم الواقعي أو التطبيق العملي. بمجرد انتهائك يمكنك العودة هنا وإتمام النشاط بشكل نهائي لتسجيل إنجازك.
+                            </p>
+                            
+                            <button
+                              onClick={completeGuidedActivity}
+                              className="w-full max-w-sm mx-auto py-5 rounded-2xl bg-gradient-to-r from-blue-700 via-[#2D52CC] to-blue-500 hover:brightness-110 text-white transition-all text-base font-black shadow-[0_4px_30px_rgba(45,82,204,0.3)] cursor-pointer border-none flex items-center justify-center gap-2"
+                            >
+                              <Target className="w-6 h-6 text-white" />
+                              <span>تعليق وبدء تنفيذ النشاط 🧭</span>
+                            </button>
                           </div>
                         </motion.div>
                       )}
                     </div>
 
                     {/* Footer Buttons */}
-                    <div className="flex gap-2 justify-end pt-4 border-t border-white/10">
+                    <div className="flex gap-3 justify-end pt-6 border-t border-white/5">
                       <button
                         onClick={() => {
                           vibrate(HAPITCS.MAJOR_CLICK);
                           setActiveGuidedActivity(null);
                         }}
-                        className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-xs font-bold border-none cursor-pointer"
+                        className="px-6 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-xs font-bold border-none cursor-pointer"
                       >
                         خروج
                       </button>
@@ -622,28 +624,21 @@ export function ReviewPathSession({
                             vibrate(HAPITCS.MAJOR_CLICK);
                             setGuideStep((prev) => (prev - 1) as any);
                           }}
-                          className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all text-xs font-bold border border-white/10 cursor-pointer"
+                          className="px-6 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all text-xs font-bold border border-white/10 cursor-pointer"
                         >
-                          ← السابق
+                          السابق
                         </button>
                       )}
 
-                      {guideStep < 2 ? (
+                      {guideStep < 3 && (
                         <button
                           onClick={() => {
                             vibrate(HAPITCS.MAJOR_CLICK);
                             setGuideStep((prev) => (prev + 1) as any);
                           }}
-                          className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] hover:brightness-110 text-white transition-all text-xs font-black shadow-lg cursor-pointer border-none"
+                          className="px-8 py-4 rounded-xl bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] hover:brightness-110 text-white transition-all text-xs font-black shadow-lg cursor-pointer border-none"
                         >
-                          التالي →
-                        </button>
-                      ) : (
-                        <button
-                          onClick={completeGuidedActivity}
-                          className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 hover:brightness-110 text-black transition-all text-xs font-black shadow-lg cursor-pointer border-none animate-pulse"
-                        >
-                          تم (تعليق وبدء تنفيذ النشاط 🧭)
+                          التالي
                         </button>
                       )}
                     </div>

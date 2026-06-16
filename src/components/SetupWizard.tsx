@@ -1509,68 +1509,6 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                   </div>
                 </div>
 
-                {/* Station Secret Resources Riddle */}
-                <div className="p-5 bg-purple-50/20 border border-purple-200/50 rounded-2xl space-y-4">
-                  <h5 className="text-xs font-black text-purple-950 flex items-center gap-2">
-                    <span>🔮 لغز فك تشفير وتأمين المصادر السرية لهذه المحطة:</span>
-                  </h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 block">🧩 منطوق لغز الكبسولة:</label>
-                      <textarea
-                        rows={3}
-                        value={currentStation.secretResourcesRiddleDetails || ""}
-                        onChange={(e) => {
-                          const arr = [...state.stations];
-                          arr[selectedStation] = {
-                            ...arr[selectedStation],
-                            secretResourcesRiddleDetails: e.target.value,
-                          };
-                          setState({ ...state, stations: arr });
-                        }}
-                        placeholder="مثال: لحل هذه الكبسولة السرية، أوجد قيمة X في..."
-                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right resize-y"
-                      />
-                    </div>
-                    <div className="space-y-1.5 flex flex-col justify-between">
-                      <div>
-                        <label className="text-[10px] font-black text-slate-500 block">🔑 إجابة اللغز المعتمدة للحل:</label>
-                        <input
-                          type="text"
-                          value={currentStation.secretResourcesRiddleAnswer || ""}
-                          onChange={(e) => {
-                            const arr = [...state.stations];
-                            arr[selectedStation] = {
-                              ...arr[selectedStation],
-                              secretResourcesRiddleAnswer: e.target.value,
-                            };
-                            setState({ ...state, stations: arr });
-                          }}
-                          placeholder="مثال: خوارزمية البحث الثنائي"
-                          className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right"
-                        />
-                      </div>
-                      <div className="mt-2 text-right">
-                        <label className="text-[10px] font-black text-slate-500 block">💡 تلميح اللغز (Hint):</label>
-                        <input
-                          type="text"
-                          value={currentStation.secretResourcesRiddleHint || ""}
-                          onChange={(e) => {
-                            const arr = [...state.stations];
-                            arr[selectedStation] = {
-                              ...arr[selectedStation],
-                              secretResourcesRiddleHint: e.target.value,
-                            };
-                            setState({ ...state, stations: arr });
-                          }}
-                          placeholder="مثال: ابحث في خوارزميات الاسترجاع عالية الأداء..."
-                          className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Secret Resource Insertion Form */}
                 <div className="p-5 bg-white border border-purple-100 rounded-2xl shadow-3xs space-y-4">
                   <h5 className="text-xs font-black text-purple-900">➕ إضافة مصدر خفي جديد لحصيلة الطالب</h5>
@@ -1611,39 +1549,6 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 block">🧩 لغز لفتح المصدر الخفي (اختياري):</label>
-                      <input
-                        type="text"
-                        value={secretPuzzle}
-                        onChange={(e) => setSecretPuzzle(e.target.value)}
-                        placeholder="مثال: متى تأسست شركة جوجل؟"
-                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 block">🔑 إجابة اللغز المعتمدة:</label>
-                      <input
-                        type="text"
-                        value={secretPuzzleAnswer}
-                        onChange={(e) => setSecretPuzzleAnswer(e.target.value)}
-                        placeholder="مثال: 1998"
-                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 block">💡 تلميح لحل اللغز (Hint):</label>
-                      <input
-                        type="text"
-                        value={secretPuzzleHint}
-                        onChange={(e) => setSecretPuzzleHint(e.target.value)}
-                        placeholder="مثال: أواخر التسعينات..."
-                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right"
-                      />
-                    </div>
-                  </div>
-
                   <button
                     type="button"
                     onClick={addSecretResource}
@@ -1671,12 +1576,6 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                             <span className="text-[9px] font-mono text-blue-500 block truncate">{res.url}</span>
                             {res.description && (
                               <p className="text-[10px] text-slate-400 font-bold leading-normal mt-1">{res.description}</p>
-                            )}
-                            {res.puzzle && (
-                              <div className="mt-2 bg-amber-50 p-2 rounded flex flex-col gap-1 border border-amber-100">
-                                <span className="text-[9px] font-black text-amber-900">🧩 {res.puzzle}</span>
-                                {res.puzzleAnswer && <span className="text-[9px] font-bold text-teal-700">🔑 {res.puzzleAnswer}</span>}
-                              </div>
                             )}
                           </div>
                           <button
@@ -1709,101 +1608,6 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                       setState({ ...state, stations: arr });
                     }}
                   />
-                </div>
-              </div>
-            </div>
-          </TabPanel>
-
-          <TabPanel header="🧩 لغز الخطة ككل">
-            <div
-              className="flex flex-col gap-6 bg-amber-50/10 p-6 rounded-3xl border border-amber-100/30 mt-4 text-right font-sans"
-              dir="rtl"
-            >
-              <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex items-center gap-3 bg-amber-50 p-4 rounded-2xl border border-amber-100/30">
-                  <span className="text-2xl">🧩</span>
-                  <div>
-                    <h4 className="text-xs font-black text-amber-950">لغز الخطة الموجهة (The Station Big Riddle)</h4>
-                    <p className="text-[10px] text-amber-700 font-bold mt-0.5">لكل خطة (محطة) لغز كبير يسعى العقل لحله، يغلف المحطة ويحمي كبسولاتها المعرفية!</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Station Riddle Detail */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-800 block">❓ تفاصيل ومنطوق لغز الخطة الكبير:</label>
-                    <textarea
-                      className="w-full p-4 bg-white border border-amber-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all resize-y min-h-[140px]"
-                      placeholder="اكتب لغز الخطة الشامل... الذي يمثل تحدياً ذهنياً كبيراً لاجتياز المحطة بكفاءة."
-                      value={currentStation.riddleDetails || ""}
-                      onChange={(e) => {
-                        const arr = [...state.stations];
-                        arr[selectedStation] = {
-                          ...arr[selectedStation],
-                          riddleDetails: e.target.value,
-                        };
-                        setState({ ...state, stations: arr });
-                      }}
-                    />
-                  </div>
-
-                  {/* Station Riddle Answer */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-800 block">🔑 الإجابة المفتاحية / حل لغز الخطة:</label>
-                    <p className="text-[9px] text-slate-400">الكلمة أو الرقم الذي يحل هذا اللغز ليمكّن الطالب من إتمام المحطة بنجاح فاقع.</p>
-                    <input
-                      type="text"
-                      className="w-full p-4 bg-white border border-amber-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-right"
-                      placeholder="اكتب كلمة أو حل اللغز الكبير المفتاحي للمحطة..."
-                      value={currentStation.riddleAnswer || ""}
-                      onChange={(e) => {
-                        const arr = [...state.stations];
-                        arr[selectedStation] = {
-                          ...arr[selectedStation],
-                          riddleAnswer: e.target.value,
-                        };
-                        setState({ ...state, stations: arr });
-                      }}
-                    />
-                  </div>
-
-                  {/* Station Riddle Hint */}
-                  <div className="space-y-2 md:col-span-1">
-                    <label className="text-xs font-black text-slate-800 block">💡 تلميح لحل لغز الخطة (Hint):</label>
-                    <input
-                      type="text"
-                      className="w-full p-4 bg-white border border-amber-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-right"
-                      placeholder="اكتب تلميحاً أو دليلاً بسيطاً لمساعدة الطالب على حل لغز المحطة..."
-                      value={currentStation.riddleHint || ""}
-                      onChange={(e) => {
-                        const arr = [...state.stations];
-                        arr[selectedStation] = {
-                          ...arr[selectedStation],
-                          riddleHint: e.target.value,
-                        };
-                        setState({ ...state, stations: arr });
-                      }}
-                    />
-                  </div>
-
-                  {/* Station Riddle Explanation */}
-                  <div className="space-y-2 md:col-span-1">
-                    <label className="text-xs font-black text-slate-800 block">📖 شرح وإفادة لغز الخطة:</label>
-                    <input
-                      type="text"
-                      className="w-full p-4 bg-white border border-amber-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all text-right"
-                      placeholder="اشرح المغزى من اللغز بعد حله..."
-                      value={currentStation.riddleExplanation || ""}
-                      onChange={(e) => {
-                        const arr = [...state.stations];
-                        arr[selectedStation] = {
-                          ...arr[selectedStation],
-                          riddleExplanation: e.target.value,
-                        };
-                        setState({ ...state, stations: arr });
-                      }}
-                    />
-                  </div>
                 </div>
               </div>
             </div>

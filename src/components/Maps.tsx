@@ -573,6 +573,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     setReviewPathVisible(true);
     setEvaluationSidebarVisible(false);
     setTaskDetailsVisible(false);
+    setVisSessionVisible(false);
   };
   const [mapsSidebarVisible, setMapsSidebarVisible] = useState(false);
   const [isSidebarPinned, setIsSidebarPinned] = useState(false);
@@ -1644,31 +1645,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               </div>
             </TabPanel>
 
-            <TabPanel headerTemplate={createTabHeader("pi-asterisk", "تتبع اللغز")}>
-              <div className="flex flex-col gap-4 py-4 px-1 text-right" dir="rtl">
-                 <h4 className="text-amber-400 font-extrabold text-sm mb-2 flex items-center gap-2">
-                    <i className="pi pi-asterisk text-amber-300"></i>
-                    تتبع ألغاز المهام المكتملة
-                 </h4>
-                 {tasks.filter(t => t.isCompleted && t.riddleDetails).length === 0 ? (
-                    <div className="bg-white/5 border border-white/10 p-6 rounded-3xl text-center">
-                       <i className="pi pi-compass text-3xl text-slate-500 mb-3 block"></i>
-                       <p className="text-slate-400 text-xs leading-relaxed font-bold">لم تكمل أي مهام تحتوي على ألغاز بعد. أكمل مهامك لجمع الألغاز وحلها للوصول للغز الخطة الأكبر.</p>
-                    </div>
-                 ) : (
-                    tasks.filter(t => t.isCompleted && t.riddleDetails).map(t => (
-                      <div key={t.id} className="bg-white/5 border border-amber-500/20 p-5 rounded-3xl shadow-lg relative overflow-hidden backdrop-blur-md">
-                         <span className="text-[10px] text-amber-300 font-black mb-1 block flex items-center gap-1"><i className="pi pi-check-circle text-[10px]"></i> مهمة: {t.title}</span>
-                         <p className="text-white text-xs leading-relaxed whitespace-pre-wrap font-bold mb-3">{t.riddleDetails}</p>
-                         <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl">
-                           <span className="text-[10px] font-black text-amber-500 block mb-1">إجابتك / الحل:</span>
-                           <p className="text-amber-100 text-xs font-bold leading-relaxed">{t.riddleAnswer || "تم الحل بنجاح"}</p>
-                         </div>
-                      </div>
-                    ))
-                 )}
-              </div>
-            </TabPanel>
           </TabView>
         </div>
       </Sidebar>
@@ -2147,6 +2123,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               
               toastHot.success("تم تسجيل تقييم المراجعة! 🔄");
               setReviewReflectionVisible(false);
+              setVisSessionVisible(false);
               setReviewPathVisible(true);
            } catch (err) {
               console.error(err);
