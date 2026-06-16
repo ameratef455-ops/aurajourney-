@@ -1974,7 +1974,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         }}
         onOpenReflection={(t) => {
           setReviewingTask(t);
-          setInitialReflectionVisible(true);
+          if (currentReviewType === 'original' || !currentReviewType) {
+            setInitialReflectionVisible(true);
+          } else {
+            setReviewReflectionVisible(true);
+          }
         }}
       />
 
@@ -2143,7 +2147,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               
               toastHot.success("تم تسجيل تقييم المراجعة! 🔄");
               setReviewReflectionVisible(false);
-              setReviewingTask(null);
+              setReviewPathVisible(true);
            } catch (err) {
               console.error(err);
               toastHot.error("فشل حفظ التقييم");

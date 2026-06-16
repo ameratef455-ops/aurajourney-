@@ -141,6 +141,36 @@ body {
   overflow-x: hidden;
 }
 
+/* --- Low-End Device & Anti-CPU Animation Optimizations --- */
+@media screen and (max-width: 768px), (prefers-reduced-motion: reduce) {
+  * {
+    /* Force GPU acceleration on elements getting animated */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    
+    /* Strictly limit CSS transitions to GPU-friendly properties */
+    transition-property: opacity, transform !important;
+    transition-duration: 0.2s !important;
+    animation-duration: 0.2s !important;
+  }
+
+  /* Disable any box-shadow, filter, or color animations which are CPU-bound */
+  .global-card, .p-dialog, .p-button, .custom-spaced-tabs .p-tabview-nav-link {
+    transition: transform 0.2s ease, opacity 0.2s ease !important;
+  }
+  
+  .animate-slow-breath {
+    animation-duration: 6s !important; /* slow it down heavily to save cycles */
+  }
+
+  /* Completely disable heavier visual effect animations */
+  .p-toast-message, .sparkles, .particles {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+/* ------------------------------------------------------------- */
+
 /* Global premium custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -168,28 +198,30 @@ body {
 }
 
 .global-card {
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   border: 1px solid rgba(226, 232, 240, 0.6);
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 .global-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.03), 0 10px 10px -5px rgba(15, 23, 42, 0.02);
-  border-color: rgba(99, 102, 241, 0.2);
+  transform: translateY(-4px) translateZ(0);
 }
 
 @keyframes slow-breath {
   0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.25), 0 4px 6px -4px rgba(59, 130, 246, 0.2);
+    transform: scale(1) translateZ(0);
+    opacity: 1;
   }
   50% {
-    transform: scale(1.05);
-    box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.4), 0 8px 10px -6px rgba(59, 130, 246, 0.35);
+    transform: scale(1.05) translateZ(0);
+    opacity: 0.9;
   }
 }
 
 .animate-slow-breath {
   animation: slow-breath 4.5s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 .maps-dotted-bg {
@@ -229,8 +261,9 @@ body {
     background: transparent !important;
     padding: 0.75rem 0 !important;
     box-shadow: none !important;
-    transition: all 0.3s ease !important;
+    transition: opacity 0.3s ease, border-color 0.3s ease !important;
     opacity: 0.6;
+    will-change: opacity, border-color;
 }
 
 .custom-spaced-tabs .p-tabview-nav li:hover .p-tabview-nav-link {
@@ -283,8 +316,10 @@ body {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    transition: all 0.2s ease !important;
+    transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important;
+    will-change: transform, background-color;
+    transform: translateZ(0);
 }
 
 .p-dialog .p-dialog-header .p-dialog-header-close:hover {
@@ -403,7 +438,9 @@ body {
     font-weight: 800 !important;
     font-size: 0.875rem !important;
     border: none !important;
-    transition: all 0.2s ease !important;
+    transition: transform 0.2s ease, background-color 0.2s ease !important;
+    will-change: transform, background-color;
+    transform: translateZ(0);
 }
 
 .p-confirm-dialog .p-button.p-confirm-dialog-accept {
