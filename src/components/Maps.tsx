@@ -2055,6 +2055,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                  await completeTask(currentTask);
               }
 
+              if (user) {
+                const currentProgress = user.reviewSessionProgress || [];
+                if (!currentProgress.includes('original')) {
+                  await db.userSettings.update(user.id, {
+                    reviewSessionProgress: [...currentProgress, 'original']
+                  });
+                }
+              }
+
               toastHot.success("تم حفظ تقييم الإنجاز وبدء مسار المراجعة! ✨");
               setInitialReflectionVisible(false);
               setReviewingTask(null);

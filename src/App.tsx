@@ -3,7 +3,7 @@ import { Splash } from './components/Splash';
 import { Tutorial } from './components/Tutorial';
 import { db } from './db';
 import { motion, AnimatePresence } from 'motion/react';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, useToasterStore, toast } from 'react-hot-toast';
 import { Landing } from './components/Landing';
 import { SetupWizard } from './components/SetupWizard';
 import { Maps } from './components/Maps';
@@ -16,6 +16,15 @@ export default function App() {
   const [targetState, setTargetState] = useState<AppState>('landing');
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+
+  // Limit visible toasts to prevent lag and heap clutter
+  const { toasts } = useToasterStore();
+  useEffect(() => {
+    toasts
+      .filter((t) => t.visible)
+      .filter((_, i) => i >= 2) // Maintain maximum of 2 active concurrent toasts
+      .forEach((t) => toast.dismiss(t.id));
+  }, [toasts]);
 
   useEffect(() => {
     // Add global click listener for tick sound
@@ -57,8 +66,22 @@ export default function App() {
         reverseOrder={false} 
         containerStyle={{ zIndex: 2147483647 }} 
         toastOptions={{
+          duration: 3500,
           style: {
             zIndex: 2147483647,
+            background: 'rgba(10, 15, 30, 0.85)',
+            color: '#fff',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '16px',
+            fontSize: '13.5px',
+            fontWeight: '600',
+            padding: '10px 18px',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+            maxWidth: '400px',
+            textAlign: 'right',
+            direction: 'rtl'
           }
         }}
       />

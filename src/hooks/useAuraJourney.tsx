@@ -675,6 +675,12 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       }
 
       u.gameData = updatedGameData;
+      if (!u.reviewSessionProgress) {
+        u.reviewSessionProgress = [];
+      }
+      if (!u.reviewSessionProgress.includes('original')) {
+        u.reviewSessionProgress.push('original');
+      }
     });
 
     // Notify user to rewards
