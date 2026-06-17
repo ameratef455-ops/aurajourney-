@@ -96,7 +96,6 @@ export function ReviewPathSession({
     null,
   );
   const [forceReviewDetails, setForceReviewDetails] = useState(false);
-  const [guideStep, setGuideStep] = useState<1 | 2 | 3>(1);
   const [activityNotes, setActivityNotes] = useState("");
   const [activityLearnings, setActivityLearnings] = useState("");
 
@@ -379,7 +378,15 @@ export function ReviewPathSession({
     }
 
     vibrate(HAPITCS.MAJOR_CLICK);
-    setSelectedTarget(target);
+    
+    const isCompleted = completedTargets.includes(target.id);
+    if (!isCompleted) {
+        if (onStartSession) {
+            onStartSession(target.id);
+        }
+    } else {
+        setSelectedTarget(target);
+    }
   };
 
   const confirmStartSession = (target: any) => {
@@ -515,7 +522,7 @@ export function ReviewPathSession({
               style={{ zIndex: 65000300 }}
               dir="rtl"
             >
-              <div className="max-w-4xl w-full mx-auto my-auto relative flex flex-col space-y-8 py-4">
+              <div className="w-full h-full flex flex-col space-y-8 py-4 lg:px-8">
                 <div className="absolute top-10 right-1/4 w-64 h-64 bg-[#2D52CC]/10 rounded-full blur-[100px] pointer-events-none" />
 
                 {/* Header with Title */}
@@ -585,186 +592,123 @@ export function ReviewPathSession({
                   </div>
                 ) : (
                   /* Standard Step Wizard Dialog Flow */
-                  <>
-                    {/* Clean progress indicator without step names */}
-                    <div className="flex items-center justify-between px-6 py-4 bg-white/5 rounded-2xl border border-white/5 font-sans">
-                      <span className="text-xs font-black text-indigo-300">
-                        الخطوة {guideStep} من ٣
-                      </span>
-                      <div className="flex gap-1.5">
-                        {[1, 2, 3].map((stepNum) => (
-                          <div
-                            key={stepNum}
-                            className={`h-1.5 rounded-full transition-all duration-300 ${stepNum === guideStep ? "w-8 bg-[#4D7FFF]" : "w-2 bg-white/20"}`}
-                          />
-                        ))}
+                  <div className="flex-1 flex flex-col min-h-[40vh] space-y-8 pb-12 w-full pt-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-6 w-full text-right"
+                    >
+                      <div className="p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400 font-bold flex flex-col gap-3">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 shrink-0" />
+                          <span className="text-base text-white">
+                            التوجيه والتعليمات الخاصة بهذا النشاط:
+                          </span>
+                        </div>
+                        <div className="italic text-slate-200 text-sm md:text-base leading-relaxed bg-black/40 p-4 rounded-xl border border-white/5 whitespace-pre-wrap">
+                          {activeGuidedActivity.guidance ||
+                            "لا توجد توجيهات محددة لهذا النشاط، اتبع منهج السعي واقترب من المعرفة بثقة."}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Step Content */}
-                    <div className="flex-1 min-h-[40vh] py-4">
-                      {guideStep === 1 && (
-                        <motion.div
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="space-y-6 text-right"
-                        >
-                          <div className="p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400 font-bold flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 shrink-0" />
-                            <span className="text-base">
-                              التوجيه والتعليمات الخاصة بهذا النشاط:
-                            </span>
-                          </div>
-
-                          <div className="bg-black/45 p-6 md:p-8 rounded-[2rem] border border-white/5 italic text-slate-200 text-base md:text-lg leading-relaxed whitespace-pre-wrap min-h-[180px]">
-                            {activeGuidedActivity.guidance ||
-                              "لا توجد توجيهات محددة لهذا النشاط، اتبع منهج السعي واقترب من المعرفة بثقة."}
-                          </div>
-
-                          {activeGuidedActivity.steps &&
-                            activeGuidedActivity.steps.length > 0 && (
-                              <div className="space-y-3 mt-6 font-sans text-right">
-                                <h4 className="text-white text-sm font-black mb-2">
-                                  خطوات التنفيذ المقترحة:
-                                </h4>
-                                {activeGuidedActivity.steps.map((st: any) => (
-                                  <div
-                                    key={st.id}
-                                    className="flex items-center gap-3 bg-white/5 p-4 rounded-2xl border border-white/5 text-sm text-slate-300"
-                                  >
-                                    <div className="w-2.5 h-2.5 rounded-full bg-[#4D7FFF] shadow-[0_0_8px_#4d7fff]" />
-                                    <span>{st.title}</span>
+                      {activeGuidedActivity.steps &&
+                        activeGuidedActivity.steps.length > 0 && (
+                          <div className="space-y-6 mt-8 font-sans text-right w-full">
+                            <h4 className="text-white text-xl font-black mb-4 flex items-center gap-2">
+                              <Target className="w-6 h-6 text-emerald-400" />
+                              الخطوات التنفيذية ومصادرها:
+                            </h4>
+                            <div className="grid grid-cols-1 gap-6 w-full">
+                              {activeGuidedActivity.steps.map((st: any, index: number) => (
+                                <div
+                                  key={st.id}
+                                  className="flex flex-col gap-4 bg-white/5 p-6 rounded-[2rem] border border-white/10 w-full hover:bg-white/10 transition-all shadow-lg overflow-hidden relative"
+                                >
+                                  <div className="absolute -left-10 -top-10 text-[120px] font-black text-white/[0.02] pointer-events-none">
+                                    {index + 1}
                                   </div>
-                                ))}
-                              </div>
-                            )}
-                        </motion.div>
-                      )}
+                                  <div className="flex items-start gap-4">
+                                    <div className="w-8 h-8 shrink-0 rounded-xl bg-gradient-to-br from-[#2D52CC] to-[#4D7FFF] shadow-lg flex items-center justify-center text-white font-black text-sm">
+                                      {index + 1}
+                                    </div>
+                                    <span className="text-white text-lg font-bold leading-relaxed">{st.title}</span>
+                                  </div>
 
-                      {guideStep === 2 && (
-                        <motion.div
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="space-y-6 text-right"
-                        >
-                          <div className="p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-[#4D7FFF] font-bold flex items-center gap-2">
-                            <BookOpen className="w-5 h-5 shrink-0" />
-                            <span className="text-base">مصادر النشاط</span>
-                          </div>
-
-                          {/* Render Resources */}
-                          <div className="bg-white/5 p-6 md:p-8 rounded-[2rem] border border-white/5 space-y-4">
-                            <h4 className="text-white text-sm font-bold">
-                              مصادر التعلم الداعمة للنشاط:
-                            </h4>
-                            {activeGuidedActivity?.learningResources ? (
-                              <div className="text-slate-300 text-sm bg-black/40 p-5 rounded-2xl border border-white/5 font-mono whitespace-pre-wrap leading-relaxed">
-                                {activeGuidedActivity.learningResources}
-                              </div>
-                            ) : (
-                              <p className="text-slate-500 text-sm italic">
-                                لا توجد مصادر خاصة مضافة لهذا النشاط تحديداً.
-                              </p>
-                            )}
-
-                            {(activeGuidedActivity?.youtubeUrl ||
-                              activeGuidedActivity?.googleDriveUrl) && (
-                              <div className="flex flex-wrap gap-3 pt-4">
-                                {activeGuidedActivity.youtubeUrl && (
-                                  <a
-                                    href={activeGuidedActivity.youtubeUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs rounded-xl font-bold border border-red-500/30 transition-all flex items-center gap-2 w-fit no-underline"
-                                  >
-                                    🎥 فيديو يوتيوب للنشاط
-                                  </a>
-                                )}
-                                {activeGuidedActivity.googleDriveUrl && (
-                                  <a
-                                    href={activeGuidedActivity.googleDriveUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-xl font-bold border border-blue-500/30 transition-all flex items-center gap-2 w-fit no-underline"
-                                  >
-                                    📂 مستند نشاط درايف
-                                  </a>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-
-                      {guideStep === 3 && (
-                        <motion.div
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="space-y-6 text-right"
-                        >
-                          <div className="bg-gradient-to-b from-[#1A2B6B] to-[#0A102E] border border-blue-500/20 p-8 md:p-12 rounded-[2.5rem] text-center space-y-6 shadow-2xl relative overflow-hidden">
-                            <div className="absolute top-0 right-1/4 w-32 h-32 bg-[#4D7FFF]/10 rounded-full blur-[40px] pointer-events-none" />
-                            <div className="w-20 h-20 rounded-full mx-auto bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-xl shadow-blue-500/5">
-                              <Target className="w-10 h-10 text-blue-300" />
+                                  <div className="mt-4 pt-4 border-t border-white/10 w-full flex flex-col space-y-3">
+                                    <div className="flex items-center gap-2 text-indigo-300 font-bold text-sm">
+                                      <BookOpen className="w-4 h-4" />
+                                      مصدر الخطوة:
+                                    </div>
+                                    <div className="bg-black/30 p-4 rounded-xl text-slate-300 text-sm leading-relaxed border border-white/5">
+                                      {activeGuidedActivity.learningResources ? (
+                                        <p>{activeGuidedActivity.learningResources}</p>
+                                      ) : (
+                                        <p className="italic opacity-60">لا توجد مصادر خاصة مضافة للنشاط.</p>
+                                      )}
+                                    </div>
+                                    
+                                    {(activeGuidedActivity.youtubeUrl ||
+                                      activeGuidedActivity.googleDriveUrl) && (
+                                      <div className="flex flex-wrap gap-3 mt-2">
+                                        {activeGuidedActivity.youtubeUrl && (
+                                          <a
+                                            href={(activeGuidedActivity.youtubeUrl || '').includes('youtube.com') || (activeGuidedActivity.youtubeUrl || '').includes('youtu.be') ? activeGuidedActivity.youtubeUrl : `https://youtube.com/results?search_query=${encodeURIComponent(activeGuidedActivity.youtubeUrl)}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="px-4 py-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs rounded-xl font-bold border border-red-500/30 transition-all flex items-center gap-2 w-fit no-underline"
+                                          >
+                                            🎥 فيديو يوتيوب للخطوة
+                                          </a>
+                                        )}
+                                        {activeGuidedActivity.googleDriveUrl && (
+                                          <a
+                                            href={activeGuidedActivity.googleDriveUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="px-4 py-3 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-xl font-bold border border-blue-500/30 transition-all flex items-center gap-2 w-fit no-underline"
+                                          >
+                                            📂 مستند درايف
+                                          </a>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                            <h4 className="text-white text-2xl font-black">
-                              الآن، حان وقت العمل الفعلي! ✨
-                            </h4>
-                            <p className="text-[#A0B4E8] text-sm font-bold leading-relaxed max-w-[80%] mx-auto">
-                              قم بتعليق هذا النشاط لتنفيذه في العالم الواقعي أو
-                              التطبيق العملي. بمجرد انتهائك يمكنك العودة هنا
-                              وإتمام النشاط بشكل نهائي لتسجيل إنجازك.
-                            </p>
-
-                            <button
-                              onClick={completeGuidedActivity}
-                              className="w-full max-w-sm mx-auto py-5 rounded-2xl bg-gradient-to-r from-blue-700 via-[#2D52CC] to-blue-500 hover:brightness-110 text-white transition-all text-base font-black shadow-[0_4px_30px_rgba(45,82,204,0.3)] cursor-pointer border-none flex items-center justify-center gap-2"
-                            >
-                              <Target className="w-6 h-6 text-white" />
-                              <span>تعليق وبدء تنفيذ النشاط 🧭</span>
-                            </button>
                           </div>
-                        </motion.div>
-                      )}
-                    </div>
+                        )}
+                    </motion.div>
 
-                    {/* Footer Buttons */}
-                    <div className="flex gap-3 justify-end pt-6 border-t border-white/5">
-                      <button
-                        onClick={() => {
-                          vibrate(HAPITCS.MAJOR_CLICK);
-                          setActiveGuidedActivity(null);
-                        }}
-                        className="px-6 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-xs font-bold border-none cursor-pointer"
-                      >
-                        خروج
-                      </button>
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="w-full pt-8"
+                    >
+                      <div className="bg-gradient-to-b from-[#1A2B6B] to-[#0A102E] border border-blue-500/20 p-8 md:p-12 rounded-[2.5rem] text-center space-y-6 shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-1/4 w-32 h-32 bg-[#4D7FFF]/10 rounded-full blur-[40px] pointer-events-none" />
+                        <div className="w-20 h-20 rounded-full mx-auto bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-xl shadow-blue-500/5">
+                          <Target className="w-10 h-10 text-blue-300" />
+                        </div>
+                        <h4 className="text-white text-2xl font-black">
+                          الآن، حان وقت العمل الفعلي! ✨
+                        </h4>
+                        <p className="text-[#A0B4E8] text-sm font-bold leading-relaxed max-w-[80%] mx-auto">
+                          قم بتعليق هذا النشاط لتنفيذه في العالم الواقعي أو
+                          التطبيق العملي. بمجرد انتهائك يمكنك العودة هنا
+                          وإتمام النشاط بشكل نهائي لتسجيل إنجازك.
+                        </p>
 
-                      {guideStep > 1 && (
                         <button
-                          onClick={() => {
-                            vibrate(HAPITCS.MAJOR_CLICK);
-                            setGuideStep((prev) => (prev - 1) as any);
-                          }}
-                          className="px-6 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all text-xs font-bold border border-white/10 cursor-pointer"
+                          onClick={completeGuidedActivity}
+                          className="w-full max-w-md mx-auto py-5 rounded-2xl bg-gradient-to-r from-blue-700 via-[#2D52CC] to-blue-500 hover:brightness-110 text-white transition-all text-base font-black shadow-[0_4px_30px_rgba(45,82,204,0.3)] cursor-pointer border-none flex items-center justify-center gap-2"
                         >
-                          السابق
+                          <Target className="w-6 h-6 text-white" />
+                          <span>تعليق وبدء تنفيذ النشاط 🧭</span>
                         </button>
-                      )}
-
-                      {guideStep < 3 && (
-                        <button
-                          onClick={() => {
-                            vibrate(HAPITCS.MAJOR_CLICK);
-                            setGuideStep((prev) => (prev + 1) as any);
-                          }}
-                          className="px-8 py-4 rounded-xl bg-gradient-to-r from-[#2D52CC] to-[#4D7FFF] hover:brightness-110 text-white transition-all text-xs font-black shadow-lg cursor-pointer border-none"
-                        >
-                          التالي
-                        </button>
-                      )}
-                    </div>
-                  </>
+                      </div>
+                    </motion.div>
+                  </div>
                 )}
               </div>
             </div>
@@ -967,19 +911,6 @@ export function ReviewPathSession({
                             ) : (
                               <div className="text-white scale-90 md:scale-110">
                                 {target.icon}
-                              </div>
-                            )}
-
-                            {isCompleted && (
-                              <div className="mt-1 flex flex-col items-center gap-0.5">
-                                <div className="bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                                  <span className="text-[10px] md:text-[11px] font-black text-emerald-400">
-                                    مكتمل ✅
-                                  </span>
-                                </div>
-                                <span className="text-[9px] text-[#A0B4E8] font-bold opacity-80">
-                                  خيارات التراجع ↩️
-                                </span>
                               </div>
                             )}
                           </button>
@@ -1301,46 +1232,63 @@ export function ReviewPathSession({
                     )}
                   </AnimatePresence>
 
-                  <div className="flex flex-col gap-4 py-8">
+                  <div className="flex flex-col gap-4 py-8 w-full max-w-md mx-auto">
                     {completedTargets.includes(selectedTarget.id) ? (
-                      <>
-                        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-[20px] flex items-center gap-3 text-emerald-400 mb-2 justify-center">
-                          <CheckCircle2 className="w-5 h-5" />
-                          <span className="text-sm font-bold">
+                      <div className="flex flex-col gap-4">
+                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2 text-emerald-400 justify-center mb-2">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span className="text-xs font-bold w-auto m-0 float-none">
                             لقد أكملت هذه المرحلة بنجاح! 🎉
                           </span>
                         </div>
 
-                        <button
-                          onClick={() => {
-                            vibrate(HAPITCS.MAJOR_CLICK);
-                            setShowConfirmRevert(selectedTarget);
-                          }}
-                          className="w-full py-5 rounded-[24px] bg-gradient-to-r from-red-600/90 to-rose-600/90 text-white text-lg font-black shadow-2xl hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-3 cursor-pointer border-none"
-                        >
-                          <RotateCcw className="w-5 h-5 text-white" />
-                          <span>تراجع عن إكمال هذه المرحلة ↩️</span>
-                        </button>
+                        <div className="flex items-center gap-3 w-full">
+                            <button
+                              onClick={() => {
+                                vibrate(HAPITCS.MAJOR_CLICK);
+                                setShowConfirmRevert(selectedTarget);
+                              }}
+                              className="flex-1 py-3.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                              <span>تراجع للإعادة</span>
+                            </button>
 
-                        <button
-                          onClick={() => confirmStartSession(selectedTarget)}
-                          className="w-full py-4 rounded-[20px] bg-white/5 text-[#A0B4E8] font-bold hover:text-white hover:bg-white/10 transition-all border border-white/5 flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <Play className="w-4 h-4 fill-current" />
-                          <span>تصفح الجلسة وتفاصيلها مجدداً 🔗</span>
-                        </button>
-                      </>
+                            <button
+                              onClick={() => confirmStartSession(selectedTarget)}
+                              className="flex-[1.5] py-3.5 rounded-xl bg-white/5 text-[#A0B4E8] font-bold hover:text-white hover:bg-white/10 transition-all border border-white/10 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                              <Play className="w-4 h-4 fill-current" />
+                              <span>تصفح الجلسة مجدداً</span>
+                            </button>
+                        </div>
+                      </div>
                     ) : (
-                      <button
-                        onClick={() => {
-                          vibrate(HAPITCS.MAJOR_CLICK);
-                          confirmStartSession(selectedTarget);
-                        }}
-                        className="w-full py-5 rounded-[24px] bg-gradient-to-r from-blue-600 to-[#2D52CC] text-white text-lg font-black shadow-2xl hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-3 cursor-pointer border-none"
-                      >
-                        <Play className="w-5 h-5 fill-white text-white animate-pulse" />
-                        <span>ابدأ رحلة الخطة والتدبر الآن ⚡</span>
-                      </button>
+                        <button
+                          onClick={async () => {
+                            vibrate(HAPITCS.SUCCESS);
+                            if (user && user.id) {
+                              const currentProgress = user.reviewSessionProgress || [];
+                              if (!currentProgress.includes(selectedTarget.id)) {
+                                await db.userSettings.update(user.id, {
+                                  reviewSessionProgress: [...currentProgress, selectedTarget.id]
+                                });
+                              }
+                            }
+                            toast.success("تم إكمال هذه المرحلة وفتح المرحلة التالية! 🎉");
+                            // Automatically go to next target visually if desired
+                            const currentIdx = targets.findIndex(t => t.id === selectedTarget.id);
+                            if (currentIdx < targets.length - 1) {
+                                setSelectedTarget(targets[currentIdx + 1]);
+                            } else {
+                                setSelectedTarget(null);
+                            }
+                          }}
+                          className="w-full py-5 rounded-[24px] bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/20 text-lg font-black shadow-xl hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-3 cursor-pointer transition-all"
+                        >
+                          <CheckCircle2 className="w-5 h-5" />
+                          <span>تأكيد إنجاز المرحلة والانتقال للتالي</span>
+                        </button>
                     )}
                   </div>
 

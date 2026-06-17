@@ -1840,6 +1840,23 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         }}
         onStartSession={(type) => {
           setCurrentReviewType(type);
+          
+          if (type && type !== 'original' && selectedTaskForVis) {
+             const reviewPlanTasks = tasks.filter((p: any) => p.parentId === selectedTaskForVis.id && (p.title.includes("المراجعة") || p.title.includes("خطة المراجعة") || p.title.includes("مراجعة")));
+             // sort by id to be consistent with TaskEditorModal addition order
+             reviewPlanTasks.sort((a: any, b: any) => a.id.localeCompare(b.id));
+             
+             let index = 0;
+             if (type === 'review2') index = 1;
+             if (type === 'review3') index = 2;
+             
+             if (reviewPlanTasks[index]) {
+                  const targetTaskToOpen = reviewPlanTasks[index];
+                  // Automatically open that task directly instead of sharing the base task
+                  setSelectedTaskForVis(targetTaskToOpen);
+             }
+          }
+          
           setReviewPathVisible(false);
           setVisSessionVisible(true);
         }}
