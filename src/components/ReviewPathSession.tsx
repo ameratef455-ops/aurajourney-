@@ -98,6 +98,7 @@ export function ReviewPathSession({
   const [forceReviewDetails, setForceReviewDetails] = useState(false);
   const [activityNotes, setActivityNotes] = useState("");
   const [activityLearnings, setActivityLearnings] = useState("");
+  const [guideStep, setGuideStep] = useState(1);
 
   const startGuidedActivity = (act: any) => {
     vibrate(HAPITCS.MAJOR_CLICK);

@@ -515,30 +515,10 @@ export function SetupWizard({
             >
               ارجع
             </button>
-            {editingTripId && (
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-rose-650 bg-rose-50 hover:bg-rose-100 font-black px-4 py-2 border-none rounded-xl transition cursor-pointer flex items-center gap-1.5 text-xs shadow-3xs"
-              >
-                <Trash2 size={13} />
-                <span>حذف الخطة</span>
-              </button>
-            )}
           </div>
         ) : (
           <div className="flex items-center gap-4">
             <div className="w-10"></div>
-            {editingTripId && (
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-rose-650 bg-rose-50 hover:bg-rose-100 font-black px-4 py-2.5 border-none rounded-xl transition cursor-pointer flex items-center gap-1.5 text-xs shadow-3xs"
-              >
-                <Trash2 size={13} />
-                <span>حذف هذه الخطة</span>
-              </button>
-            )}
           </div>
         )}
 

@@ -1028,15 +1028,7 @@ export function EvaluationSidebar({
               </div>
               
               <div className="flex gap-2">
-                 <div className="flex-1">
-                    <InputText 
-                       value={newActivityPuzzleHint}
-                       onChange={(e) => setNewActivityPuzzleHint(e.target.value)}
-                       placeholder="تلميح اللغز للنشاط (اختياري)..."
-                       className="w-full p-3 text-white text-xs font-bold border border-white/10 rounded-xl focus:border-purple-500 bg-white/5 placeholder-slate-400"
-                    />
-                 </div>
-                 <div className="w-[140px] shrink-0 custom-dark-dropdown">
+                 <div className="flex-1 custom-dark-dropdown">
                     <Dropdown
                        value={newActivityType}
                        options={[

@@ -579,21 +579,6 @@ export function TaskEditorModal({
 
                       {/* Integrated Activity Guidance & Resources inside card */}
                       <div className="space-y-4 mt-4 pt-4 border-t border-slate-100/80">
-                        {/* Puzzle Hint */}
-                        <div className="space-y-1.5 text-right w-full">
-                          <label className="text-[10px] font-black text-purple-600 flex items-center gap-1.5 justify-start">
-                            <i className="pi pi-key text-[11px]" />
-                            <span>تلميح اللغز للنشاط (يظهر عند بدء النشاط)</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:border-purple-300 text-right shadow-sm"
-                            placeholder="أضف تلميحاً للغز خاص بهذا النشاط..."
-                            value={act.puzzleHint || ""}
-                            onChange={(e) => updateActivity(aIdx, "puzzleHint", e.target.value)}
-                          />
-                        </div>
-
                         {/* Guidance text area */}
                         <div className="space-y-1.5 text-right w-full">
                           <label className="text-[10px] font-black text-amber-600 flex items-center gap-1.5 justify-start">
@@ -896,21 +881,6 @@ export function TaskEditorModal({
         </TabView>
 
         <div className="flex flex-col sm:flex-row gap-4 pt-6 pb-2 border-t border-slate-100/50 sticky bottom-0 bg-white z-10 mx-[-8px] px-2 w-full">
-          {onDelete && (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm("هل أنت متأكد من حذف هذه المهمة بالكامل وكل ما تحتويه من أنشطة؟")) {
-                  onDelete();
-                }
-              }}
-              className="px-6 py-5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-[24px] font-black text-xs transition-all border border-rose-200 cursor-pointer flex items-center justify-center gap-2"
-              title="حذف هذه المهمة بالكامل"
-            >
-              <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
-              <span>حذف المهمة</span>
-            </button>
-          )}
           <button
             type="button"
             onClick={() => onSave(localTask)}
