@@ -1205,18 +1205,6 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                             <i className="pi pi-pencil text-[10px]" />
                             <span>تعديل</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              vibrate(HAPITCS.MAJOR_CLICK);
-                              removeTask(selectedStation, absoluteIdx);
-                            }}
-                            className="p-2 px-3 bg-rose-50 text-rose-600 hover:bg-rose-100 duration-200 rounded-xl border-none cursor-pointer flex items-center justify-center gap-1.5 text-xs font-black shadow-sm"
-                            title="حذف المهمة بالكامل"
-                          >
-                            <Trash2 size={12} className="text-rose-600" />
-                            <span>حذف المهمة</span>
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -1296,21 +1284,7 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                             </div>
                           )}
                         </div>
-                        <div className="flex gap-1.5 shrink-0 ml-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              vibrate(HAPITCS.MAJOR_CLICK);
-                              removeTask(selectedStation, absoluteIdx);
-                            }}
-                            className="p-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-650 duration-255 rounded-xl border-none cursor-pointer flex items-center justify-center gap-1 text-[10px] font-black shadow-sm"
-                            title="حذف المهمة الفرعية"
-                          >
-                            <Trash2 size={12} className="text-rose-600" />
-                            <span>حذف المهمة</span>
-                          </button>
-                        </div>
+                        {/* Deletion of sub task has been removed */}
                       </div>
                     </div>
                   );
@@ -1357,19 +1331,8 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                           {t.title || "مهارة جانبية..."}
                         </h4>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          vibrate(HAPITCS.MAJOR_CLICK);
-                          removeTask(selectedStation, absoluteIdx);
-                        }}
-                        className="p-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 duration-200 rounded-xl border-none cursor-pointer flex items-center gap-1.5 text-[10px] font-black shadow-sm"
-                        title="حذف المهارة"
-                      >
-                        <Trash2 size={12} className="text-rose-600 animate-pulse" />
-                        <span>حذف المهارة</span>
-                      </button>
-                    </div>
+                        {/* Deletion of side skill has been removed */}
+                      </div>
                   );
                 })}
               </div>
@@ -1420,19 +1383,8 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                           {t.title || "عنوان مشروع الخطة..."}
                         </h4>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          vibrate(HAPITCS.MAJOR_CLICK);
-                          removeTask(selectedStation, absoluteIdx);
-                        }}
-                        className="p-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 duration-200 rounded-xl border-none cursor-pointer flex items-center gap-1.5 text-[10px] font-black shadow-sm"
-                        title="حذف المشروع"
-                      >
-                        <Trash2 size={12} className="text-rose-600 animate-pulse" />
-                        <span>حذف المشروع</span>
-                      </button>
-                    </div>
+                        {/* Deletion of plan project has been removed */}
+                      </div>
                   );
                 })}
                 {projectTasks.length === 0 && (
@@ -1524,15 +1476,15 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                       type="text"
                       value={secretDesc}
                       onChange={(e) => setSecretDesc(e.target.value)}
-                      placeholder="صفحة سرية تضم بوابات الذكاء الاصطناعي وجوجل العالمية والشيفرات..."
-                      className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right"
+                      placeholder="صفحة سرية تضم بوابات الذكاء الاصطناعي والشيفرات..."
+                      className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-purple-500/10 transition-all text-right font-sans"
                     />
                   </div>
 
                   <button
                     type="button"
                     onClick={addSecretResource}
-                    className="w-full py-2.5 bg-gradient-to-r from-purple-700 to-indigo-700 text-white font-black text-xs rounded-xl hover:brightness-110 active:scale-95 transition-all text-center border-none cursor-pointer flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 bg-gradient-to-r from-purple-700 to-indigo-700 text-white font-black text-xs rounded-xl hover:brightness-110 active:scale-95 transition-all text-center border-none cursor-pointer flex items-center justify-center gap-1.5 font-sans"
                   >
                     <span>تأمين المرجع وإضافته للائحة السرية</span>
                     <i className="pi pi-plus" />
@@ -1548,12 +1500,12 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                       لم تتم إضافة مصادر خفية مخصصة حتى الآن. يمكنك استخدام الفورم أعلاه لإدراج مراجع سرية.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-sans">
                       {currentStation.secretResources.map((res: any) => (
                         <div key={res.id} className="p-4 bg-white border border-purple-100/80 rounded-2xl shadow-3xs flex justify-between items-start gap-2 relative group overflow-hidden">
-                          <div className="space-y-1 flex-1">
+                          <div className="space-y-1 flex-1 text-right">
                             <span className="text-xs font-extrabold text-purple-900 block truncate">{res.name}</span>
-                            <span className="text-[9px] font-mono text-blue-500 block truncate">{res.url}</span>
+                            <span className="text-[9px] font-mono text-blue-500 block truncate" dir="ltr">{res.url}</span>
                             {res.description && (
                               <p className="text-[10px] text-slate-400 font-bold leading-normal mt-1">{res.description}</p>
                             )}
@@ -1561,10 +1513,11 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                           <button
                             type="button"
                             onClick={() => removeSecretResource(res.id)}
-                            className="p-1 px-2 text-rose-500 bg-rose-50 rounded-lg hover:bg-rose-100 border-none cursor-pointer text-[10px] font-black self-center transition-all"
+                            className="p-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 duration-200 rounded-xl border-none cursor-pointer flex items-center justify-center gap-1.5 text-xs font-black shadow-3xs self-center transition-all"
                             title="حذف"
                           >
-                            <i className="pi pi-trash" />
+                            <Trash2 size={12} className="text-rose-600" />
+                            <span>حذف</span>
                           </button>
                         </div>
                       ))}
@@ -1588,116 +1541,6 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                       setState({ ...state, stations: arr });
                     }}
                   />
-                </div>
-              </div>
-            </div>
-          </TabPanel>
-
-          <TabPanel header="📚 المصادر العامة">
-            <div
-              className="flex flex-col gap-6 bg-cyan-50/10 p-6 rounded-3xl border border-cyan-100/30 mt-4 text-right font-sans"
-              dir="rtl"
-            >
-              <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex items-center gap-3 bg-cyan-50 p-4 rounded-2xl border border-cyan-100/30">
-                  <span className="text-2xl">📚</span>
-                  <div>
-                    <h4 className="text-xs font-black text-cyan-950">إعداد وتأصيل المصادر والخرائط التعليمية العامة للرحلة</h4>
-                    <p className="text-[10px] text-cyan-600 font-bold mt-0.5">بصفتك المصمم، يمكنك إضافة بوابات ومصادر معرفية عامة ومستمرة لدعم الطالب طوال رحلته وباقي محطاته التعليمية.</p>
-                  </div>
-                </div>
-
-                {/* Resource Insertion Form */}
-                <div className="p-5 bg-white border border-cyan-100 rounded-2xl shadow-3xs space-y-4">
-                  <h5 className="text-xs font-black text-cyan-900">➕ إضافة مصدر عام جديد للرحلة</h5>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 block">اسم المصدر:</label>
-                      <input
-                        type="text"
-                        value={generalResName}
-                        onChange={(e) => setGeneralResName(e.target.value)}
-                        placeholder="مثال: مستند تلميحات لغة برمجة بايثون"
-                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-cyan-500/10 transition-all text-right"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 block">رابط المصدر:</label>
-                      <input
-                        type="text"
-                        value={generalResUrl}
-                        onChange={(e) => setGeneralResUrl(e.target.value)}
-                        placeholder="https://..."
-                        className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-cyan-500/10 transition-all text-left"
-                        dir="ltr"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-500 block">وصف المصدر ومحتواه:</label>
-                    <input
-                      type="text"
-                      value={generalResDesc}
-                      onChange={(e) => setGeneralResDesc(e.target.value)}
-                      placeholder="مرجع شامل يحتوي على كل المفاهيم الأساسية، والتمارين وخرائط الطريق..."
-                      className="w-full py-2.5 px-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-cyan-500/10 transition-all text-right"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={addGeneralResource}
-                    className="w-full py-2.5 bg-gradient-to-r from-cyan-700 to-blue-700 text-white font-black text-xs rounded-xl hover:brightness-110 active:scale-95 transition-all text-center border-none cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <span>إضافة المصدر العام للرحلة ككل</span>
-                    <i className="pi pi-plus" />
-                  </button>
-                </div>
-
-                {/* List of general resources */}
-                <div className="space-y-3">
-                  <h5 className="text-xs font-black text-slate-800">🔗 لائحة المصادر العامة المضافة للرحلة ({state.resources?.length || 0}):</h5>
-                  
-                  {(!state.resources || state.resources.length === 0) ? (
-                    <div className="p-8 border-2 border-dashed border-cyan-100 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
-                      <i className="pi pi-link text-cyan-300 text-xl" />
-                      <p className="text-[11px] text-slate-400 font-bold">لم تتم إضافة أي مراجع عامة بعد لرحلتك ككل.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {state.resources.map((item: any) => (
-                        <div key={item.id} className="p-4 bg-white/75 border border-cyan-100 rounded-2xl flex justify-between items-center gap-4 hover:border-cyan-200 transition-colors">
-                          <div className="flex-1 min-w-0 pr-1 text-right">
-                            <span className="font-extrabold text-xs text-cyan-900 block truncate">{item.name}</span>
-                            {item.description && (
-                              <p className="text-[10px] text-slate-400 font-bold leading-normal mt-1">{item.description}</p>
-                            )}
-                            <a
-                              href={item.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[9px] text-blue-500 font-mono font-semibold hover:underline flex items-center gap-1 mt-1.5"
-                              dir="ltr"
-                            >
-                              <i className="pi pi-external-link text-[8px]" />
-                              <span>{item.url}</span>
-                            </a>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeGeneralResource(item.id)}
-                            className="w-8 h-8 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-all flex items-center justify-center border-none cursor-pointer"
-                            title="حذف المصدر"
-                          >
-                            <i className="pi pi-trash text-xs" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

@@ -31,6 +31,7 @@ interface ReviewPathSessionProps {
     sessionType: "original" | "review1" | "review2" | "review3",
   ) => void;
   onOpenReflection?: (task: any) => void;
+  onOpenReviewReflection?: (task: any) => void;
   onOpenFlashcards?: (task: any) => void;
   onOpenAnalytics?: (task: any) => void;
 }
@@ -43,12 +44,39 @@ export function ReviewPathSession({
   onStartSession,
   onRevertSession,
   onOpenReflection,
+  onOpenReviewReflection,
   onOpenFlashcards,
   onOpenAnalytics,
 }: ReviewPathSessionProps) {
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
+  const [lastSelectedTarget, setLastSelectedTarget] = useState<any>(null);
+
+  React.useEffect(() => {
+    if (selectedTarget) {
+      setLastSelectedTarget(selectedTarget);
+    }
+  }, [selectedTarget]);
+
+  const target = selectedTarget || lastSelectedTarget;
+
   const [activeTab, setActiveTab] = useState<"info" | "execution">("info");
   const completedTargets = user?.reviewSessionProgress || [];
+
+  const [reflectionData, setReflectionData] = useState<any>(null);
+
+  React.useEffect(() => {
+    if (task && task.id) {
+      db.reflections
+        .where("taskId")
+        .equals(task.id)
+        .toArray()
+        .then((data) => {
+          const originalRef = data.find((r) => r.type === "initial");
+          setReflectionData(originalRef || null);
+        })
+        .catch((err) => console.error(err));
+    }
+  }, [task, visible]);
 
   const targets = [
     {
@@ -58,30 +86,6 @@ export function ReviewPathSession({
       icon: <Target className="w-8 h-8" />,
       color: "from-blue-600 to-indigo-600",
       shadow: "shadow-blue-500/40",
-    },
-    {
-      id: "review1",
-      title: "مراجعة VIA 1",
-      description: "تثبيت المعلومات واسترجاع المفاهيم الأولية",
-      icon: <BookOpen className="w-8 h-8" />,
-      color: "from-emerald-600 to-teal-600",
-      shadow: "shadow-emerald-500/40",
-    },
-    {
-      id: "review2",
-      title: "مراجعة VIA 2",
-      description: "الربط بين المفاهيم المتقدمة والتطبيقات العملية",
-      icon: <Sparkles className="w-8 h-8" />,
-      color: "from-amber-600 to-orange-600",
-      shadow: "shadow-amber-500/40",
-    },
-    {
-      id: "review3",
-      title: "مراجعة VIA النهائية",
-      description: "الإتقان الكامل والاستعداد للمحطة التالية",
-      icon: <Zap className="w-8 h-8" />,
-      color: "from-rose-600 to-pink-600",
-      shadow: "shadow-rose-500/40",
     },
   ];
 
@@ -100,10 +104,10 @@ export function ReviewPathSession({
   const [activityLearnings, setActivityLearnings] = useState("");
   const [guideStep, setGuideStep] = useState(1);
 
-  const startGuidedActivity = (act: any) => {
+  const startGuidedActivity = (act: any, forceDetails = true) => {
     vibrate(HAPITCS.MAJOR_CLICK);
     setActiveGuidedActivity(act);
-    setForceReviewDetails(false);
+    setForceReviewDetails(forceDetails);
     setGuideStep(1);
     setActivityNotes(act.notes || "");
     setActivityLearnings(act.learnings || "");
@@ -224,6 +228,18 @@ export function ReviewPathSession({
         });
     }
 
+    // Update task statistics & calculate experience points
+    if (task && task.id) {
+      const currentReviewCount = task.taskReviewSessionsCount || 0;
+      const currentExtraXp = task.taskExtraXpEarned || 0;
+      await (db.tasks as any).update(task.id, {
+        taskReviewSessionsCount: currentReviewCount + 1,
+        taskExtraXpEarned: currentExtraXp + 10,
+      });
+      task.taskReviewSessionsCount = currentReviewCount + 1;
+      task.taskExtraXpEarned = currentExtraXp + 10;
+    }
+
     if (allActivitiesCompleted) {
       vibrate(HAPITCS.SUCCESS);
       confetti({
@@ -233,7 +249,9 @@ export function ReviewPathSession({
         origin: { y: 0.6 },
       });
       toast.success("أحسنت! أنهيت جميع الأنشطة بنجاح 🏆 نلت +10 XP!");
-      if (onOpenReflection) {
+      if (onOpenReviewReflection) {
+        onOpenReviewReflection(task);
+      } else if (onOpenReflection) {
         onOpenReflection(task);
       }
       onClose();
@@ -700,13 +718,28 @@ export function ReviewPathSession({
                           وإتمام النشاط بشكل نهائي لتسجيل إنجازك.
                         </p>
 
-                        <button
-                          onClick={completeGuidedActivity}
-                          className="w-full max-w-md mx-auto py-5 rounded-2xl bg-gradient-to-r from-blue-700 via-[#2D52CC] to-blue-500 hover:brightness-110 text-white transition-all text-base font-black shadow-[0_4px_30px_rgba(45,82,204,0.3)] cursor-pointer border-none flex items-center justify-center gap-2"
-                        >
-                          <Target className="w-6 h-6 text-white" />
-                          <span>تعليق وبدء تنفيذ النشاط 🧭</span>
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl mx-auto pt-4">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              vibrate(HAPITCS.SUCCESS);
+                              finalizeCompletedActivity(activeGuidedActivity.id);
+                            }}
+                            className="flex-1 py-5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 hover:brightness-110 text-black text-sm md:text-base font-black shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer border-none flex items-center justify-center gap-2"
+                          >
+                            <CheckCircle2 className="w-5 h-5 text-black" />
+                            <span>إنهاء وإتمام النشاط الآن 🏆</span>
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={completeGuidedActivity}
+                            className="flex-1 py-5 rounded-2xl bg-white/5 hover:bg-white/10 text-white border border-white/10 text-sm md:text-base font-black transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+                          >
+                            <Target className="w-5 h-5 text-indigo-300" />
+                            <span>تعليق وبدء تنفيذ النشاط 🧭</span>
+                          </button>
+                        </div>
                       </div>
                     </motion.div>
                   </div>
@@ -845,7 +878,7 @@ export function ReviewPathSession({
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-x-24 md:gap-y-16 max-w-4xl w-full relative z-20">
+                <div className="flex flex-wrap justify-center gap-12 md:gap-24 max-w-4xl w-full relative z-20">
                   {targets.map((target, idx) => {
                     const isCompleted = completedTargets.includes(target.id);
                     const isLocked =
@@ -979,16 +1012,16 @@ export function ReviewPathSession({
                           <div className="relative z-10">
                             <div className="flex flex-col md:flex-row items-center gap-6 mb-6">
                               <div
-                                className={`w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr ${selectedTarget.color} flex items-center justify-center text-white shadow-2xl shrink-0`}
+                                className={`w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr ${target?.color || ""} flex items-center justify-center text-white shadow-2xl shrink-0`}
                               >
-                                {selectedTarget.icon}
+                                {target?.icon}
                               </div>
                               <div className="text-center md:text-right flex-1">
                                 <h2 className="text-2xl md:text-4xl font-black text-white mb-1 line-clamp-2">
                                   {task?.title || "عنوان المهمة"}
                                 </h2>
                                 <p className="text-blue-400 font-extrabold text-sm md:text-lg mb-3">
-                                  {selectedTarget.title}
+                                  {target?.title}
                                 </p>
 
                                 {/* Quick Actions buttons inside detail mode */}
@@ -1233,52 +1266,85 @@ export function ReviewPathSession({
                     )}
                   </AnimatePresence>
 
-                  <div className="flex flex-col gap-4 py-8 w-full max-w-md mx-auto">
-                    {completedTargets.includes(selectedTarget.id) ? (
-                      <div className="flex flex-col gap-4">
-                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2 text-emerald-400 justify-center mb-2">
+                  <div className="flex flex-col gap-4 py-8 w-full max-w-lg mx-auto">
+                    {completedTargets.includes(target?.id) ? (
+                      <div className="flex flex-col gap-6 items-center w-full">
+                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2 text-emerald-400 justify-center w-full max-w-md">
                           <CheckCircle2 className="w-4 h-4" />
-                          <span className="text-xs font-bold w-auto m-0 float-none">
+                          <span className="text-xs font-bold text-center">
                             لقد أكملت هذه المرحلة بنجاح! 🎉
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-3 w-full">
-                            <button
-                              onClick={() => {
-                                vibrate(HAPITCS.MAJOR_CLICK);
-                                setShowConfirmRevert(selectedTarget);
-                              }}
-                              className="flex-1 py-3.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                              <RotateCcw className="w-4 h-4" />
-                              <span>تراجع للإعادة</span>
-                            </button>
+                        {/* DISPLAY COMPLETED REFLECTION IN THE CENTER WITH SAME IDENTITY */}
+                        {target?.id === "original" && reflectionData && (
+                          <div className="w-full flex justify-center py-2">
+                            <div className="bg-gradient-to-br from-white to-slate-50 border border-slate-200/60 p-6 rounded-[28px] flex flex-col items-center justify-center text-center shadow-xl w-full max-w-md font-sans text-slate-800">
+                              <p className="text-[10px] text-amber-950 font-black uppercase tracking-widest flex items-center justify-center gap-1.5 mb-2">
+                                <span className="text-sm">🏆</span> مستوى الإتقان والفهم المسجل:
+                              </p>
+                              <div className="text-4xl font-black bg-gradient-to-r from-indigo-950 to-[#0F172A] bg-clip-text text-transparent font-mono mb-2">
+                                {reflectionData.mastery} <span className="text-xs font-extrabold text-[#0a0f2c]/50">/ 10</span>
+                              </div>
+                              <div className="w-32 h-2.5 bg-indigo-950/10 rounded-full overflow-hidden mt-1 p-0.5">
+                                <div
+                                  className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full shadow-xs"
+                                  style={{ width: `${(reflectionData.mastery / 10) * 100}%` }}
+                                />
+                              </div>
+                              
+                              {reflectionData.strengths && (
+                                <div className="mt-5 w-full text-right bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-xs">
+                                  <span className="font-extrabold text-emerald-800 block mb-1">💪 نقاط القوة المكتسبة:</span>
+                                  <p className="text-slate-600 font-bold leading-relaxed m-0 text-right">{reflectionData.strengths}</p>
+                                </div>
+                              )}
+                              
+                              {reflectionData.weaknesses && (
+                                <div className="mt-3 w-full text-right bg-amber-50/50 p-4 rounded-2xl border border-amber-100 text-xs">
+                                  <span className="font-extrabold text-amber-850 block mb-1">🎯 التحديات وفرص التحسين:</span>
+                                  <p className="text-slate-600 font-bold leading-relaxed m-0 text-right">{reflectionData.weaknesses}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
-                            <button
-                              onClick={() => confirmStartSession(selectedTarget)}
-                              className="flex-[1.5] py-3.5 rounded-xl bg-white/5 text-[#A0B4E8] font-bold hover:text-white hover:bg-white/10 transition-all border border-white/10 flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                              <Play className="w-4 h-4 fill-current" />
-                              <span>تصفح الجلسة مجدداً</span>
-                            </button>
+                        <div className="flex items-center gap-3 w-full max-w-md">
+                             <button
+                               onClick={() => {
+                                 vibrate(HAPITCS.MAJOR_CLICK);
+                                 const activitiesList = task?.activities || [];
+                                 if (activitiesList.length > 0) {
+                                   const targetActivity = activitiesList.find((a: any) => !a.isCompleted) || activitiesList[0];
+                                   toast.success(`جاري فتح تفاصيل النشاط: ${targetActivity.title} 🚀`);
+                                   startGuidedActivity(targetActivity, true);
+                                 } else {
+                                   toast.error("لا توجد أنشطة مسجله لهذه المهمة لمراجعتها.");
+                                 }
+                               }}
+                               className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-110 text-white font-black text-sm shadow-[0_4px_20px_rgba(245,158,11,0.25)] border-none flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                             >
+                               <Play className="w-5 h-5 fill-current" />
+                               <span>راجع المسار</span>
+                             </button>
                         </div>
                       </div>
                     ) : (
                         <button
                           onClick={async () => {
                             vibrate(HAPITCS.SUCCESS);
-                            if (user && user.id) {
+                            if (user && user.id && target?.id) {
                               const currentProgress = user.reviewSessionProgress || [];
-                              if (!currentProgress.includes(selectedTarget.id)) {
+                              if (!currentProgress.includes(target.id)) {
                                 await db.userSettings.update(user.id, {
-                                  reviewSessionProgress: [...currentProgress, selectedTarget.id]
+                                  reviewSessionProgress: [...currentProgress, target.id]
                                 });
                               }
                             }
                             toast.success("تم إكمال هذه المرحلة وفتح المرحلة التالية! 🎉");
                             // Automatically go to next target visually if desired
-                            const currentIdx = targets.findIndex(t => t.id === selectedTarget.id);
+                            const currentIdx = targets.findIndex(t => t.id === target?.id);
                             if (currentIdx < targets.length - 1) {
                                 setSelectedTarget(targets[currentIdx + 1]);
                             } else {

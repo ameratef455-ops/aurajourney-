@@ -1114,23 +1114,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
           </div>
         )}
 
-        {/* Undo Path */}
-        <div className="space-y-2 mt-2">
-          <h5 className="text-rose-400 font-bold text-[10px]">تراجع عن مسار / جلسة المراجعة</h5>
-          <button
-            onClick={() => {
-              if(onUndoAction) onUndoAction('path');
-              setShowUndoDialog(false);
-            }}
-            className="w-full text-right p-3 bg-red-950 hover:bg-red-900 border border-red-500/40 rounded-xl transition-all cursor-pointer flex justify-between items-center"
-          >
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-red-100">التراجع عن המסار بالكامل</span>
-              <span className="text-[9px] text-red-300/80 mt-0.5">يلغي كافة التقييمات ويخصم جميع XP المكتسبة في مسار هذه المهمة.</span>
-            </div>
-            <i className="pi pi-exclamation-triangle text-red-400 text-sm"></i>
-          </button>
-        </div>
+
       </div>
     </Dialog>
     </>

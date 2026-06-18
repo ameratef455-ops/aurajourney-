@@ -310,21 +310,13 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       // All main tasks completed
       const prevMainTasks = prevStTasks.filter(t => t.type === 'main');
       const allMainCompleted = prevMainTasks.length > 0 ? prevMainTasks.every(t => t.isCompleted) : true;
-      
-      // At least 2 review plans completed
-      const prevStTaskIds = prevStTasks.map(t => t.id);
-      const completedReviewReflections = reflections.filter(r => r.type === 'review' && prevStTaskIds.includes(r.taskId)).length;
-      const completedReviewTasks = prevStTasks.filter(t => t.parentId !== undefined && (t.title?.includes("المراجعة") || t.title?.includes("خطة المراجعة") || t.title?.includes("مراجعة")) && t.isCompleted).length;
-      const completedReviewsCount = Math.max(completedReviewTasks, completedReviewReflections);
-      const reviewsCompletedEnough = completedReviewsCount >= 2;
-
       const missingMain = prevMainTasks.filter(t => !t.isCompleted).length;
       
-      if (!allMainCompleted || !reviewsCompletedEnough) {
+      if (!allMainCompleted) {
         toast.current?.show({
           severity: "error",
           summary: "الخطة السابقة غير مكتملة الشروط! ⚠️",
-          detail: `لفتح الخطة التالية، يجب إنهاء جميع المهام الأساسية (المتبقي: ${missingMain}) وخطي مراجعة على الأقل بحد أدنى (المكتمل من خطط المراجعة: ${completedReviewsCount}/2).`,
+          detail: `لفتح الخطة التالية، يجب إنهاء جميع المهام الأساسية (المتبقي: ${missingMain}).`,
           life: 5500,
         });
         return;

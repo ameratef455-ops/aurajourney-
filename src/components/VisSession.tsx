@@ -49,7 +49,6 @@ export function VisSession({ visible, onHide, task, onCompleteTask, onOpenReflec
   const resources = parseLearningResources(task.learningResources);
 
   const toggleActivity = async (activityId: string) => {
-    if (task.isCompleted) return;
     vibrate(HAPITCS.MAJOR_CLICK);
     
     const updatedActivities = activities.map(act => {

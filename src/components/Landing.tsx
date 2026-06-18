@@ -421,16 +421,7 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
                           <span>{isFrozen ? "إلغاء التجميد" : "تجميد الرحلة"}</span>
                         </button>
                         <div className="h-px bg-white/5 mx-2" />
-                        <button
-                          onClick={() => {
-                            setActiveMenuTripId(null);
-                            setDeleteTripId(trip.id);
-                          }}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-rose-500 hover:bg-white/10 transition border-none bg-transparent font-bold cursor-pointer"
-                        >
-                          <i className="pi pi-trash text-rose-400"></i>
-                          <span>حذف الرحلة</span>
-                        </button>
+                        {/* Deletion of plans button has been removed */}
                       </motion.div>
                     </>
                   )}
@@ -1112,19 +1103,13 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
               {/* Generate Button */}
               <div className="flex gap-4 justify-end pt-4 border-t border-white/5 mt-6">
                 <Button
-                  label="تراجع"
+                  label="إغلاق"
                   className="p-button-text text-slate-400 font-bold text-sm cursor-pointer hover:text-white hover:bg-white/5 rounded-xl px-5 py-3 border-none bg-transparent transition-all"
                   onClick={() => {
                     setIsReviewDialogVisible(false);
                     setSelectedReviewTripId("");
                     setSelectedReviewTaskId("");
                   }}
-                />
-                <Button
-                  label="تخطيط وتشييد المراجعات الثلاث 🚀"
-                  className="bg-gradient-to-r from-amber-550 to-amber-700 hover:from-amber-400 hover:to-amber-600 border-none text-white font-black px-6 py-3 rounded-xl text-xs cursor-pointer transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
-                  onClick={handleCreateReviewPlans}
-                  disabled={!selectedReviewTripId || !selectedReviewTaskId}
                 />
               </div>
             </>

@@ -60,6 +60,8 @@ export interface Task {
   taskGoals?: string;
   taskOutcomes?: string;
   practicalPart?: string;
+  taskReviewSessionsCount?: number;
+  taskExtraXpEarned?: number;
 }
 
 export interface SubStationTask {

@@ -828,7 +828,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           <div className="flex flex-col gap-1 justify-center flex-1">
             <span
               className={`font-bold transition-all leading-tight
-                   ${(isMain ? visPct === 100 : t.isCompleted)
+                   ${t.isCompleted
                       ? "text-slate-400 opacity-50 line-through" 
                       : (isSub ? "text-slate-200 text-xs" : "text-white text-sm")
                    }`}
@@ -839,20 +839,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               <span className={`text-[10px] font-sans transition-all leading-tight ${t.isCompleted ? 'text-slate-500 opacity-50' : 'text-slate-300 font-medium'}`}>
                 {t.description}
               </span>
-            )}
-            {isMain && (
-              <div className="flex flex-col gap-1 mt-2 font-sans w-full max-w-md">
-                <div className="flex justify-between items-center text-[9px] text-indigo-300 font-black">
-                  <span>مسار التمكين والتقييمات {completedVisSteps}/{totalVisSteps}</span>
-                  {visPct === 100 && <span className="text-emerald-400 font-bold">مكتمل ✨</span>}
-                </div>
-                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden border border-white/5 relative">
-                  <div 
-                    className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-indigo-700 transition-all duration-500 rounded-full"
-                    style={{ width: `${visPct}%` }}
-                  />
-                </div>
-              </div>
             )}
           </div>
           <div className="mr-auto flex items-center text-slate-400 group-hover:text-indigo-450 transition-all duration-300">
@@ -1929,6 +1915,11 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             }
           : undefined
         }
+        onOpenReviewReflection={(t) => {
+          setReviewPathVisible(false);
+          setReviewingTask(t);
+          setReviewReflectionVisible(true);
+        }}
         onOpenFlashcards={(t) => {
           setReviewPathVisible(false);
           setFlashcardTask(t);
@@ -2420,25 +2411,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                 </div>
               </div>
 
-              {/* Condition 2: Minimum 2 Review Plans */}
-              <div className="flex items-center gap-4 p-4 rounded-[24px] bg-gradient-to-br from-[#0b142d] to-[#040816] border border-white/5 shadow-xs transition duration-250">
-                <div className="flex-none w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 border border-white/10 shadow-sm">
-                  {(lockedDialogData.completedReviewsCount || 0) >= 2 ? (
-                    <i className="pi pi-check text-emerald-400 font-extrabold text-sm"></i>
-                  ) : (
-                    <i className="pi pi-lock text-rose-400 text-xs text-center block"></i>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-black text-white">
-                    إنهاء خطتي مراجعة بحد أدنى 📚
-                  </p>
-                  <p className="text-[10px] text-blue-200/50 font-medium mt-0.5 leading-tight">
-                    المكتمل من خطط المراجعة: <span className="text-indigo-300 font-bold">{(lockedDialogData.completedReviewsCount || 0)} / 2</span>
-                  </p>
-                </div>
-              </div>
-
               {/* Condition 3: Focus Keys required count */}
               <div className="flex items-center gap-4 p-4 rounded-[24px] bg-gradient-to-br from-[#0b142d] to-[#040816] border border-white/5 shadow-xs transition duration-250">
                 <div className="flex-none w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 border border-white/10 shadow-sm">
@@ -2462,8 +2434,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
             <div className="pt-2 flex flex-col gap-2">
               {(() => {
                 const canUnlock = lockedDialogData.currentKeys >= 10 && 
-                                  lockedDialogData.allMainCompleted && 
-                                  (lockedDialogData.completedReviewsCount || 0) >= 2;
+                                  lockedDialogData.allMainCompleted;
                 return (
                   <>
                     <Button
@@ -2483,9 +2454,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                     )}
                     {!lockedDialogData.allMainCompleted && (
                       <p className="text-[9px] text-center text-rose-400 font-black">يجب إنهاء جميع المهام الأساسية للرحلة السابقة أولاً.</p>
-                    )}
-                    {(lockedDialogData.completedReviewsCount || 0) < 2 && (
-                      <p className="text-[9px] text-center text-rose-400 font-black">يجب إنهاء خطتي مراجعة بحد أدنى للبدء في الخطة التالية.</p>
                     )}
                   </>
                 );
@@ -3493,6 +3461,33 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               <div className="bg-white/5 border border-white/10 p-5 rounded-3xl flex flex-col justify-between items-start gap-2 backdrop-blur-xl shadow-lg">
                 <span className="text-[10px] bg-white/10 text-slate-200 border border-white/10 font-extrabold px-3 py-1 rounded-full uppercase">المهمة المنجزة</span>
                 <h3 className="font-black text-white text-base leading-snug">{selectedTaskForAnalytics.title}</h3>
+              </div>
+
+              {/* Review Path Statistics Bento Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 font-sans" dir="rtl">
+                <div className="bg-[#1e140d]/40 hover:bg-[#1e140d]/60 border border-amber-500/20 p-5 rounded-[24px] flex items-center justify-between shadow-md transition-all">
+                  <div className="flex flex-col text-right gap-1">
+                    <span className="text-[10px] text-amber-300 font-extrabold uppercase">مرات مراجعة المسار 🔄</span>
+                    <span className="text-2xl font-black text-white font-mono">
+                      {selectedTaskForAnalytics.taskReviewSessionsCount || 0}
+                    </span>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+                    <i className="pi pi-refresh text-lg animate-spin" style={{ animationDuration: '6s' }} />
+                  </div>
+                </div>
+
+                <div className="bg-[#0b1028]/40 hover:bg-[#0b1028]/60 border border-indigo-500/20 p-5 rounded-[24px] flex items-center justify-between shadow-md transition-all">
+                  <div className="flex flex-col text-right gap-1">
+                    <span className="text-[10px] text-indigo-300 font-extrabold uppercase">نقاط الخبرة الإضافية المكتسبة 🌟</span>
+                    <span className="text-2xl font-black text-indigo-200 font-mono">
+                      +{selectedTaskForAnalytics.taskExtraXpEarned || 0} XP
+                    </span>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                    <i className="pi pi-star text-lg" />
+                  </div>
+                </div>
               </div>
 
               <TabView className="mt-4" dir="rtl" pt={{ nav: { className: "flex gap-2 p-1.5 bg-white/5 rounded-2xl border border-white/10 mb-4 shadow" }, panelContainer: { className: "bg-transparent border-none p-0" } }}>
