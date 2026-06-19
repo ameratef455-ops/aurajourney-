@@ -3584,6 +3584,29 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
                               </p>
                             </div>
                           )}
+
+                          {/* Sheets Evaluation Tracking */}
+                          {refData.sheetsEvaluation && (
+                            <div className="bg-emerald-950/30 p-5 rounded-2xl border border-emerald-500/20 flex flex-col gap-3">
+                              <p className="text-[11px] text-emerald-300 font-black tracking-widest uppercase flex items-center gap-2">
+                                <i className="pi pi-table text-emerald-400"></i> تتبع مهارات Sheets 📊:
+                              </p>
+                              <div className="flex flex-col gap-3">
+                                <div className="bg-emerald-900/15 p-4 rounded-xl border border-emerald-500/10">
+                                  <span className="block text-[10px] text-emerald-400 font-bold mb-1">الدالة / الميزة المستخدمة:</span>
+                                  <code className="bg-slate-900/60 px-2 py-1 rounded text-red-400 border border-white/5 font-mono text-sm">
+                                    {refData.sheetsEvaluation.functionName || "غير محدد"}
+                                  </code>
+                                </div>
+                                <div className="bg-emerald-900/15 p-4 rounded-xl border border-emerald-500/10">
+                                  <span className="block text-[10px] text-emerald-400 font-bold mb-1">وصف التطبيق العملي:</span>
+                                  <p className="text-xs text-emerald-100/90 font-bold leading-relaxed">
+                                    {refData.sheetsEvaluation.usageDescription || "لم يتم توفير وصف."}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))
                     ) : (

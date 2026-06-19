@@ -28,61 +28,66 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     alert("Install PWA requested. (Will prompt if PWA criteria are met)");
   };
 
-  const handleExportData = async (type: 'gamification' | 'journeys' | 'system') => {
+  const handleImportJourneys = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
     try {
-      let data: any = {};
-      const filename = `via_${type}_export_${new Date().toISOString().slice(0,10)}.json`;
+      const text = await file.text();
+      const data = JSON.parse(text);
 
-      if (type === 'gamification') {
-        // Gamification includes EVERYTHING: journeys + settings + system
-        const settings = await db.userSettings.toArray();
-        const stations = await db.stations.toArray();
-        const tasks = await db.tasks.toArray();
-        const reflections = await db.reflections.toArray();
-        const stumbles = await db.stumbles.toArray();
-        data = { 
-          settings, 
-          stations, 
-          tasks, 
-          reflections, 
-          stumbles,
-          exportType: 'full_gamification_backup'
-        };
-      } else if (type === 'journeys') {
-        // Journeys includes stations, tasks, and setup wizard details
-        const stations = await db.stations.toArray();
-        const tasks = await db.tasks.toArray();
-        const settings = await db.userSettings.toArray();
-        
-        // Extract setup wizard details from settings
-        const wizardDetails = settings.map(s => ({
-          learningGoal: s.learningGoal,
-          psychology: s.psychology,
-          unlockedStationIds: s.unlockedStationIds,
-          subStations: s.subStations
-        }));
-
-        data = { 
-          stations, 
-          tasks, 
-          wizardDetails,
-          exportType: 'detailed_journeys'
-        };
-      } else {
-        const reflections = await db.reflections.toArray();
-        const stumbles = await db.stumbles.toArray();
-        const notifications = await db.notifications.toArray();
-        data = { reflections, stumbles, notifications };
+      if (data.exportType !== 'detailed_journeys') {
+         toastHot.error("ملف غير مدعوم! يرجى اختيار ملف رحلات صحيح.");
+         return;
       }
+
+      if (window.confirm("تحذير: هذه العملية ستستبدل (Overwrite) جميع الرحلات الحالية بالرحلات الموجودة في الملف. هل أنت متأكد؟")) {
+        await db.transaction('rw', db.userSettings, db.stations, db.tasks, async () => {
+           await db.stations.clear();
+           await db.tasks.clear();
+           await db.userSettings.clear();
+
+           if (data.stations) await db.stations.bulkAdd(data.stations);
+           if (data.tasks) await db.tasks.bulkAdd(data.tasks);
+           if (data.wizardDetails) await db.userSettings.bulkAdd(data.wizardDetails);
+        });
+        toastHot.success("تم استيراد الرحلات بنجاح! 🎉");
+      }
+    } catch (err) {
+      console.error(err);
+      toastHot.error("عذراً، حدث خطأ أثناء استيراد الملف.");
+    }
+    
+    // Clear input
+    event.target.value = '';
+  };
+
+  const handleExportData = async () => {
+    try {
+      // Journeys includes stations, tasks, and setup wizard details
+      const stations = await db.stations.toArray();
+      const tasks = await db.tasks.toArray();
+      const settings = (await db.userSettings.toArray()).map(s => {
+        // Remove triple review plans safely
+        const { reviewSessionProgress, ...rest } = s as any;
+        return rest;
+      });
+
+      const data = { 
+        stations, 
+        tasks, 
+        wizardDetails: settings,
+        exportType: 'detailed_journeys'
+      };
 
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = `via_journeys_export_${new Date().toISOString().slice(0,10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toastHot.success(`تم تصدير ملف ${type} بنجاح!`);
+      toastHot.success(`تم تصدير الرحلات بنجاح!`);
     } catch (err) {
       toastHot.error("فشل تصدير البيانات");
     }
@@ -114,15 +119,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </div>
 
-        {/* Buttons */}
-        <button
-          onClick={handleInstallPWA}
-          className="flex items-center justify-center gap-4 w-full p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 border border-white/10 transition-all active:scale-95 text-right outline-none cursor-pointer group shadow-sm"
-        >
-          <span className="font-bold text-sm text-slate-200 font-sans tracking-wide flex-1 text-center">تثبيت التطبيق</span>
-          <Download className="w-4 h-4 text-slate-400 group-hover:scale-110 transition-transform" />
-        </button>
-
         <button
           onClick={() => {
             vibrate(HAPITCS.MAJOR_CLICK);
@@ -146,32 +142,29 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
         <div className="h-0.5 bg-white/10 my-2 rounded-full w-full" />
 
-        <h3 className="text-xs font-black text-indigo-300 px-2 uppercase tracking-wider">تصدير البيانات</h3>
+        <h3 className="text-xs font-black text-indigo-300 px-2 uppercase tracking-wider">إدارة بيانات الرحلات</h3>
         
         <button
-          onClick={() => handleExportData('journeys')}
+          onClick={handleExportData}
           className="flex items-center gap-4 w-full p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 border border-white/10 transition-all active:scale-95 text-right outline-none cursor-pointer group"
         >
           <Compass className="w-4 h-4 text-indigo-400" />
           <span className="font-bold text-xs text-slate-200 font-sans">تصدير الرحلات</span>
         </button>
 
-        <button
-          onClick={() => handleExportData('gamification')}
-          className="flex items-center gap-4 w-full p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 border border-white/10 transition-all active:scale-95 text-right outline-none cursor-pointer group"
-        >
-          <Sparkles className="w-4 h-4 text-indigo-400" />
-          <span className="font-bold text-xs text-slate-200 font-sans">تصدير Gamification</span>
-        </button>
-
-        <button
-          onClick={() => handleExportData('system')}
-          className="flex items-center gap-4 w-full p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 border border-white/10 transition-all active:scale-95 text-right outline-none cursor-pointer group"
-        >
-          <SettingsIcon className="w-4 h-4 text-indigo-400" />
-          <span className="font-bold text-xs text-slate-200 font-sans">تصدير النظام</span>
-        </button>
-
+        <div className="relative hover:bg-slate-900/80 border border-white/10 rounded-2xl transition-all cursor-pointer">
+          <input 
+             type="file" 
+             accept="application/json" 
+             onChange={handleImportJourneys}
+             className="absolute inset-0 opacity-0 cursor-pointer"
+             title="استيراد الرحلات"
+          />
+          <div className="flex items-center gap-4 p-4 active:scale-95 transition-all text-right group">
+            <Download className="w-4 h-4 text-emerald-400 rotate-180" />
+            <span className="font-bold text-xs text-slate-200 font-sans">استيراد الرحلات (Overwrite)</span>
+          </div>
+        </div>
       </div>
     </Sidebar>
   );

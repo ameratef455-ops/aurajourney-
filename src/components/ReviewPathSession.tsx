@@ -134,9 +134,7 @@ export function ReviewPathSession({
 
     await (db.tasks as any).update(task.id, {
       activities: updatedActivities,
-      isCompleted:
-        updatedActivities.length > 0 &&
-        updatedActivities.every((a) => a.isCompleted),
+      isCompleted: task.isCompleted || (updatedActivities.length > 0 && updatedActivities.every((a) => a.isCompleted)),
     });
 
     if (user && user.id && activityNotes.trim()) {
@@ -194,7 +192,7 @@ export function ReviewPathSession({
 
     await (db.tasks as any).update(task.id, {
       activities: updatedActivities,
-      isCompleted: allActivitiesCompleted,
+      isCompleted: task.isCompleted || allActivitiesCompleted,
     });
 
     const currentAct = localActivities.find((a) => a.id === activityId);
@@ -308,7 +306,7 @@ export function ReviewPathSession({
 
     await (db.tasks as any).update(task.id, {
       activities: updatedActivities,
-      isCompleted: allActivitiesCompleted,
+      isCompleted: task.isCompleted || allActivitiesCompleted,
     });
 
     if (user && user.id && xpDiff !== 0) {
@@ -756,12 +754,12 @@ export function ReviewPathSession({
           <div className="fixed bottom-0 left-0 w-[600px] h-[600px] bg-indigo-900/5 rounded-full blur-[150px] pointer-events-none" />
 
           {/* Header */}
-          <div className="sticky top-0 z-50 px-6 py-8 md:px-10 flex justify-between items-center bg-[#080d26]/80 backdrop-blur-xl border-b border-[#1A2B6B]/40">
+          <div className="sticky top-0 z-50 px-6 py-4 md:px-10 flex justify-between items-center bg-[#080d26]/80 backdrop-blur-xl border-b border-[#1A2B6B]/40">
             <div className="flex flex-col">
-              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+              <h1 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-3">
                 {selectedTarget ? "تفاصيل مسار via" : "مسار via 🛡️"}
               </h1>
-              <p className="text-[#A0B4E8] font-extrabold text-xs md:text-sm mt-1">
+              <p className="text-[#A0B4E8] font-extrabold text-[10px] md:text-xs mt-1">
                 {selectedTarget
                   ? selectedTarget.title
                   : "تتبع رحلتك في مراجعة وتثبيت ما تعلمته عبر مسار via"}
@@ -776,9 +774,9 @@ export function ReviewPathSession({
                   onClose();
                 }
               }}
-              className="w-12 h-12 rounded-2xl bg-[#1A2B6B] hover:bg-[#2D52CC] text-[#A0B4E8] hover:text-white flex items-center justify-center transition-all border border-white/10 shadow-lg shadow-black/20 cursor-pointer"
+              className="w-10 h-10 rounded-2xl bg-[#1A2B6B] hover:bg-[#2D52CC] text-[#A0B4E8] hover:text-white flex items-center justify-center transition-all border border-white/10 shadow-lg shadow-black/20 cursor-pointer"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
           </div>
 
@@ -789,7 +787,7 @@ export function ReviewPathSession({
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 1.05 }}
-                className="flex-1 relative z-10 flex flex-col items-center justify-start p-6 pt-8 pb-12"
+                className="flex-1 relative z-10 flex flex-col items-center justify-center p-6 pt-4 pb-12"
               >
                 {/* Animated Connecting Lines */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none overflow-hidden">
@@ -1134,19 +1132,19 @@ export function ReviewPathSession({
                               <div
                                 key={act.id}
                                 onClick={() => startGuidedActivity(act)}
-                                className={`group/act relative cursor-pointer border rounded-2xl p-5 bg-white/5 transition-all duration-300 hover:bg-white/10 ${act.isCompleted ? "border-emerald-500/30 bg-emerald-500/5" : act.isSuspended ? "border-amber-500/40 bg-amber-500/5 shadow-lg shadow-amber-500/10" : "border-white/5"}`}
+                                className={`group/act relative cursor-pointer border rounded-2xl p-5 bg-white/5 transition-all duration-300 hover:bg-white/10 ${act.isCompleted ? "border-emerald-500/30 bg-emerald-500/5" : act.isSuspended ? "border-indigo-600/40 bg-indigo-600/10 shadow-lg shadow-indigo-600/20" : "border-white/5"}`}
                               >
                                 <div className="flex justify-between items-start mb-3">
                                   <div className="flex items-center gap-3">
                                     <div
-                                      className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-all duration-300 ${act.isCompleted ? "bg-emerald-500 text-white" : act.isSuspended ? "bg-amber-500 text-black shadow-md font-bold" : "bg-blue-600 text-white"}`}
+                                      className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-all duration-300 ${act.isCompleted ? "bg-emerald-500 text-white" : act.isSuspended ? "bg-indigo-600 text-white shadow-md font-bold" : "bg-blue-600 text-white"}`}
                                     >
                                       {idx + 1}
                                     </div>
                                     <div className="text-right">
                                       <div className="flex flex-wrap items-center gap-2 mb-1">
                                         <h4
-                                          className={`font-black text-base transition-colors ${act.isCompleted ? "text-slate-400 line-through" : act.isSuspended ? "text-amber-400 font-black" : "text-white"}`}
+                                          className={`font-black text-base transition-colors ${act.isCompleted ? "text-slate-400 line-through" : act.isSuspended ? "text-indigo-400 font-black" : "text-white"}`}
                                         >
                                           {act.title}
                                         </h4>
@@ -1167,7 +1165,7 @@ export function ReviewPathSession({
                                         </span>
                                       </div>
                                       {act.isSuspended && (
-                                        <span className="inline-block mt-1 text-[10px] text-amber-400 font-bold bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/25 animate-pulse">
+                                        <span className="inline-block mt-1 text-[10px] text-indigo-400 font-bold bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/25 animate-pulse">
                                           ⏳ نشاط معلّق (تحت التنفيذ والتدبر
                                           الآن)
                                         </span>
@@ -1182,7 +1180,7 @@ export function ReviewPathSession({
                                           e.stopPropagation();
                                           finalizeCompletedActivity(act.id);
                                         }}
-                                        className="px-3 py-1.5 bg-gradient-to-l from-amber-500 to-orange-400 hover:from-amber-600 hover:to-orange-500 text-black text-[10px] font-black rounded-lg cursor-pointer border-none shadow-md hover:scale-105 transition-all flex items-center gap-1"
+                                        className="px-3 py-1.5 bg-gradient-to-l from-indigo-500 to-indigo-400 hover:from-indigo-600 hover:to-indigo-500 text-white text-[10px] font-black rounded-lg cursor-pointer border-none shadow-md hover:scale-105 transition-all flex items-center gap-1"
                                         title="إنهاء النشاط وتأكيد الاكتمال"
                                       >
                                         <span>إنهاء النشاط 🏆</span>
@@ -1276,56 +1274,18 @@ export function ReviewPathSession({
                           </span>
                         </div>
 
-                        {/* DISPLAY COMPLETED REFLECTION IN THE CENTER WITH SAME IDENTITY */}
-                        {target?.id === "original" && reflectionData && (
-                          <div className="w-full flex justify-center py-2">
-                            <div className="bg-gradient-to-br from-white to-slate-50 border border-slate-200/60 p-6 rounded-[28px] flex flex-col items-center justify-center text-center shadow-xl w-full max-w-md font-sans text-slate-800">
-                              <p className="text-[10px] text-amber-950 font-black uppercase tracking-widest flex items-center justify-center gap-1.5 mb-2">
-                                <span className="text-sm">🏆</span> مستوى الإتقان والفهم المسجل:
-                              </p>
-                              <div className="text-4xl font-black bg-gradient-to-r from-indigo-950 to-[#0F172A] bg-clip-text text-transparent font-mono mb-2">
-                                {reflectionData.mastery} <span className="text-xs font-extrabold text-[#0a0f2c]/50">/ 10</span>
-                              </div>
-                              <div className="w-32 h-2.5 bg-indigo-950/10 rounded-full overflow-hidden mt-1 p-0.5">
-                                <div
-                                  className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full shadow-xs"
-                                  style={{ width: `${(reflectionData.mastery / 10) * 100}%` }}
-                                />
-                              </div>
-                              
-                              {reflectionData.strengths && (
-                                <div className="mt-5 w-full text-right bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-xs">
-                                  <span className="font-extrabold text-emerald-800 block mb-1">💪 نقاط القوة المكتسبة:</span>
-                                  <p className="text-slate-600 font-bold leading-relaxed m-0 text-right">{reflectionData.strengths}</p>
-                                </div>
-                              )}
-                              
-                              {reflectionData.weaknesses && (
-                                <div className="mt-3 w-full text-right bg-amber-50/50 p-4 rounded-2xl border border-amber-100 text-xs">
-                                  <span className="font-extrabold text-amber-850 block mb-1">🎯 التحديات وفرص التحسين:</span>
-                                  <p className="text-slate-600 font-bold leading-relaxed m-0 text-right">{reflectionData.weaknesses}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-3 w-full max-w-md">
+                        <div className="flex items-center gap-3 w-full max-w-md mt-4">
                              <button
                                onClick={() => {
                                  vibrate(HAPITCS.MAJOR_CLICK);
-                                 const activitiesList = task?.activities || [];
-                                 if (activitiesList.length > 0) {
-                                   const targetActivity = activitiesList.find((a: any) => !a.isCompleted) || activitiesList[0];
-                                   toast.success(`جاري فتح تفاصيل النشاط: ${targetActivity.title} 🚀`);
-                                   startGuidedActivity(targetActivity, true);
-                                 } else {
-                                   toast.error("لا توجد أنشطة مسجله لهذه المهمة لمراجعتها.");
+                                 if (onOpenReflection) {
+                                   onOpenReflection(task);
+                                   onClose();
                                  }
                                }}
-                               className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:brightness-110 text-white font-black text-sm shadow-[0_4px_20px_rgba(245,158,11,0.25)] border-none flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                               className="w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs md:text-sm shadow-xl border border-white/10 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] mx-auto"
                              >
-                               <Play className="w-5 h-5 fill-current" />
+                               <Play className="w-4 h-4 fill-current" />
                                <span>راجع المسار</span>
                              </button>
                         </div>

@@ -438,62 +438,6 @@ export function ReflectionSidebar({
             )}
         </TabPanel>
 
-        <TabPanel headerTemplate={createTabHeader("pi-table", "تقييم جداول Sheets 📊")}>
-            {reflectionSidebar && (
-              <div 
-                className="pt-6 px-2 space-y-6 text-right font-sans css-tab-content pb-10"
-                dir="rtl"
-              >
-                <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-800/40 rounded-[32px] p-6 space-y-3">
-                  <h4 className="font-black text-indigo-300 text-sm flex items-center gap-2">
-                    <i className="pi pi-file-excel text-indigo-400"></i> التقييم المجدول الشامل
-                  </h4>
-                  <p className="text-xs text-indigo-200 font-bold leading-relaxed">
-                    يعرض هذا القسم تقييماتك في شكل جدول بيانات (Spreadsheet) لتحليل إحصائيات وعيك وانعكاساتك بشكل متكامل.
-                  </p>
-                </div>
-                
-                <div className="overflow-x-auto w-full no-scrollbar bg-white/5 rounded-2xl border border-white/10 shadow-lg">
-                  <table className="w-full text-sm text-right text-slate-300 border-collapse cursor-crosshair">
-                     <thead className="text-xs text-indigo-200 bg-indigo-950/40 border-b border-white/10 select-none">
-                         <tr>
-                             <th scope="col" className="px-4 py-3 font-black border border-white/10 w-12 text-center bg-indigo-950/60 font-mono">#</th>
-                             <th scope="col" className="px-4 py-3 font-black border border-white/10">المهمة</th>
-                             <th scope="col" className="px-4 py-3 font-black border border-white/10">التاريخ</th>
-                             <th scope="col" className="px-4 py-3 font-black border border-white/10 text-center">معدل الفهم</th>
-                             <th scope="col" className="px-4 py-3 font-black border border-white/10 text-center">الدالة المستخدمة</th>
-                             <th scope="col" className="px-4 py-3 font-black border border-white/10">التطبيق العملي لها</th>
-                         </tr>
-                     </thead>
-                     <tbody className="font-mono text-[13px]">
-                         {filteredReflections.length > 0 ? filteredReflections.map((ref: any, idx: number) => (
-                             <tr key={ref.id} className="bg-white/5 border-b border-white/5 hover:bg-white/15 transition-colors">
-                                 <td className="px-4 py-3 border border-white/10 text-center font-bold text-indigo-400 bg-indigo-950/20">{idx + 1}</td>
-                                 <td className="px-4 py-3 border border-white/10 font-sans font-bold text-slate-100">{tasks.find((t: any) => t.id === ref.taskId)?.title || 'مهمة محذوفة'}</td>
-                                 <td className="px-4 py-3 border border-white/10 text-slate-400">{new Date(ref.createdAt).toLocaleDateString('ar-EG')}</td>
-                                 <td className="px-4 py-3 border border-white/10 text-center text-amber-400">{ref.understandingRate || ref.mastery ? `${ref.understandingRate || (ref.mastery * 10)}%` : '-'}</td>
-                                 <td className="px-4 py-3 border border-white/10 text-indigo-300 font-bold font-sans">
-                                     {ref.sheetsEvaluation?.functionName ? (
-                                         <code className="bg-slate-900/60 px-2 py-1 rounded text-red-400 border border-white/5 font-mono">
-                                             {ref.sheetsEvaluation.functionName}
-                                         </code>
-                                     ) : '-'}
-                                 </td>
-                                 <td className="px-4 py-3 border border-white/10 text-slate-300 font-sans leading-relaxed">
-                                     {ref.sheetsEvaluation?.usageDescription || '-'}
-                                 </td>
-                             </tr>
-                         )) : (
-                             <tr>
-                                <td colSpan={6} className="px-4 py-8 text-center text-slate-500 font-sans font-bold">لا توجد تقييمات مسجلة بعد.</td>
-                             </tr>
-                         )}
-                     </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-        </TabPanel>
       </TabView>
       </div>
 

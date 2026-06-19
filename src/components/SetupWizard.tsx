@@ -338,7 +338,7 @@ export function SetupWizard({
       {/* Header */}
       <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
         <div className="flex gap-2" dir="ltr">
-          {[1, 2, 3, 4, 5, 6, 7].map((s) => (
+          {[1, 2, 3, 4, 5, 6].map((s) => (
             <div
               key={s}
               className={`w-2 h-2 rounded-full transition-all duration-300 ${s === step ? "bg-blue-900" : "bg-gray-200"}`}
@@ -347,7 +347,7 @@ export function SetupWizard({
         </div>
 
         <span className="text-blue-900 font-bold text-sm tracking-widest uppercase">
-          Step 0{step} / 07
+          Step 0{step} / 06
         </span>
       </div>
 
@@ -374,10 +374,9 @@ export function SetupWizard({
                 hyperLearningActive={hyperLearningActive}
               />
             )}
-            {step === 6 && <Step6 state={state} setState={setState} />}
-            {step === 7 && (
+            {step === 6 && (
               <div className="flex flex-col h-full overflow-y-auto no-scrollbar pr-1">
-                <StepTheme state={state} setState={setState} />
+                <Step6 state={state} setState={setState} />
                 <div className="mt-8 flex flex-col items-center">
                   <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
@@ -522,7 +521,7 @@ export function SetupWizard({
           </div>
         )}
 
-        {step === 7 ? (
+        {step === 6 ? (
           <button
             onClick={handleSave}
             className="px-10 py-4 bg-gradient-to-r from-blue-800 via-indigo-700 to-blue-950 hover:brightness-110 text-white rounded-xl font-bold shadow-lg shadow-blue-950/20 active:scale-95 transition-all outline-none border-none cursor-pointer"
