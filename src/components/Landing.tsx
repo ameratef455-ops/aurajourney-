@@ -42,7 +42,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       }
 
       if (window.confirm("تحذير: هذه العملية ستستبدل (Overwrite) جميع الرحلات الحالية بالرحلات الموجودة في الملف. هل أنت متأكد؟")) {
-        await db.transaction('rw', db.userSettings, db.stations, db.tasks, async () => {
+        await db.transaction('rw', db.userSettings as any, db.stations as any, db.tasks as any, async () => {
            await db.stations.clear();
            await db.tasks.clear();
            await db.userSettings.clear();

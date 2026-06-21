@@ -71,6 +71,18 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
   const user = settings?.[0];
   const isLanguageLearning = user?.learningGoal?.includes('لغ');
 
+  React.useEffect(() => {
+    if (visible && task) {
+      const activities = task.activities || [];
+      if (activities.length > 0) {
+        const incomplete = activities.find(a => !a.isCompleted);
+        setEditingActivityId(incomplete ? incomplete.id : activities[0].id);
+      } else {
+        setEditingActivityId(null);
+      }
+    }
+  }, [task, visible]);
+
   if (!visible || !taskId) return null;
 
   const hasReflection = reflectionsForTask && reflectionsForTask.length > 0;
@@ -980,7 +992,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
 
         {/* Activities list to select */}
         <div className="space-y-1.5 max-h-40 overflow-y-auto mb-6 text-right custom-scrollbar border border-white/10 p-2 rounded-xl bg-white/5">
-          {(task.activities || []).map(act => {
+          {(task?.activities || []).map(act => {
             const isSelected = selectedForPostpone.includes(act.id);
             return (
               <button
@@ -1106,7 +1118,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
               className="w-full text-right p-3 bg-rose-900/40 hover:bg-rose-900/60 border border-rose-500/30 rounded-xl transition-all cursor-pointer flex justify-between items-center"
             >
               <div className="flex flex-col">
-                <span className="text-xs font-bold pl-2 text-rose-100">المهمة: {task.title}</span>
+                <span className="text-xs font-bold pl-2 text-rose-100">المهمة: {task?.title}</span>
                 <span className="text-[9px] text-rose-300/80 mt-0.5 whitespace-pre-wrap">يلغي ختم المهمة والتقييمات، ويخصم نقاط أنشطتها وتقييمها.</span>
               </div>
               <i className="pi pi-undo text-rose-300 text-sm"></i>

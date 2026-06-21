@@ -34,6 +34,7 @@ interface ReviewPathSessionProps {
   onOpenReviewReflection?: (task: any) => void;
   onOpenFlashcards?: (task: any) => void;
   onOpenAnalytics?: (task: any) => void;
+  onOpenTaskDetails?: (task: any) => void;
 }
 
 export function ReviewPathSession({
@@ -47,6 +48,7 @@ export function ReviewPathSession({
   onOpenReviewReflection,
   onOpenFlashcards,
   onOpenAnalytics,
+  onOpenTaskDetails,
 }: ReviewPathSessionProps) {
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
   const [lastSelectedTarget, setLastSelectedTarget] = useState<any>(null);
@@ -754,14 +756,15 @@ export function ReviewPathSession({
           <div className="fixed bottom-0 left-0 w-[600px] h-[600px] bg-indigo-900/5 rounded-full blur-[150px] pointer-events-none" />
 
           {/* Header */}
-          <div className="sticky top-0 z-50 px-6 py-4 md:px-10 flex justify-between items-center bg-[#080d26]/80 backdrop-blur-xl border-b border-[#1A2B6B]/40">
+          <div className="sticky top-0 z-50 px-4 py-2.5 md:px-8 flex justify-between items-center bg-[#080d26]/90 backdrop-blur-xl border-b border-[#1A2B6B]/40">
             <div className="flex flex-col">
-              <h1 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-3">
-                {selectedTarget ? "تفاصيل مسار via" : "مسار via 🛡️"}
+              <h1 className="text-[#A0B4E8] text-xs font-black uppercase tracking-widest mb-0.5">مسار via 🛡️</h1>
+              <h1 className="text-base md:text-lg font-black text-white tracking-tight flex items-center gap-2 leading-none">
+                {selectedTarget ? `تفاصيل: ${selectedTarget.title}` : "مراجعة وتثبيت التعلم"}
               </h1>
-              <p className="text-[#A0B4E8] font-extrabold text-[10px] md:text-xs mt-1">
+              <p className="text-slate-400 font-bold text-[9px] md:text-[10px] mt-1 leading-normal max-w-[280px] md:max-w-xl">
                 {selectedTarget
-                  ? selectedTarget.title
+                  ? "تتبع خطوات النشاط وعزز مهاراتك الإدراكية."
                   : "تتبع رحلتك في مراجعة وتثبيت ما تعلمته عبر مسار via"}
               </p>
             </div>
@@ -774,9 +777,9 @@ export function ReviewPathSession({
                   onClose();
                 }
               }}
-              className="w-10 h-10 rounded-2xl bg-[#1A2B6B] hover:bg-[#2D52CC] text-[#A0B4E8] hover:text-white flex items-center justify-center transition-all border border-white/10 shadow-lg shadow-black/20 cursor-pointer"
+              className="w-8 h-8 rounded-xl bg-[#1A2B6B] hover:bg-[#2D52CC] text-[#A0B4E8] hover:text-white flex items-center justify-center transition-all border border-white/10 shadow-md cursor-pointer"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4.5 h-4.5" />
             </button>
           </div>
 
@@ -1192,7 +1195,7 @@ export function ReviewPathSession({
                                         e.stopPropagation();
                                         startGuidedActivity(act);
                                       }}
-                                      className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${act.isCompleted ? "bg-emerald-500 border-emerald-500 text-white" : act.isSuspended ? "bg-amber-500/10 border-amber-500 text-amber-500" : "border-white/30 hover:border-white/60 bg-white/5"}`}
+                                      className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${act.isCompleted ? "bg-emerald-500 border-emerald-500 text-white" : act.isSuspended ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "border-white/30 hover:border-white/60 bg-white/5"}`}
                                     >
                                       {act.isCompleted ? (
                                         <CheckCircle2 className="w-4 h-4 text-white fill-emerald-500 shrink-0" />
@@ -1278,7 +1281,10 @@ export function ReviewPathSession({
                              <button
                                onClick={() => {
                                  vibrate(HAPITCS.MAJOR_CLICK);
-                                 if (onOpenReflection) {
+                                 if (onOpenTaskDetails) {
+                                   onOpenTaskDetails(task);
+                                   onClose();
+                                 } else if (onOpenReflection) {
                                    onOpenReflection(task);
                                    onClose();
                                  }

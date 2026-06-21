@@ -34,7 +34,6 @@ from "./FlashcardsModal";
 import { TaskReviewModal } from "./TaskReviewModal";
 import { TaskReflectionModal } from "./TaskReflectionModal";
 import { TaskDetailsModal } from "./TaskDetailsModal";
-import { VisSession } from "./VisSession";
 import { RevertConfirmModal } from "./RevertConfirmModal";
 import { LearningRepoModal } from "./LearningRepoModal";
 import { ReviewPathSession } from "./ReviewPathSession";
@@ -398,7 +397,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [showUnfreezeConfirm, setShowUnfreezeConfirm] = useState(false);
   const [noteFilterPriority, setNoteFilterPriority] = useState('all');
 
-  const [visSessionVisible, setVisSessionVisible] = useState(false);
   const [reviewPathVisible, setReviewPathVisible] = useState(false);
   const [currentReviewType, setCurrentReviewType] = useState<'original' | 'review1' | 'review2' | 'review3' | null>(null);
   const [selectedTaskForVis, setSelectedTaskForVis] = useState<any | null>(null);
@@ -573,7 +571,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     setReviewPathVisible(true);
     setEvaluationSidebarVisible(false);
     setTaskDetailsVisible(false);
-    setVisSessionVisible(false);
   };
   const [mapsSidebarVisible, setMapsSidebarVisible] = useState(false);
   const [isSidebarPinned, setIsSidebarPinned] = useState(false);
@@ -1827,6 +1824,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
         onStartSession={(type) => {
           setCurrentReviewType(type);
           
+          let taskToOpen = selectedTaskForVis;
           if (type && type !== 'original' && selectedTaskForVis) {
              const reviewPlanTasks = tasks.filter((p: any) => p.parentId === selectedTaskForVis.id && (p.title.includes("المراجعة") || p.title.includes("خطة المراجعة") || p.title.includes("مراجعة")));
              // sort by id to be consistent with TaskEditorModal addition order
@@ -1837,14 +1835,14 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
              if (type === 'review3') index = 2;
              
              if (reviewPlanTasks[index]) {
-                  const targetTaskToOpen = reviewPlanTasks[index];
-                  // Automatically open that task directly instead of sharing the base task
-                  setSelectedTaskForVis(targetTaskToOpen);
+                  taskToOpen = reviewPlanTasks[index];
+                  setSelectedTaskForVis(taskToOpen);
              }
           }
           
           setReviewPathVisible(false);
-          setVisSessionVisible(true);
+          setSelectedTaskForDetails(taskToOpen);
+          setTaskDetailsVisible(true);
         }}
         onRevertSession={async (type) => {
           if (user && user.id) {
@@ -1928,41 +1926,9 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
           setReviewPathVisible(false);
           openTaskAnalytics(t);
         }}
-      />
-
-      <VisSession 
-        visible={visSessionVisible}
-        onHide={() => {
-          setVisSessionVisible(false);
-          setSelectedTaskForVis(null);
-          setCurrentReviewType(null);
-        }}
-        task={selectedTaskForVis}
-        onCompleteTask={async (taskId) => {
-          const t = tasks.find(x => x.id === taskId);
-          if (t) {
-            await completeTask(t);
-            
-            // Update Review Progress if applicable
-            if (currentReviewType && user) {
-              const currentProgress = user.reviewSessionProgress || [];
-              if (!currentProgress.includes(currentReviewType)) {
-                await db.userSettings.update(user.id, {
-                  reviewSessionProgress: [...currentProgress, currentReviewType]
-                });
-                toastHot.success("تم إتمام مرحلة المراجعة بنجاح! 🎉");
-              }
-              setCurrentReviewType(null);
-            }
-          }
-        }}
-        onOpenReflection={(t) => {
-          setReviewingTask(t);
-          if (currentReviewType === 'original' || !currentReviewType) {
-            setInitialReflectionVisible(true);
-          } else {
-            setReviewReflectionVisible(true);
-          }
+        onOpenTaskDetails={(t) => {
+          setSelectedTaskForDetails(t);
+          setTaskDetailsVisible(true);
         }}
       />
 
@@ -2140,7 +2106,6 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               
               toastHot.success("تم تسجيل تقييم المراجعة! 🔄");
               setReviewReflectionVisible(false);
-              setVisSessionVisible(false);
               setReviewPathVisible(true);
            } catch (err) {
               console.error(err);
