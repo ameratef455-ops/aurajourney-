@@ -10,9 +10,9 @@ import {
 } from "lucide-react";
 
 export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toast: any }) {
-  const settings = useLiveQuery(() => db.userSettings.toArray());
-  const stations = useLiveQuery(() => db.stations.orderBy("order").toArray());
-  const tasks = useLiveQuery(() => db.tasks.toArray());
+  const settings = useLiveQuery(() => db.userSettings.toArray()) || [];
+  const stations = useLiveQuery(() => db.stations.orderBy("order").toArray()) || [];
+  const tasks = useLiveQuery(() => db.tasks.toArray()) || [];
   const reflections = useLiveQuery(() => db.reflections.toArray()) || [];
 
   const [gamificationSidebar, setGamificationSidebar] = useState(false);
@@ -184,11 +184,32 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   };
 
   const user = useMemo(() => {
-    if (!settings) return null;
+    const defaultUser = {
+      psychology: {},
+      subStations: {},
+      timeCapsules: {},
+      notes: {},
+      gameData: { fuel: 100, xp: 0, keys: 0, lastReflectionDate: "", streak: 0 },
+      unlockedStationIds: [],
+    } as any;
+
+    if (!settings || settings.length === 0) return defaultUser;
+    
+    let found;
     if (tripId) {
-      return settings.find((s) => s.id === tripId) || settings[0];
+      found = settings.find((s) => s.id === tripId);
     }
-    return settings[0];
+    
+    const finalUser = found || settings[0] || defaultUser;
+    return {
+      ...defaultUser,
+      ...finalUser,
+      psychology: { ...defaultUser.psychology, ...(finalUser.psychology || {}) },
+      gameData: { ...defaultUser.gameData, ...(finalUser.gameData || {}) },
+      subStations: finalUser.subStations || defaultUser.subStations,
+      timeCapsules: finalUser.timeCapsules || defaultUser.timeCapsules,
+      notes: finalUser.notes || defaultUser.notes,
+    };
   }, [settings, tripId]);
 
   const gData = user?.gameData || {
@@ -236,7 +257,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
 
   // Compute energy per station
   const stationEnergy = useMemo(() => {
-    if (!stations || !tasks || !user) return {};
+    if (!stations || !tasks) return {};
     const map: Record<string, number> = {};
     for (const st of stations) {
       const stTasks = tasks.filter((t) => t.stationId === st.id);
@@ -273,7 +294,7 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
       });
 
       // 2. Sub-stations (Alternative practical plans)
-      const rawSubStations = user.subStations?.[st.id];
+      const rawSubStations = user?.subStations?.[st.id];
       const subStationsList = Array.isArray(rawSubStations) ? rawSubStations : (rawSubStations ? [rawSubStations] : []);
       subStationsList.forEach(sub => {
         const sTasks = sub.tasks || [];
@@ -286,8 +307,8 @@ export function useAuraJourney({ tripId, toast }: { tripId?: string | null, toas
   }, [stations, tasks, user]);
 
   const unlockedStations = useMemo(() => {
-    if (!stations || !user) return [];
-    const dbUnlocked = user.unlockedStationIds || [];
+    if (!stations) return [];
+    const dbUnlocked = user?.unlockedStationIds || [];
     const unlocked = [...dbUnlocked];
     
     // Always ensure at least the first station is unlocked

@@ -9,44 +9,10 @@ declare global {
 }
 
 export function YouGlishWidget({ query, language = "english" }: { query: string; language?: string }) {
-  const widgetContainerRef = React.useRef<HTMLDivElement>(null);
-  const widgetRef = React.useRef<any>(null);
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const initWidget = () => {
-         if (widgetContainerRef.current) {
-             widgetContainerRef.current.innerHTML = "<div id='yg-widget-0'></div>";
-         }
-         widgetRef.current = new window.YG.Widget("yg-widget-0", {
-            width: '100%',
-            components: 9, // search box & video
-         });
-         if (query) {
-             widgetRef.current.fetch(query, language);
-         }
-      };
-
-      if (!window.YG) {
-        window.onYouglishAPIReady = initWidget;
-        const script = document.createElement('script');
-        script.src = "https://youglish.com/public/emb/widget.js";
-        script.async = true;
-        document.body.appendChild(script);
-      } else {
-        initWidget();
-      }
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (widgetRef.current && window.YG && query) {
-        widgetRef.current.fetch(query, language);
-    }
-  }, [query, language]);
-
   return (
-    <div className="w-full h-auto min-h-[400px]" ref={widgetContainerRef}></div>
+    <div className="w-full h-auto min-h-[400px] flex items-center justify-center bg-black/10 rounded-xl border border-white/5">
+      <p className="text-slate-500 font-bold">YouGlish is temporarily disabled.</p>
+    </div>
   );
 }
 

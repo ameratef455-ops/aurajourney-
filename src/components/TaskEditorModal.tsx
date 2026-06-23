@@ -618,11 +618,11 @@ export function TaskEditorModal({
 
         </TabView>
 
-        <div className="flex flex-col sm:flex-row gap-3 pt-4 pb-2 border-t border-slate-100/50 sticky bottom-0 bg-white z-10 mx-[-8px] px-2 w-full">
+        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 pb-2 border-t border-slate-100/50 sticky bottom-0 bg-white z-10 mx-[-8px] px-2 w-full">
           <button
             type="button"
             onClick={() => onSave(localTask)}
-            className="flex-1 py-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 text-white rounded-xl font-black text-sm shadow-lg shadow-blue-900/20 hover:brightness-110 transition-all active:scale-[0.98] border-none cursor-pointer flex items-center justify-center gap-2"
+            className="px-6 py-2 bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 text-white rounded-xl font-black text-xs shadow-lg shadow-blue-900/20 hover:brightness-110 transition-all active:scale-[0.98] border-none cursor-pointer flex items-center justify-center gap-2"
           >
             <span>حفظ كافة التعديلات وعودة</span>
             <i className="pi pi-check-circle text-sm" />
@@ -630,7 +630,7 @@ export function TaskEditorModal({
           <button
             type="button"
             onClick={onHide}
-            className="px-6 py-3 bg-slate-100 text-slate-500 rounded-xl font-black text-sm hover:bg-slate-200 transition-all border-none cursor-pointer"
+            className="px-6 py-2 bg-slate-100 text-slate-500 rounded-xl font-black text-xs hover:bg-slate-200 transition-all border-none cursor-pointer"
           >
             تجاهل
           </button>

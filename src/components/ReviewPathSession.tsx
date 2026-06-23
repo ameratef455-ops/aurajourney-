@@ -18,6 +18,7 @@ import { vibrate, HAPITCS } from "../lib/haptics";
 import { db } from "../db";
 import { toast } from "react-hot-toast";
 import confetti from "canvas-confetti";
+import { ActivityWizardModal } from "./ActivityWizardModal";
 
 interface ReviewPathSessionProps {
   visible: boolean;
@@ -249,14 +250,15 @@ export function ReviewPathSession({
         origin: { y: 0.6 },
       });
       toast.success("أحسنت! أنهيت جميع الأنشطة بنجاح 🏆 نلت +10 XP!");
-      if (onOpenReviewReflection) {
-        onOpenReviewReflection(task);
-      } else if (onOpenReflection) {
-        onOpenReflection(task);
-      }
       onClose();
     } else {
       toast.success("تم إتمام وإنهاء النشاط بنجاح! 🎉 نلت +10 XP!");
+    }
+
+    if (onOpenReviewReflection) {
+      onOpenReviewReflection(task);
+    } else if (onOpenReflection) {
+      onOpenReflection(task);
     }
 
     setActiveGuidedActivity(null);
@@ -271,9 +273,7 @@ export function ReviewPathSession({
   };
 
   React.useEffect(() => {
-    if (task?.activities) {
-      setLocalActivities(task.activities);
-    }
+    setLocalActivities(task?.activities || []);
   }, [task?.activities]);
 
   const toggleActivity = async (activityId: string) => {
@@ -535,218 +535,14 @@ export function ReviewPathSession({
           )}
 
           {/* Custom Interactive Guided Activity Flow */}
-          {activeGuidedActivity && (
-            <div
-              className="fixed inset-0 bg-gradient-to-b from-[#0A0F2C] via-[#0E1540] to-[#04081E] text-white flex flex-col font-sans p-6 md:p-12 overflow-y-auto"
-              style={{ zIndex: 65000300 }}
-              dir="rtl"
-            >
-              <div className="w-full h-full flex flex-col space-y-8 py-4 lg:px-8">
-                <div className="absolute top-10 right-1/4 w-64 h-64 bg-[#2D52CC]/10 rounded-full blur-[100px] pointer-events-none" />
-
-                {/* Header with Title */}
-                <div className="flex justify-between items-center border-b border-white/5 pb-6">
-                  <div className="space-y-2 text-right">
-                    <span className="text-xs font-black text-[#5C8DFF] uppercase tracking-wider">
-                      {activeGuidedActivity.isSuspended
-                        ? "النشاط التطبيقي معلَّق حالياً 🧭"
-                        : "النشاط التطبيقي ⚡"}
-                    </span>
-                    <h2 className="text-2xl md:text-3xl font-black text-white">
-                      {activeGuidedActivity.title}
-                    </h2>
-                  </div>
-                  <button
-                    onClick={() => {
-                      vibrate(HAPITCS.MAJOR_CLICK);
-                      setActiveGuidedActivity(null);
-                    }}
-                    className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all cursor-pointer border border-white/10"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {activeGuidedActivity.isSuspended && !forceReviewDetails ? (
-                  /* Suspended State Screen to finish or review details */
-                  <div className="flex-grow space-y-8 text-center py-12 flex flex-col items-center justify-center">
-                    <div className="w-24 h-24 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 animate-pulse shadow-2xl shadow-amber-500/10 mb-2">
-                      <Zap className="w-12 h-12 text-amber-400" />
-                    </div>
-
-                    <div className="space-y-4 max-w-xl">
-                      <h3 className="text-2xl font-black text-amber-400">
-                        النشاط قيد التنفيذ والتدبر 🧭
-                      </h3>
-                      <p className="text-slate-300 text-sm leading-relaxed font-bold bg-black/44 p-6 rounded-[2rem] border border-white/5 mt-2">
-                        لقد بدأت هذا النشاط وقمت بتعليقه مسبقاً للتركيز على
-                        العمل الفعلي والتدبر الصادق. بمجرد انتهائك، اضغط على زر
-                        "إنهاء وإتمام النشاط" ليتم نقله إلى سجل إنجازاتك
-                        المعرفية!
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg pt-6">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          vibrate(HAPITCS.SUCCESS);
-                          finalizeCompletedActivity(activeGuidedActivity.id);
-                        }}
-                        className="flex-1 py-5 px-8 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black text-sm font-black shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer border-none"
-                      >
-                        إنهاء وإتمام النشاط الآن 🏆
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          vibrate(HAPITCS.MAJOR_CLICK);
-                          setForceReviewDetails(true);
-                        }}
-                        className="flex-1 py-5 px-8 rounded-2xl bg-white/5 hover:bg-white/10 text-white text-sm font-black border border-white/10 transition-all cursor-pointer active:scale-95"
-                      >
-                        عرض الخطوات والمصادر 📖
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* Standard Step Wizard Dialog Flow */
-                  <div className="flex-1 flex flex-col min-h-[40vh] space-y-8 pb-12 w-full pt-4">
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="space-y-6 w-full text-right"
-                    >
-                      <div className="p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400 font-bold flex flex-col gap-3">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-5 h-5 shrink-0" />
-                          <span className="text-base text-white">
-                            التوجيه والتعليمات الخاصة بهذا النشاط:
-                          </span>
-                        </div>
-                        <div className="italic text-slate-200 text-sm md:text-base leading-relaxed bg-black/40 p-4 rounded-xl border border-white/5 whitespace-pre-wrap">
-                          {activeGuidedActivity.guidance ||
-                            "لا توجد توجيهات محددة لهذا النشاط، اتبع منهج السعي واقترب من المعرفة بثقة."}
-                        </div>
-                      </div>
-
-                      {activeGuidedActivity.steps &&
-                        activeGuidedActivity.steps.length > 0 && (
-                          <div className="space-y-6 mt-8 font-sans text-right w-full">
-                            <h4 className="text-white text-xl font-black mb-4 flex items-center gap-2">
-                              <Target className="w-6 h-6 text-emerald-400" />
-                              الخطوات التنفيذية ومصادرها:
-                            </h4>
-                            <div className="grid grid-cols-1 gap-6 w-full">
-                              {activeGuidedActivity.steps.map((st: any, index: number) => (
-                                <div
-                                  key={st.id}
-                                  className="flex flex-col gap-4 bg-white/5 p-6 rounded-[2rem] border border-white/10 w-full hover:bg-white/10 transition-all shadow-lg overflow-hidden relative"
-                                >
-                                  <div className="absolute -left-10 -top-10 text-[120px] font-black text-white/[0.02] pointer-events-none">
-                                    {index + 1}
-                                  </div>
-                                  <div className="flex items-start gap-4">
-                                    <div className="w-8 h-8 shrink-0 rounded-xl bg-gradient-to-br from-[#2D52CC] to-[#4D7FFF] shadow-lg flex items-center justify-center text-white font-black text-sm">
-                                      {index + 1}
-                                    </div>
-                                    <span className="text-white text-lg font-bold leading-relaxed">{st.title}</span>
-                                  </div>
-
-                                  <div className="mt-4 pt-4 border-t border-white/10 w-full flex flex-col space-y-3">
-                                    <div className="flex items-center gap-2 text-indigo-300 font-bold text-sm">
-                                      <BookOpen className="w-4 h-4" />
-                                      مصدر الخطوة:
-                                    </div>
-                                    <div className="bg-black/30 p-4 rounded-xl text-slate-300 text-sm leading-relaxed border border-white/5">
-                                      {activeGuidedActivity.learningResources ? (
-                                        <p>{activeGuidedActivity.learningResources}</p>
-                                      ) : (
-                                        <p className="italic opacity-60">لا توجد مصادر خاصة مضافة للنشاط.</p>
-                                      )}
-                                    </div>
-                                    
-                                    {(activeGuidedActivity.youtubeUrl ||
-                                      activeGuidedActivity.googleDriveUrl) && (
-                                      <div className="flex flex-wrap gap-3 mt-2">
-                                        {activeGuidedActivity.youtubeUrl && (
-                                          <a
-                                            href={(activeGuidedActivity.youtubeUrl || '').includes('youtube.com') || (activeGuidedActivity.youtubeUrl || '').includes('youtu.be') ? activeGuidedActivity.youtubeUrl : `https://youtube.com/results?search_query=${encodeURIComponent(activeGuidedActivity.youtubeUrl)}`}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="px-4 py-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs rounded-xl font-bold border border-red-500/30 transition-all flex items-center gap-2 w-fit no-underline"
-                                          >
-                                            🎥 فيديو يوتيوب للخطوة
-                                          </a>
-                                        )}
-                                        {activeGuidedActivity.googleDriveUrl && (
-                                          <a
-                                            href={activeGuidedActivity.googleDriveUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="px-4 py-3 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-xl font-bold border border-blue-500/30 transition-all flex items-center gap-2 w-fit no-underline"
-                                          >
-                                            📂 مستند درايف
-                                          </a>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                    </motion.div>
-
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="w-full pt-8"
-                    >
-                      <div className="bg-gradient-to-b from-[#1A2B6B] to-[#0A102E] border border-blue-500/20 p-8 md:p-12 rounded-[2.5rem] text-center space-y-6 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-1/4 w-32 h-32 bg-[#4D7FFF]/10 rounded-full blur-[40px] pointer-events-none" />
-                        <div className="w-20 h-20 rounded-full mx-auto bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-xl shadow-blue-500/5">
-                          <Target className="w-10 h-10 text-blue-300" />
-                        </div>
-                        <h4 className="text-white text-2xl font-black">
-                          الآن، حان وقت العمل الفعلي! ✨
-                        </h4>
-                        <p className="text-[#A0B4E8] text-sm font-bold leading-relaxed max-w-[80%] mx-auto">
-                          قم بتعليق هذا النشاط لتنفيذه في العالم الواقعي أو
-                          التطبيق العملي. بمجرد انتهائك يمكنك العودة هنا
-                          وإتمام النشاط بشكل نهائي لتسجيل إنجازك.
-                        </p>
-
-                        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl mx-auto pt-4">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              vibrate(HAPITCS.SUCCESS);
-                              finalizeCompletedActivity(activeGuidedActivity.id);
-                            }}
-                            className="flex-1 py-5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 hover:brightness-110 text-black text-sm md:text-base font-black shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer border-none flex items-center justify-center gap-2"
-                          >
-                            <CheckCircle2 className="w-5 h-5 text-black" />
-                            <span>إنهاء وإتمام النشاط الآن 🏆</span>
-                          </button>
-                          
-                          <button
-                            type="button"
-                            onClick={completeGuidedActivity}
-                            className="flex-1 py-5 rounded-2xl bg-white/5 hover:bg-white/10 text-white border border-white/10 text-sm md:text-base font-black transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
-                          >
-                            <Target className="w-5 h-5 text-indigo-300" />
-                            <span>تعليق وبدء تنفيذ النشاط 🧭</span>
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          <ActivityWizardModal 
+             visible={!!activeGuidedActivity}
+             onHide={() => setActiveGuidedActivity(null)}
+             activity={activeGuidedActivity}
+             onSuspend={async (activity) => {
+               await suspendGuidedActivity();
+             }}
+          />
 
           <ConfirmDialog />
           {/* Background Gradients */}
@@ -881,7 +677,7 @@ export function ReviewPathSession({
 
                 <div className="flex flex-wrap justify-center gap-12 md:gap-24 max-w-4xl w-full relative z-20">
                   {targets.map((target, idx) => {
-                    const isCompleted = completedTargets.includes(target.id);
+                    const isCompleted = completedTargets.includes(target.id) && !(localActivities || []).some(act => !act.isCompleted);
                     const isLocked =
                       idx > 0 &&
                       !completedTargets.includes(targets[idx - 1].id);
@@ -1107,10 +903,13 @@ export function ReviewPathSession({
                         exit={{ opacity: 0, x: 20 }}
                         className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] p-6 md:p-10 shadow-2xl"
                       >
-                        <h3 className="text-white font-black text-xl mb-6 flex items-center gap-3">
-                          <Zap className="w-6 h-6 text-yellow-400" />
-                          الأنشطة والخطوات التنفيذية (انقر للإنجاز)
-                        </h3>
+                         <div className="flex items-center justify-between mb-8">
+                           <h3 className="text-white font-black text-xl flex items-center gap-3">
+                             <Target className="w-6 h-6 text-indigo-400" />
+                             الأنشطة التنفيذية
+                           </h3>
+                           <span className="text-slate-400 font-bold text-sm bg-black/20 px-4 py-2 rounded-xl">{(localActivities || []).length} نشاط</span>
+                         </div>
 
                         {task?.isCompleted && (
                           <div className="mb-6 p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-[24px] flex flex-col md:flex-row items-center justify-between gap-4">
@@ -1129,171 +928,88 @@ export function ReviewPathSession({
                           </div>
                         )}
 
-                        {localActivities && localActivities.length > 0 ? (
-                          <div className="space-y-4">
-                            {localActivities.map((act: any, idx: number) => (
-                              <div
-                                key={act.id}
-                                onClick={() => startGuidedActivity(act)}
-                                className={`group/act relative cursor-pointer border rounded-2xl p-5 bg-white/5 transition-all duration-300 hover:bg-white/10 ${act.isCompleted ? "border-emerald-500/30 bg-emerald-500/5" : act.isSuspended ? "border-indigo-600/40 bg-indigo-600/10 shadow-lg shadow-indigo-600/20" : "border-white/5"}`}
-                              >
-                                <div className="flex justify-between items-start mb-3">
-                                  <div className="flex items-center gap-3">
-                                    <div
-                                      className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-all duration-300 ${act.isCompleted ? "bg-emerald-500 text-white" : act.isSuspended ? "bg-indigo-600 text-white shadow-md font-bold" : "bg-blue-600 text-white"}`}
-                                    >
-                                      {idx + 1}
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                                        <h4
-                                          className={`font-black text-base transition-colors ${act.isCompleted ? "text-slate-400 line-through" : act.isSuspended ? "text-indigo-400 font-black" : "text-white"}`}
-                                        >
+                         {(localActivities || []).length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-12 text-center bg-black/20 border border-dashed border-white/10 rounded-3xl">
+                              <Sparkles className="w-12 h-12 text-slate-700 mx-auto mb-4 opacity-20" />
+                              <p className="text-slate-500 font-black">
+                                لا توجد أنشطة إجرائية مضافة لهذه المهمة.
+                              </p>
+                            </div>
+                         ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {(localActivities || []).map((act: any) => (
+                                <div key={act.id} className="p-5 rounded-2xl bg-[#0a0f2c]/50 border border-white/10 flex flex-col justify-between hover:border-indigo-500/50 transition-all group shadow-xl">
+                                   <div className="space-y-3 mb-6">
+                                     <div className="flex items-start justify-between">
+                                        <h4 className={`text-lg font-black leading-tight ${act.isCompleted ? 'text-slate-500 line-through' : 'text-white group-hover:text-indigo-300'} transition-all`}>
                                           {act.title}
                                         </h4>
-                                        <span
-                                          className={`text-[8px] font-black px-2 py-0.5 rounded-full ${
-                                            act.type === "applied"
-                                              ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                              : act.type === "interactive"
-                                                ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                                                : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                                          }`}
-                                        >
-                                          {act.type === "applied"
-                                            ? "⚡ تطبيقي"
-                                            : act.type === "interactive"
-                                              ? "🤝 تفاعلي"
-                                              : "🧠 معرفي"}
-                                        </span>
-                                      </div>
-                                      {act.isSuspended && (
-                                        <span className="inline-block mt-1 text-[10px] text-indigo-400 font-bold bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/25 animate-pulse">
-                                          ⏳ نشاط معلّق (تحت التنفيذ والتدبر
-                                          الآن)
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {act.isSuspended && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          finalizeCompletedActivity(act.id);
-                                        }}
-                                        className="px-3 py-1.5 bg-gradient-to-l from-indigo-500 to-indigo-400 hover:from-indigo-600 hover:to-indigo-500 text-white text-[10px] font-black rounded-lg cursor-pointer border-none shadow-md hover:scale-105 transition-all flex items-center gap-1"
-                                        title="إنهاء النشاط وتأكيد الاكتمال"
-                                      >
-                                        <span>إنهاء النشاط 🏆</span>
-                                      </button>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        startGuidedActivity(act);
-                                      }}
-                                      className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${act.isCompleted ? "bg-emerald-500 border-emerald-500 text-white" : act.isSuspended ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "border-white/30 hover:border-white/60 bg-white/5"}`}
-                                    >
+                                        {act.isCompleted && (
+                                          <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                          </div>
+                                        )}
+                                     </div>
+                                     
+                                     {act.isSuspended && !act.isCompleted && (
+                                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl">
+                                           <Zap className="w-3.5 h-3.5" />
+                                           <span className="text-xs font-black tracking-wide">قيد التنفيذ 🧭</span>
+                                        </div>
+                                     )}
+                                   </div>
+                                   
+                                   <div className="mt-auto">
                                       {act.isCompleted ? (
-                                        <CheckCircle2 className="w-4 h-4 text-white fill-emerald-500 shrink-0" />
+                                         <button
+                                           onClick={(e) => {
+                                             e.stopPropagation();
+                                             startGuidedActivity(act, false);
+                                           }}
+                                           className="w-full py-3.5 rounded-xl bg-white/5 hover:bg-slate-700 text-slate-300 text-sm font-black transition-all cursor-pointer"
+                                         >
+                                           تم الإنجاز (انقر للاستعراض)
+                                         </button>
                                       ) : act.isSuspended ? (
-                                        <i className="pi pi-play text-[9px] animate-pulse" />
+                                         <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              finalizeCompletedActivity(act.id);
+                                            }}
+                                            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black text-sm font-black shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer"
+                                         >
+                                           <CheckCircle2 className="w-4 h-4" />
+                                           إنهاء وتقييم النشاط
+                                         </button>
                                       ) : (
-                                        <i className="pi pi-lock-open text-[9px]" />
+                                         <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              startGuidedActivity(act, true);
+                                            }}
+                                            className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black transition-all flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-indigo-500/20 cursor-pointer"
+                                         >
+                                           <Play className="w-4 h-4" />
+                                           استعراض خطوات التوجيه
+                                         </button>
                                       )}
-                                    </button>
-                                  </div>
+                                   </div>
                                 </div>
-
-                                {/* Notes and Knowledge Forest tags */}
-                                {(act.notes || act.learnings) && (
-                                  <div className="flex gap-2 my-2">
-                                    {act.notes && (
-                                      <div className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">
-                                        📝 تم تدوين المفكرة
-                                      </div>
-                                    )}
-                                    {act.learnings && (
-                                      <div className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                                        🌳 غابة المعرفة: مكتمل
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-
-                                {act.guidance && (
-                                  <p className="text-slate-400 text-sm mb-4 bg-black/20 p-3 rounded-xl border border-white/5 italic">
-                                    {act.guidance}
-                                  </p>
-                                )}
-                                {act.steps && act.steps.length > 0 && (
-                                  <div className="space-y-2">
-                                    {act.steps.map((step: any) => (
-                                      <div
-                                        key={step.id}
-                                        className="flex items-center gap-3 text-slate-300 text-xs py-1"
-                                      >
-                                        <div
-                                          className={`w-1.5 h-1.5 rounded-full transition-colors ${step.isCompleted || act.isCompleted ? "bg-emerald-400" : "bg-blue-500"}`}
-                                        />
-                                        <span
-                                          className={
-                                            act.isCompleted
-                                              ? "text-slate-500 line-through"
-                                              : ""
-                                          }
-                                        >
-                                          {step.title}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-20 bg-black/20 rounded-3xl border border-dashed border-white/10">
-                            <Sparkles className="w-12 h-12 text-slate-700 mx-auto mb-4 opacity-20" />
-                            <p className="text-slate-500 font-black">
-                              لا توجد أنشطة إجرائية مضافة لهذه المهمة.
-                            </p>
-                          </div>
-                        )}
+                              ))}
+                            </div>
+                         )}
                       </motion.div>
                     )}
                   </AnimatePresence>
 
                   <div className="flex flex-col gap-4 py-8 w-full max-w-lg mx-auto">
-                    {completedTargets.includes(target?.id) ? (
+                    {completedTargets.includes(target?.id) && !(localActivities || []).some(act => !act.isCompleted) ? (
                       <div className="flex flex-col gap-6 items-center w-full">
                         <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2 text-emerald-400 justify-center w-full max-w-md">
                           <CheckCircle2 className="w-4 h-4" />
                           <span className="text-xs font-bold text-center">
                             لقد أكملت هذه المرحلة بنجاح! 🎉
                           </span>
-                        </div>
-
-                        <div className="flex items-center gap-3 w-full max-w-md mt-4">
-                             <button
-                               onClick={() => {
-                                 vibrate(HAPITCS.MAJOR_CLICK);
-                                 if (onOpenTaskDetails) {
-                                   onOpenTaskDetails(task);
-                                   onClose();
-                                 } else if (onOpenReflection) {
-                                   onOpenReflection(task);
-                                   onClose();
-                                 }
-                               }}
-                               className="w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs md:text-sm shadow-xl border border-white/10 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] mx-auto"
-                             >
-                               <Play className="w-4 h-4 fill-current" />
-                               <span>راجع المسار</span>
-                             </button>
                         </div>
                       </div>
                     ) : (

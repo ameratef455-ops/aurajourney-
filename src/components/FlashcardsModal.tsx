@@ -4,7 +4,7 @@ import { Button } from "primereact/button";
 import { db } from "../db";
 import { safeRandomUUID } from "../lib/uuid";
 import { useLiveQuery } from "dexie-react-hooks";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { CheckCircle2, XCircle, Plus, BookOpen } from "lucide-react";
 import { toast as hotToast } from "react-hot-toast";
 

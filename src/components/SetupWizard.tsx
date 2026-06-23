@@ -1202,7 +1202,6 @@ const Step5 = ({ state, setState, openTaskModal, hyperLearningActive }: any) => 
                             title="تعديل المهمة"
                           >
                             <i className="pi pi-pencil text-[10px]" />
-                            <span>تعديل</span>
                           </button>
                         </div>
                       </div>

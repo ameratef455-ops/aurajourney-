@@ -5,7 +5,7 @@ import { useAuraJourney } from "../hooks/useAuraJourney";
 import { LAYERS } from "../constants/layers";
 import { db } from "../db";
 import { motion, AnimatePresence } from "motion/react";
-import { vibrate, HAPITCS } from "../lib/haptics";
+import { vibrate, HAPITCS, playTickSound } from "../lib/haptics";
 import { Button } from "primereact/button";
 import { Sidebar } from "primereact/sidebar";
 import { TabView, TabPanel } from "primereact/tabview";
@@ -243,6 +243,36 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
     completedTasksCount,
     isAllTasksCompleted
   } = useAuraJourney({ tripId, toast });
+
+  const handleDeleteTrip = async () => {
+    if (!user?.id) return;
+    
+    confirmDialog({
+      message: 'هل أنت متأكد من حذف هذه الرحلة نهائياً؟ سيتم مسح كافة البيانات والتقدم والمهام المرتبطة.',
+      header: 'تأكيد الحذف الكلي لكامل الرحلة ⚠️',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'نعم، احذف الأن',
+      rejectLabel: 'إلغاء الحذف',
+      acceptClassName: 'p-button-danger',
+      accept: async () => {
+        try {
+          // Since only one trip structure is active in stations/tasks at a time effectively
+          // and we are deleting the current trip, we clear these tables.
+          await db.stations.clear();
+          await db.tasks.clear();
+          await db.reflections.where('stationId').anyOf(stations.map(s => s.id)).delete();
+          
+          await db.userSettings.delete(user.id);
+          
+          toastHot.success("تم مسح الرحلة وطي سجلاتها بنجاح 👋", { duration: 4000 });
+          if (onBack) onBack();
+        } catch (err) {
+          console.error("Failed to delete trip:", err);
+          toastHot.error("حدث خطأ أثناء محاولة الحذف");
+        }
+      }
+    });
+  };
 
   useEffect(() => {
     // Force load voices for TTS
@@ -524,7 +554,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               </button>
               <button 
                 onClick={async () => {
-                   import('../lib/haptics').then(({ playTickSound }) => playTickSound());
+                   playTickSound();
                    vibrate(HAPITCS.MAJOR_CLICK);
                    const todayStr = new Date().toDateString();
                    const newStreak = (gData.streak || 0) + 1;
@@ -603,7 +633,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
   const [editAnxieties, setEditAnxieties] = useState("");
 
   const handleSavePsychology = async () => {
-    import('../lib/haptics').then(({ playTickSound }) => playTickSound());
+    playTickSound();
     vibrate(HAPITCS.MAJOR_CLICK);
     try {
       await db.userSettings.update(user.id, {
@@ -1193,6 +1223,15 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
       <div className="absolute top-6 right-6 z-40 flex items-center gap-3">
         {onBack && (
           <button
+            className="bg-white/80 backdrop-blur-md hover:bg-rose-50 text-rose-500 w-12 h-12 rounded-2xl border border-rose-100 shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
+            onClick={handleDeleteTrip}
+            title="حذف الرحلة نهائياً"
+          >
+            <i className="pi pi-trash text-base"></i>
+          </button>
+        )}
+        {onBack && (
+          <button
             className="bg-white backdrop-blur-md hover:bg-slate-50 text-slate-600 hover:text-blue-600 w-12 h-12 rounded-2xl border border-slate-200 shadow-md flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
             onClick={() => {
               vibrate(HAPITCS.MAJOR_CLICK);
@@ -1249,7 +1288,7 @@ export function Maps({ onBack, tripId }: { onBack?: () => void; tripId?: string 
               </div>
               <button
                 onClick={async () => {
-                   import('../lib/haptics').then(({ playTickSound }) => playTickSound());
+                   playTickSound();
                    vibrate(HAPITCS.MAJOR_CLICK);
                    await db.userSettings.update(user.id, { isVacation: false });
                    toastHot.success("مرحباً بك مجدداً في رحلتك! 🔥");

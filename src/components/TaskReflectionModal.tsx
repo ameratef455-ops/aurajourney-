@@ -48,6 +48,7 @@ export function TaskReflectionModal({ visible, onHide, onSubmit, taskTitle, isRe
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
     // Force load voices
     window.speechSynthesis.getVoices();
     const handleVoicesChanged = () => window.speechSynthesis.getVoices();

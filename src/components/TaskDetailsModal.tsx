@@ -1,29 +1,33 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Dialog } from 'primereact/dialog';
-import { TabView, TabPanel } from 'primereact/tabview';
-import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { Menu } from 'primereact/menu';
 import { useLiveQuery } from 'dexie-react-hooks';
 import confetti from 'canvas-confetti';
 import { 
   Info, 
   ListTodo, 
-  AlignLeft, 
   Plus, 
   Trash2, 
   CheckCircle2,
   ChevronRight,
   Clock,
   Sparkles,
-  Lock
+  Lock,
+  Target,
+  Play,
+  Zap,
+  MoreVertical,
+  Activity
 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { TaskActivity, db, Task } from '../db';
+import { motion, AnimatePresence } from 'motion/react';
+import { TaskActivity, db, Task, Station } from '../db';
 import { LanguageTools, YouGlishWidget } from './LanguageTools';
 import { parseLearningResources } from '../types';
 import { safeRandomUUID } from '../lib/uuid';
 import { LAYERS } from '../constants/layers';
 import { vibrate, HAPITCS } from '../lib/haptics';
 import { toast } from 'react-hot-toast';
+import { ActivityWizardModal } from './ActivityWizardModal';
 
 interface TaskDetailsModalProps {
   visible: boolean;
@@ -35,16 +39,20 @@ interface TaskDetailsModalProps {
 }
 
 export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOpenReflection, onUndoAction }: TaskDetailsModalProps) {
-  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
-  const [newActivityTitle, setNewActivityTitle] = useState("");
-  const stepInputRef = useRef<HTMLInputElement>(null);
+  const [selectedActivity, setSelectedActivity] = useState<TaskActivity | null>(null);
+  const [activeSubView, setActiveSubView] = useState<'details' | 'guidance' | 'resources'>('details');
+  const [showReviewPopup, setShowReviewPopup] = useState(false);
+  const [reviewOption, setReviewOption] = useState<'now' | 'schedule' | null>(null);
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(new Date());
 
   const [showPostponeDialog, setShowPostponeDialog] = useState(false);
   const [showUndoDialog, setShowUndoDialog] = useState(false);
   const [selectedForPostpone, setSelectedForPostpone] = useState<string[]>([]);
   const [isTaskLoading, setIsTaskLoading] = useState(false);
+  
+  const menuRef = useRef<Menu>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible && taskId) {
       setIsTaskLoading(true);
       const timer = setTimeout(() => {
@@ -54,750 +62,557 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
     }
   }, [taskId, visible]);
 
-  // Use live query to keep data in sync
+  useEffect(() => {
+    if (selectedActivity) {
+      setActiveSubView('details');
+    }
+  }, [selectedActivity]);
+
   const task = useLiveQuery(() => 
     taskId ? db.tasks.get(taskId) : null
   , [taskId]);
 
-  const reflectionsForTask = useLiveQuery(() => 
-    taskId ? db.reflections.where("taskId").equals(taskId).toArray() : []
-  , [taskId]);
-
   const station = useLiveQuery(() => 
     task?.stationId ? db.stations.get(task.stationId) : null
-  , [task?.stationId]);
+  , [task]);
 
-  const settings = useLiveQuery(() => db.userSettings.toArray());
-  const user = settings?.[0];
-  const isLanguageLearning = user?.learningGoal?.includes('لغ');
-
-  React.useEffect(() => {
-    if (visible && task) {
-      const activities = task.activities || [];
-      if (activities.length > 0) {
-        const incomplete = activities.find(a => !a.isCompleted);
-        setEditingActivityId(incomplete ? incomplete.id : activities[0].id);
-      } else {
-        setEditingActivityId(null);
-      }
-    }
-  }, [task, visible]);
-
-  if (!visible || !taskId) return null;
-
-  const hasReflection = reflectionsForTask && reflectionsForTask.length > 0;
-
-  const getNextDateForDayOfWeek = (dayIndex: number) => {
-    const resultDate = new Date();
-    const currentDayIndex = resultDate.getDay();
-    let daysToAdd = (dayIndex - currentDayIndex + 7) % 7;
-    if (daysToAdd === 0) {
-      daysToAdd = 7;
-    }
-    resultDate.setDate(resultDate.getDate() + daysToAdd);
-    const yyyy = resultDate.getFullYear();
-    const mm = String(resultDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(resultDate.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const handlePostponeAction = async (targetDateString: string, dayLabel: string) => {
+  const performPostpone = async () => {
+    if (!task || selectedForPostpone.length === 0) return;
     try {
-      vibrate(HAPITCS.MAJOR_CLICK);
+      const userSettings = await db.userSettings.toCollection().first();
+      const todayShort = new Date().toISOString().split('T')[0];
+      const todayStationId = `deferred-${todayShort}`;
+      let deferStation = await db.stations.get(todayStationId);
+  
+      if (!deferStation) {
+        deferStation = {
+          id: todayStationId,
+          name: `أنشطة مؤجلة - ${todayShort}`,
+          icon: "pi-clock",
+          description: "الأنشطة التي قمت بتأجيلها و ترحيلها ليوم إجازتك.",
+          generalNotes: "هذه المحطة تم توليدها تلقائيا للأنشطة المرحلة."
+        } as Station;
+        await db.stations.put(deferStation);
+
+      }
+      
       const activitiesToMove = (task.activities || []).filter(act => selectedForPostpone.includes(act.id));
       const remainingActivities = (task.activities || []).filter(act => !selectedForPostpone.includes(act.id));
-
-      if (activitiesToMove.length === 0) {
-        toast.error("يرجى اختيار نشاط واحد على الأقل للتأجيل!");
-        return;
-      }
-
-      if (remainingActivities.length === 0) {
-        // Move the entire task
-        await (db.tasks as any).update(taskId, {
-          dueDate: targetDateString,
-          isRestDayTask: true
-        });
-        toast.success(`تم تأجيل المهمة بالكامل ليوم (${dayLabel}) الموافق ${targetDateString}! 🗓️`);
-      } else {
-        // Move selected activities to a new rest-day task
-        const newTask = {
-          ...task,
-          id: safeRandomUUID(),
-          dueDate: targetDateString,
-          isRestDayTask: true,
-          activities: activitiesToMove,
-          isCompleted: false
-        };
-        await (db.tasks as any).add(newTask);
-        await (db.tasks as any).update(taskId, {
-          activities: remainingActivities,
-          isCompleted: remainingActivities.length > 0 && remainingActivities.every(a => a.isCompleted)
-        });
-        toast.success(`تم نقل الأنشطة المحددة بنجاح ليوم إجازتك (${dayLabel}) الموافق ${targetDateString}! 🗓️`);
-      }
-
-      confetti({ zIndex: 999999999, particleCount: 85, spread: 55, origin: { y: 0.7 } });
+      
+      await (db.tasks as any).update(task.id, {
+        activities: remainingActivities,
+        isCompleted: task.isCompleted || (remainingActivities.length > 0 && remainingActivities.every((a:any) => a.isCompleted))
+      });
+      
+      const deferredTask: Task = {
+        id: safeRandomUUID(),
+        stationId: deferStation.id,
+        title: `مؤجل من: ${task.title}`,
+        description: `أنشطة تم ترحيلها من مهمة ${task.title}`,
+        type: "practical",
+        isCompleted: false,
+        
+        
+        activities: activitiesToMove,
+        practicalPart: task.practicalPart,
+      };
+      
+      await db.tasks.put(deferredTask);
+      
+      toast.success("تم ترحيل الأنشطة المحددة للمحطة المؤجلة بنجاح! 📦");
       setShowPostponeDialog(false);
-      onHide();
+      setSelectedForPostpone([]);
+      vibrate(HAPITCS.SUCCESS);
     } catch (err) {
       console.error('Failed to postpone activities:', err);
-      toast.error("حدث خطأ أثناء التأجيل");
+      toast.error("فشل في تأجيل الأنشطة.");
     }
   };
 
-  const handleAddActivity = async () => {
-    if (!newActivityTitle.trim() || task.isCompleted) return;
-    vibrate(HAPITCS.MAJOR_CLICK);
+  const handleScheduleReview = async () => {
+    if (!selectedActivity || !scheduledDate) return;
+    try {
+      const scheduledAt = scheduledDate.toISOString();
+      // Logic to add to calendar or notify
+      await db.notifications.add({
+        id: safeRandomUUID(),
+        type: 'review_reminder',
+        title: `موعد مراجعة: ${selectedActivity.title}`,
+        message: `حان وقت مراجعة النشاط الذي قمت بجدولته.`,
+        scheduledAt,
+        isRead: false,
+        relatedId: task?.id,
+        relatedType: 'task'
+      } as any);
 
-    const newActivity: TaskActivity = {
-      id: safeRandomUUID(),
-      title: newActivityTitle.trim(),
-      isCompleted: false,
-      description: "",
-      steps: []
-    };
-
-    const currentActivities = task.activities || [];
-    await (db.tasks as any).update(taskId, {
-      activities: [...currentActivities, newActivity]
-    });
-
-    setNewActivityTitle("");
-    toast.success("تم إضافة النشاط بنجاح! ✨");
+      toast.success(`تمت جدولة المراجعة في: ${scheduledDate.toLocaleString('ar-EG')}`);
+      setShowReviewPopup(false);
+      setSelectedActivity(null);
+    } catch (err) {
+      console.error('Failed to schedule review:', err);
+      toast.error("فشل في جدولة المراجعة");
+    }
   };
 
-  const handleUpdateActivity = async (activityId: string, updates: Partial<TaskActivity>) => {
-    if (task.isCompleted) return;
-    const currentActivities = task.activities || [];
-    const updatedActivities = currentActivities.map(act => 
-      act.id === activityId ? { ...act, ...updates } : act
-    );
-
-    await (db.tasks as any).update(taskId, {
-      activities: updatedActivities
-    });
-  };
-
-  const handleDeleteActivity = async (activityId: string) => {
-    if (task.isCompleted) return;
-    
-    confirmDialog({
-      message: 'هل أنت متأكد من حذف هذا النشاط؟',
-      header: 'تأكيد الحذف',
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'نعم، احذف',
-      rejectLabel: 'إلغاء',
-      className: 'rtl-dialog',
-      acceptClassName: 'p-button-danger',
-      accept: async () => {
-        vibrate(HAPITCS.MAJOR_CLICK);
-        const updatedActivities = (task.activities || []).filter(act => act.id !== activityId);
-        
-        // Re-calculate task completion if activities change
-        const allCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
-
-        await (db.tasks as any).update(taskId, {
-          activities: updatedActivities,
-          isCompleted: allCompleted
-        });
-        setEditingActivityId(null);
-        toast.success("تم حذف النشاط");
-      }
-    });
-  };
-
-  const handleAddStepWithVal = async (activityId: string) => {
-    if (!stepInputRef.current || task.isCompleted) return;
-    const title = stepInputRef.current.value;
-    if (!title.trim()) return;
-
-    vibrate(HAPITCS.MAJOR_CLICK);
-    const currentActivities = task.activities || [];
-    const updatedActivities = currentActivities.map(act => {
-      if (act.id === activityId) {
-        const steps = act.steps || [];
-        const newSteps = [...steps, { id: safeRandomUUID(), title: title.trim(), isCompleted: false }];
-        // If adding a new step, un-complete the activity and task
-        return {
-          ...act,
-          steps: newSteps,
-          isCompleted: false
-        };
-      }
-      return act;
-    });
-
-    await (db.tasks as any).update(taskId, {
-      activities: updatedActivities,
-      isCompleted: false
-    });
-    stepInputRef.current.value = "";
+  const handleReviewNow = () => {
+    setReviewOption(null);
+    setShowReviewPopup(false);
+    setActiveSubView('details');
   };
 
   const toggleActivityComplete = async (activityId: string) => {
-    if (task.isCompleted) return;
-    vibrate(HAPITCS.MAJOR_CLICK);
-    const currentActivities = task.activities || [];
-    let activityCompletedInThisTurn = false;
-
-    const updatedActivities = currentActivities.map(act => {
-      if (act.id === activityId) {
-        const newStatus = !act.isCompleted;
-        if (newStatus) activityCompletedInThisTurn = true;
-        // Optionally update steps too
-        const updatedSteps = (act.steps || []).map(s => ({ ...s, isCompleted: newStatus }));
-        return { ...act, isCompleted: newStatus, steps: updatedSteps };
-      }
-      return act;
-    });
-
-    const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
-    const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
-    const taskUndone = !allActivitiesCompleted && task.isCompleted;
-
-    await (db.tasks as any).update(taskId, {
-      activities: updatedActivities,
-      isCompleted: allActivitiesCompleted
-    });
-
-    if (taskJustCompleted) {
-      confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
-      toast.success("أنهيت جميع الأنشطة! حان وقت ختم المهمة وتقييمها 🏆✨");
-      if (onCompleteTask) onCompleteTask(taskId);
-      if (onOpenReflection) onOpenReflection(task);
-    } else if (taskUndone) {
-      await db.reflections.where("taskId").equals(taskId).delete();
-      toast("تم التراجع عن إكمال المهمة وتصفير سجل التقييم.", { icon: "🧹" });
-    } else if (activityCompletedInThisTurn) {
-      confetti({ zIndex: 999999999, particleCount: 80, spread: 60, origin: { y: 0.7 } });
-      toast.success("أحسنت! أتممت هذا النشاط بنجاح 🔥");
-    }
-  };
-
-  const toggleStep = async (activityId: string, stepId: string) => {
-    if (task.isCompleted) return;
-    vibrate(HAPITCS.MAJOR_CLICK);
-    const currentActivities = task.activities || [];
-    let activityCompletedInThisTurn = false;
-    let stepCompletedInThisTurn = false;
-
-    const updatedActivities = currentActivities.map(act => {
-      if (act.id === activityId) {
-        const steps = (act.steps || []).map(s => 
-          s.id === stepId ? { ...s, isCompleted: !s.isCompleted } : s
-        );
-        
-        const stepJustFinished = steps.find(s => s.id === stepId)?.isCompleted;
-        if (stepJustFinished) stepCompletedInThisTurn = true;
-
-        // Auto-complete activity if all steps are completed
-        const allStepsCompleted = steps.length > 0 && steps.every(s => s.isCompleted);
-        if (allStepsCompleted && !act.isCompleted) {
-          activityCompletedInThisTurn = true;
+    if (!task) return;
+    try {
+      const currentActivities = task.activities || [];
+      const updatedActivities = currentActivities.map(act => {
+        if (act.id === activityId) {
+          return { ...act, isCompleted: !act.isCompleted, isSuspended: false };
         }
-        
-        return { ...act, steps, isCompleted: allStepsCompleted };
+        return act;
+      });
+
+      const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every((a: any) => a.isCompleted);
+      const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
+
+      await (db.tasks as any).update(task.id, { 
+        activities: updatedActivities,
+        isCompleted: task.isCompleted || allActivitiesCompleted 
+      });
+
+      if (taskJustCompleted) {
+        vibrate(HAPITCS.SUCCESS);
+        confetti({
+          zIndex: 999999999,
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+        toast.success("تم إنجاز المهمة بنجاح! 🏆", {
+          style: {
+            borderRadius: '16px',
+            background: '#10b981',
+            color: '#fff',
+            fontWeight: 'bold',
+          },
+          iconTheme: {
+            primary: '#fff',
+            secondary: '#10b981',
+          },
+        });
+        if (onCompleteTask) onCompleteTask(task.id!);
+      } else {
+        vibrate(HAPITCS.MAJOR_CLICK);
       }
-      return act;
-    });
-
-    // Check if ALL activities in the updated set are completed
-    const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
-    const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
-    const taskUndone = !allActivitiesCompleted && task.isCompleted;
-
-    await (db.tasks as any).update(taskId, {
-      activities: updatedActivities,
-      isCompleted: allActivitiesCompleted
-    });
-
-    if (taskJustCompleted) {
-      confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
-      toast.success("أنهيت جميع الأنشطة! حان وقت ختم المهمة وتقييمها 🏆✨");
-      if (onCompleteTask) onCompleteTask(taskId);
-      if (onOpenReflection) onOpenReflection(task);
-    } else if (taskUndone) {
-      await db.reflections.where("taskId").equals(taskId).delete();
-      toast("تم التراجع عن إكمال المهمة وتصفير سجل التقييم.", { icon: "🧹" });
-    } else if (activityCompletedInThisTurn) {
-      confetti({ zIndex: 999999999, particleCount: 80, spread: 60, origin: { y: 0.7 } });
-      toast.success("أحسنت! أتممت هذا النشاط بنجاح 🔥");
-    } else if (stepCompletedInThisTurn) {
-      confetti({ zIndex: 999999999, particleCount: 30, spread: 40, origin: { y: 0.8 }, scalar: 0.7 });
+    } catch (err) {
+      console.error('Failed to update activity:', err);
+      toast.error("حدث خطأ أثناء حفظ التغيير");
     }
   };
 
-  const removeStep = async (activityId: string, stepId: string) => {
-    if (task.isCompleted) return;
-    const currentActivities = task.activities || [];
-    let activityCompletedInThisTurn = false;
-
-    const updatedActivities = currentActivities.map(act => {
-      if (act.id === activityId) {
-        const steps = (act.steps || []).filter(s => s.id !== stepId);
-        const allStepsCompleted = steps.length > 0 && steps.every(s => s.isCompleted);
-        if (allStepsCompleted && !act.isCompleted) {
-          activityCompletedInThisTurn = true;
-        }
-        return { ...act, steps, isCompleted: allStepsCompleted };
-      }
-      return act;
+  const handleActivitySuspend = async (activity: TaskActivity) => {
+    if (!task || !task.activities) return;
+    vibrate(HAPITCS.MAJOR_CLICK);
+    
+    // Update activity to be suspended
+    const updatedActivities = task.activities.map(a => 
+       a.id === activity.id ? { ...a, isSuspended: true } : a
+    );
+    
+    await (db.tasks as any).update(task.id, {
+        activities: updatedActivities
     });
-
-    const allActivitiesCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.isCompleted);
-    const taskJustCompleted = allActivitiesCompleted && !task.isCompleted;
-    const taskUndone = !allActivitiesCompleted && task.isCompleted;
-
-    await (db.tasks as any).update(taskId, {
-      activities: updatedActivities,
-      isCompleted: allActivitiesCompleted
-    });
-
-    if (taskJustCompleted) {
-      confetti({ zIndex: 999999999, particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
-      toast.success("أنهيت جميع الأنشطة! حان وقت ختم المهمة وتقييمها 🏆✨");
-      if (onCompleteTask) onCompleteTask(taskId);
-      if (onOpenReflection) onOpenReflection(task);
-    } else if (taskUndone) {
-      await db.reflections.where("taskId").equals(taskId).delete();
-      toast("تم التراجع عن إكمال المهمة وتصفير سجل التقييم.", { icon: "🧹" });
-    } else if (activityCompletedInThisTurn) {
-      confetti({ zIndex: 999999999, particleCount: 80, spread: 60, origin: { y: 0.7 } });
-      toast.success("أحسنت! أتممت هذا النشاط بنجاح 🔥");
-    }
+    
+    toast.success("تم تعليق النشاط بنجاح للبدء به", { icon: "🧭" });
   };
+  
+  const handleEndActivity = async (activityId: string) => {
+     vibrate(HAPITCS.SUCCESS);
+     await toggleActivityComplete(activityId);
+     
+     if (task && onOpenReflection) {
+       onOpenReflection(task);
+     }
+  };
+
+  const isLanguageLearning = task?.stationId === "language_station";
+
+  if (!task && !isTaskLoading) return null;
 
   return (
-    <>
+    <Dialog
+      visible={visible}
+      onHide={() => {
+        onHide();
+        setSelectedActivity(null);
+      }}
+      modal
+      maximized
+      className="m-0 custom-dialog-no-padding custom-transparent-dialog-full"
+      closable={false}
+      showHeader={false}
+      draggable={false}
+      resizable={false}
+    >
+      {/* Review Scheduling Popup */}
       <Dialog
-        maximized
-        visible={visible}
-        onHide={onHide}
-        transitionOptions={{ timeout: 400 }}
-        header={
-          <div className="flex justify-between items-center w-full pr-6 pl-6" dir="rtl">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-sm border border-indigo-500/30">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-white leading-none">تفاصيل المهمة</h3>
-                <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest truncate max-w-[200px]">
-                  {task ? task.title : 'جاري التحميل...'}
-                </p>
-              </div>
-            </div>
-            {task && !isTaskLoading && (
-              <div className="flex items-center gap-2.5">
-                {!task.isCompleted && (task.activities || []).length > 0 && (
-                  <button
-                    onClick={() => {
-                      vibrate(HAPITCS.MAJOR_CLICK);
-                      setSelectedForPostpone((task.activities || []).filter(a => !a.isCompleted).map(a => a.id));
-                      setShowPostponeDialog(true);
-                    }}
-                    className="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 px-4 py-2 rounded-xl text-xs font-black shadow-3xs transition-all flex items-center gap-1.5 cursor-pointer"
-                    type="button"
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>أجل الأنشطة 🗓️</span>
-                  </button>
-                )}
-                
-                <button
-                  type="button"
-                  onClick={() => setShowUndoDialog(true)}
-                  className="bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 px-4 py-2 rounded-xl text-xs font-black shadow-3xs transition-all flex items-center gap-1.5 cursor-pointer"
+        visible={showReviewPopup}
+        onHide={() => setShowReviewPopup(false)}
+        header="مراجعة النشاط 🔁"
+        className="w-full max-w-md font-sans"
+        footer={
+           <div className="flex gap-2 justify-end w-full" dir="rtl">
+              {reviewOption === 'schedule' && (
+                <button 
+                  onClick={handleScheduleReview}
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold"
                 >
-                  <i className="pi pi-undo text-xs"></i>
-                  <span>تراجع</span>
+                  تأكيد الجدولة
                 </button>
-              </div>
-            )}
-          </div>
+              )}
+              <button 
+                onClick={() => setShowReviewPopup(false)}
+                className="px-6 py-2 bg-white/5 text-slate-400 rounded-xl font-bold"
+              >
+                إلغاء
+              </button>
+           </div>
         }
-        className="w-full font-sans m-0 p-0 rounded-none border-none"
-        style={{ width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: 0, margin: 0 }}
-        modal
-        dismissableMask
-        baseZIndex={LAYERS.TASK_REVIEW + 10}
-        contentClassName="p-0 bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 text-white overflow-hidden"
-        headerClassName="bg-[#020617] border-b border-white/5"
       >
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.99, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col h-full overflow-hidden" 
-          dir="rtl"
-        >
-          <ConfirmDialog />
-          {isTaskLoading || !task ? (
-            <div className="flex-1 flex overflow-hidden p-8 animate-pulse bg-gradient-to-br from-[#0A0F2C]/5 to-[#2D52CC]/5" dir="rtl">
-              {/* Sidebar Skeleton */}
-              <div className="w-80 border-l border-indigo-950/5 pr-4 pl-8 py-4 space-y-6 shrink-0 hidden md:block" style={{ borderLeftWidth: '1px' }}>
-                <div className="h-4 bg-indigo-950/10 rounded-md w-1/2"></div>
-                <div className="space-y-4">
-                  {[1, 2, 3, 4].map(idx => (
-                    <div key={idx} className="h-14 bg-indigo-950/5 rounded-2xl w-full border border-indigo-950/5 p-4 flex justify-between items-center">
-                      <div className="flex items-center gap-3 w-3/4">
-                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-950/10 shrink-0"></div>
-                        <div className="h-3 bg-indigo-950/10 rounded-md w-3/4"></div>
-                      </div>
-                      <div className="w-4 h-4 rounded-full bg-indigo-950/5 animate-pulse"></div>
-                    </div>
-                  ))}
+        <div className="p-4 space-y-6" dir="rtl">
+          {!reviewOption ? (
+            <div className="grid grid-cols-1 gap-4">
+              <button
+                onClick={() => handleReviewNow()}
+                className="p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl hover:bg-emerald-500/20 transition-all text-right"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <Play className="w-6 h-6 text-emerald-400" />
+                  <span className="text-lg font-black text-white">راجعها دلوقتى</span>
                 </div>
-              </div>
+                <p className="text-sm text-slate-400">ابدأ عملية المراجعة والتقييم فوراً.</p>
+              </button>
               
-              {/* Main Content Skeleton */}
-              <div className="flex-1 p-8 md:p-12 space-y-8 overflow-y-auto">
-                <div className="p-6 bg-indigo-950/5 border border-indigo-950/5 rounded-3xl space-y-4">
-                  <div className="h-3 bg-indigo-950/10 rounded-md w-12 animate-pulse"></div>
-                  <div className="h-6 bg-gradient-to-r from-[#0a0f2c]/10 to-[#2d52cc]/10 rounded-lg w-2/3 animate-pulse"></div>
-                  <div className="h-3 bg-indigo-950/10 rounded-md w-1/3 animate-pulse"></div>
+              <button
+                onClick={() => setReviewOption('schedule')}
+                className="p-6 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl hover:bg-indigo-500/20 transition-all text-right"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <Clock className="w-6 h-6 text-indigo-400" />
+                  <span className="text-lg font-black text-white">جدولها بعدين</span>
                 </div>
-                <div className="space-y-4">
-                  <div className="h-4 bg-indigo-950/10 rounded-md w-1/4 animate-pulse"></div>
-                  <div className="space-y-3">
-                    <div className="h-3 bg-indigo-950/5 rounded-md w-full animate-pulse"></div>
-                    <div className="h-3 bg-indigo-950/5 rounded-md w-[95%] animate-pulse"></div>
-                    <div className="h-3 bg-indigo-950/5 rounded-md w-[80%] animate-pulse"></div>
-                  </div>
-                </div>
-                <div className="h-[200px] bg-[#0A0F2C]/5 rounded-[32px] flex items-center justify-center p-8 border border-[#2D52CC]/10">
-                  <div className="flex flex-col items-center gap-3 text-center">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#0a0f2c]/10 to-[#2d52cc]/10 flex items-center justify-center animate-spin">
-                       <i className="pi pi-spinner text-indigo-600 text-lg"></i>
-                    </div>
-                    <span className="text-xs font-bold text-indigo-950/60 leading-relaxed">جاري تزامن وتوريث خطوات السعي والأنشطة الإجرائية...</span>
-                  </div>
-                </div>
-              </div>
+                <p className="text-sm text-slate-400">اختر موعداً مناسباً في التقويم لمراجعة هذا النشاط.</p>
+              </button>
             </div>
           ) : (
-            <div className="flex-1 flex overflow-hidden">
-          {/* Sidebar: Activities */}
-          <div className="w-80 border-l border-white/10 bg-[#020617] flex flex-col">
-            <div className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">قائمة الأنشطة</h4>
-                {task.isCompleted && (
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-md border border-emerald-500/30 scale-90">
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span className="text-[9px] font-black uppercase">مكتملة</span>
-                  </div>
-                )}
+            <div className="space-y-4">
+              <h4 className="text-white font-bold mb-2 text-right">اختر الموعد والساعة:</h4>
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex justify-center">
+                 <input 
+                   type="datetime-local" 
+                   value={scheduledDate ? scheduledDate.toISOString().slice(0, 16) : ''}
+                   onChange={(e) => setScheduledDate(new Date(e.target.value))}
+                   className="bg-transparent text-white border-none focus:outline-none text-center font-mono w-full"
+                 />
               </div>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-              {(task.activities || []).map(act => (
-                <button
-                  key={act.id}
-                  onClick={() => {
-                    vibrate(HAPITCS.GUIDANCE);
-                    setEditingActivityId(act.id);
-                  }}
-                  className={`w-full text-right p-4 rounded-2xl transition-all flex items-center justify-between group border
-                    ${editingActivityId === act.id 
-                      ? 'bg-white border-indigo-200 shadow-md ring-1 ring-indigo-100' 
-                      : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200 text-slate-600'}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full transition-all ${act.isCompleted ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : (editingActivityId === act.id ? 'bg-indigo-400' : 'bg-slate-300')}`} />
-                    <span className={`font-bold text-sm truncate max-w-[140px] ${editingActivityId === act.id ? 'text-indigo-900' : ''}`}>
-                      {act.title}
-                    </span>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 transition-all ${editingActivityId === act.id ? 'text-indigo-600 translate-x-0' : 'opacity-0 translate-x-2'}`} />
-                </button>
-              ))}
-
-              {(task.activities || []).length === 0 && (
-                <div className="flex flex-col items-center justify-center p-8 text-center mt-6">
-                  <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center text-slate-200 mb-4 shadow-sm border border-slate-100">
-                    <ListTodo className="w-8 h-8" />
-                  </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-relaxed">
-                    ابدأ بوضع محطات<br/>عملية لمهمتك
-                  </p>
-                </div>
-              )}
+          )}
+        </div>
+      </Dialog>
+      
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="w-full h-full bg-[#050816] flex flex-col font-sans relative overflow-hidden" 
+        dir="rtl"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,#1e1b4b,transparent_70%)] opacity-50" />
+        
+        {/* Full Screen Header */}
+        <div className="flex-none p-6 md:px-12 md:py-8 flex items-center justify-between border-b border-white/5 relative z-10 bg-black/40 backdrop-blur-3xl">
+          <div className="flex items-center gap-6">
+            <button
+              onClick={() => {
+                if (selectedActivity) {
+                  setSelectedActivity(null);
+                } else {
+                  onHide();
+                }
+              }}
+              className="w-14 h-14 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 flex items-center justify-center transition-all cursor-pointer border border-white/10 group focus:outline-none"
+            >
+              <i className={`pi ${selectedActivity ? 'pi-arrow-right' : 'pi-times'} text-xl group-hover:scale-110 transition-transform`} />
+            </button>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-indigo-400 tracking-[0.2em] uppercase mb-1">
+                {selectedActivity ? 'تفاصيل النشاط والتوجيه' : `بناء قدرات ومهارات - ${station ? station.name : 'جاري التحميل...'}`}
+              </span>
+              <h2 className="text-2xl md:text-3xl font-black text-white">
+                  {selectedActivity ? selectedActivity.title : (task ? task.title : 'تفاصيل الغاية والمهمة 🎯')}
+              </h2>
             </div>
           </div>
 
-          {/* Main Content */}
-          <div className="flex-1 overflow-y-auto bg-transparent p-8 md:p-12 custom-scrollbar">
-            {editingActivityId ? (
-              (() => {
-                const act = (task.activities || []).find(a => a.id === editingActivityId);
-                if (!act) return null;
+          <div className="flex items-center gap-4">
+             {selectedActivity && !selectedActivity.isCompleted && (
+                 <div className="flex items-center gap-2 bg-white/5 p-1 rounded-2xl border border-white/10">
+                    <button
+                      onClick={() => setActiveSubView('details')}
+                      className={`px-6 py-3 rounded-xl font-black text-sm flex items-center gap-2 transition-all ${activeSubView === 'details' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      <Activity className="w-4 h-4" />
+                      التنفيذ
+                    </button>
+                    <button
+                      onClick={() => setActiveSubView('guidance')}
+                      className={`px-6 py-3 rounded-xl font-black text-sm flex items-center gap-2 transition-all ${activeSubView === 'guidance' ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      التوجيه
+                    </button>
+                    <button
+                      onClick={() => setActiveSubView('resources')}
+                      className={`px-6 py-3 rounded-xl font-black text-sm flex items-center gap-2 transition-all ${activeSubView === 'resources' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      <ListTodo className="w-4 h-4" />
+                      المصادر
+                    </button>
+                 </div>
+             )}
 
-                return (
-                  <div className="max-w-2xl mx-auto space-y-12">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-indigo-500/30">
-                            <Clock className="w-3 h-3" />
-                            <span>{act.duration ? `${act.duration} دقيقة لكل جلسة` : 'نشاط تنفيذي'}</span>
-                          </div>
-                          {task.isCompleted && (
-                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-white/10">
-                              <Lock className="w-3 h-3" />
-                              <span>المهمة مكتملة - عرض فقط</span>
-                            </div>
-                          )}
+             {!selectedActivity && task?.isCompleted && (
+               <div className="px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 flex items-center gap-2">
+                 <CheckCircle2 className="w-4 h-4" />
+                 <span className="font-black text-sm">مهمة مكتملة</span>
+               </div>
+             )}
+             
+             <div className="flex items-center gap-2">
+               <Menu 
+                 model={[
+                   {
+                     label: 'التراجع والإلغاء المتقدم',
+                     icon: 'pi pi-undo',
+                     command: () => setShowUndoDialog(true)
+                   }
+                 ]} 
+                 popup 
+                 ref={menuRef} 
+                 id="popup_menu" 
+               />
+               <button 
+                 onClick={(e) => menuRef.current?.toggle(e)}
+                 className="w-14 h-14 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 flex items-center justify-center transition-all border border-white/10"
+               >
+                 <i className="pi pi-ellipsis-v text-lg" />
+               </button>
+             </div>
+          </div>
+        </div>
+
+        {/* Full Screen Content Area */}
+        <div className="flex-1 overflow-y-auto w-full relative z-10 custom-scrollbar bg-black/10">
+          {(!task || isTaskLoading) ? (
+            <div className="h-full flex flex-col justify-center items-center">
+               <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500/20 to-blue-500/20 flex items-center justify-center animate-spin border-t-4 border-indigo-500 shadow-2xl shadow-indigo-500/20"></div>
+            </div>
+          ) : selectedActivity ? (
+            <div className="w-full h-full flex flex-col">
+               <div className="flex-1 p-8 md:p-16 max-w-5xl mx-auto w-full">
+                  <AnimatePresence mode="wait">
+                    {activeSubView === 'guidance' && (
+                      <motion.div 
+                        key="guidance"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.05 }}
+                        className="space-y-8"
+                      >
+                        <div className="p-10 bg-gradient-to-br from-amber-500/10 to-amber-900/10 border border-amber-500/20 rounded-[50px] shadow-2xl relative overflow-hidden">
+                           <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 blur-3xl rounded-full" />
+                           <div className="flex items-center gap-6 mb-8">
+                             <div className="w-20 h-20 rounded-[30px] bg-amber-500/20 flex items-center justify-center border border-amber-500/30 shadow-2xl shadow-amber-500/20">
+                                <Sparkles className="w-10 h-10 text-amber-300" />
+                             </div>
+                             <div>
+                               <h3 className="text-3xl font-black text-white">التوجيه السامي 🧭</h3>
+                               <p className="text-amber-400 font-bold">اتبع هذه التعليمات لضمان أفضل جودة للتنفيذ</p>
+                             </div>
+                           </div>
+                           <div className="text-amber-50/90 text-xl md:text-2xl font-bold leading-relaxed bg-black/60 p-10 rounded-[40px] border border-white/5 whitespace-pre-wrap shadow-inner">
+                             {selectedActivity.guidance || selectedActivity.description || "ابدأ هذا النشاط مستعيناً بالله وتوكل عليه."}
+                           </div>
                         </div>
-                        <h3 className="text-4xl font-black text-white leading-tight tracking-tight">{act.title}</h3>
-                        {act.description && (
-                          <p className="text-slate-300 text-sm leading-relaxed mt-4">
-                            {act.description}
-                          </p>
-                        )}
-                        {act.guidance && (
-                          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 mt-4 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-1.5 h-full bg-indigo-500"></div>
-                            <div className="flex items-start gap-3">
-                              <i className="pi pi-compass text-indigo-400 text-lg mt-0.5 shrink-0" />
+                      </motion.div>
+                    )}
+
+                    {activeSubView === 'resources' && (
+                      <motion.div 
+                        key="resources"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.05 }}
+                        className="space-y-8"
+                      >
+                         <div className="p-10 bg-gradient-to-br from-blue-500/10 to-blue-900/10 border border-blue-500/20 rounded-[50px] shadow-2xl">
+                            <div className="flex items-center gap-6 mb-8">
+                              <div className="w-20 h-20 rounded-[30px] bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
+                                 <ListTodo className="w-10 h-10 text-blue-300" />
+                              </div>
                               <div>
-                                <h5 className="text-[11px] font-black text-indigo-200 uppercase tracking-widest mb-1 opacity-80">توجيه النشاط</h5>
-                                <p className="text-indigo-100/90 text-sm font-medium leading-relaxed">
-                                  {act.guidance}
-                                </p>
+                                <h3 className="text-3xl font-black text-white">مصادر النشاط المخصصة</h3>
+                                <p className="text-blue-400 font-bold">أدوات ومراجع تدعمك في رحلة السعي</p>
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3">
-                      {!task.isCompleted && (
-                        <button 
-                          onClick={() => toggleActivityComplete(act.id)}
-                          className={`w-12 h-12 rounded-2xl transition-all flex items-center justify-center ${act.isCompleted ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-slate-600' : 'bg-white/5 text-slate-400 hover:bg-emerald-500/20 hover:text-emerald-400'}`}
-                          title={act.isCompleted ? "التراجع عن الإكمال" : "إكمال النشاط"}
-                        >
-                          <CheckCircle2 className="w-5 h-5" />
-                        </button>
-                      )}
-                      {!task.isCompleted && (
-                        <button 
-                          onClick={() => handleDeleteActivity(act.id)}
-                          className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all flex items-center justify-center"
-                          title="حذف النشاط"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      )}
-                      </div>
-                    </div>
-
-                    <TabView className="custom-task-tabs">
-                      <TabPanel header={
-                        <div className="flex items-center gap-2 py-1">
-                          <ListTodo className="w-4 h-4" />
-                          <span>الخطوات</span>
-                        </div>
-                      }>
-                        <div className="py-8 space-y-8">
-                           {!task.isCompleted && (
-                             <div className="relative">
-                                <input 
-                                  ref={stepInputRef}
-                                  type="text"
-                                  placeholder="صف الخطوة القادمة..."
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleAddStepWithVal(act.id);
-                                    }
-                                  }}
-                                  className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/10 rounded-[28px] text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-white placeholder:text-slate-500"
-                                />
-                                <button 
-                                  onClick={() => handleAddStepWithVal(act.id)}
-                                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center transition-all hover:bg-slate-900 shadow-lg active:scale-90"
-                                >
-                                  <Plus className="w-5 h-5" />
-                                </button>
-                             </div>
-                           )}
-
-                           <div className="space-y-4">
-                              {(act.steps || []).map(step => (
-                                <div 
-                                  key={step.id}
-                                  className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-3xl group hover:border-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/5 transition-all"
-                                >
-                                  <div className="flex items-center gap-5">
-                                    <button 
-                                      onClick={() => toggleStep(act.id, step.id)}
-                                      disabled={task.isCompleted}
-                                      className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all ${task.isCompleted ? 'cursor-not-allowed opacity-60' : ''} ${step.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'border-white/20 bg-transparent hover:border-indigo-400'}`}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                               {(selectedActivity.learningResources && parseLearningResources(selectedActivity.learningResources).length > 0) ? (
+                                 parseLearningResources(selectedActivity.learningResources).map((res) => (
+                                    <a 
+                                      key={res.id}
+                                      href={res.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-8 bg-black/60 border border-white/10 hover:border-blue-500/50 hover:bg-blue-500/5 rounded-[35px] flex items-center justify-between transition-all group"
                                     >
-                                      {step.isCompleted && <CheckCircle2 className="w-4 h-4" />}
-                                    </button>
-                                    <span className={`text-base font-bold ${step.isCompleted ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
-                                      {step.title}
-                                    </span>
-                                  </div>
-                                  {!task.isCompleted && (
-                                    <button 
-                                      onClick={() => removeStep(act.id, step.id)}
-                                      className="p-2 text-slate-200 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                              
-                              {(act.steps || []).length === 0 && (
-                                <div className="text-center py-16 px-10 bg-white/5 rounded-[40px] border border-dashed border-white/10">
-                                  <Sparkles className="w-10 h-10 text-indigo-400 mx-auto mb-4" />
-                                  <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">قسم النشاط لخطوات صغيرة لضمان سهولة الإنجاز</p>
-                                </div>
-                              )}
-                           </div>
-                        </div>
-                      </TabPanel>
-
-                      <TabPanel header={
-                        <div className="flex items-center gap-2 py-1">
-                          <AlignLeft className="w-4 h-4" />
-                          <span>التوجيه</span>
-                        </div>
-                      }>
-                        <div className="py-8 space-y-6">
-                           <textarea 
-                              defaultValue={act.description || ""}
-                              onBlur={(e) => handleUpdateActivity(act.id, { description: e.target.value })}
-                              readOnly={task.isCompleted}
-                              placeholder={task.isCompleted ? "لا يوجد وصف لهذا النشاط" : "ما هي الملاحظات أو المصادر الهامة لهذا النشاط؟"}
-                              className={`w-full h-80 p-8 border border-white/10 rounded-[40px] text-base font-bold leading-relaxed focus:outline-none focus:ring-8 focus:ring-indigo-500/10 focus:bg-white/10 transition-all resize-none shadow-inner placeholder:text-slate-500 ${task.isCompleted ? 'bg-white/5 cursor-not-allowed text-slate-400' : 'bg-white/5 text-white'}`}
-                           />
-                           {!task.isCompleted && (
-                             <div className="flex items-center gap-2 text-indigo-300 px-4 bg-indigo-500/20 py-3 rounded-2xl self-start">
-                               <Info className="w-4 h-4" />
-                               <span className="text-[10px] font-black uppercase tracking-[0.2em]">يتم الحفظ التلقائي عند الخروج من الحقل</span>
-                             </div>
-                           )}
-                        </div>
-                      </TabPanel>
-
-                      <TabPanel header={
-                        <div className="flex items-center gap-2 py-1">
-                          <i className="pi pi-info-circle w-4 h-4" />
-                          <span>ملاحظات الموجه</span>
-                        </div>
-                      }>
-                        <div className="py-8">
-                           <div className="bg-white/5 border border-white/10 rounded-[32px] p-8 min-h-[200px]">
-                             <h4 className="text-xl font-black text-white mb-6 flex items-center gap-3">
-                               <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-indigo-400">
-                                  <i className="pi pi-info-circle" />
-                               </div>
-                               ملاحظات الموجه العامة للمحطة
-                             </h4>
-                             {station?.generalNotes ? (
-                               <p className="text-slate-300 font-medium leading-relaxed whitespace-pre-wrap">
-                                 {station.generalNotes}
-                               </p>
-                             ) : (
-                               <div className="flex flex-col items-center justify-center py-10 opacity-40">
-                                  <i className="pi pi-inbox text-4xl mb-2" />
-                                  <p className="font-bold">لا توجد ملاحظات موجه لهذه المحطة</p>
-                               </div>
-                             )}
-                           </div>
-                        </div>
-                      </TabPanel>
-                    </TabView>
-                  </div>
-                );
-              })()
-            ) : (
-              <div className="h-full flex flex-col justify-between max-w-2xl mx-auto py-4 font-sans animate-fade-in" dir="rtl">
-                <div className="space-y-6">
-                  {/* Task Header & Title Info */}
-                  <div className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-2 mt-4 text-right">
-                    <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md">مضمون المهمة</span>
-                    <h3 className="text-2xl font-black text-white">{task.title}</h3>
-                    {task.description && (
-                      <p className="text-xs text-slate-300 font-medium leading-relaxed">{task.description}</p>
+                                       <div className="flex flex-col gap-2">
+                                          <h4 className="text-xl font-black text-white group-hover:text-blue-300 transition-colors">{res.name}</h4>
+                                          <span className="text-sm text-slate-500 font-mono break-all opacity-60">{res.url}</span>
+                                       </div>
+                                       <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-blue-500/20 transition-all">
+                                          <ChevronRight className="w-6 h-6 text-slate-500 group-hover:text-blue-400 transition-all rotate-180" />
+                                       </div>
+                                    </a>
+                                 ))
+                               ) : (
+                                 <div className="col-span-full p-12 text-center text-slate-500 font-bold bg-black/20 rounded-[40px] border border-dashed border-white/5">
+                                    لا توجد مصادر خارجية لهذا النشاط حالياً
+                                 </div>
+                               )}
+                            </div>
+                         </div>
+                      </motion.div>
                     )}
-                  </div>
 
-                  {/* Practical Part (الجزء التطبيقي) */}
+                    {activeSubView === 'details' && (
+                      <motion.div 
+                        key="details"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="space-y-12"
+                      >
+                         <div className="p-10 bg-white/5 border border-white/10 rounded-[50px] shadow-2xl text-slate-300 text-xl font-bold leading-relaxed whitespace-pre-wrap">
+                            {selectedActivity.description || "ابدأ المهمة الآن وركز في خطواتك القادمة بكل شغف."}
+                         </div>
+
+                         {isLanguageLearning && (
+                           <div className="bg-indigo-500/5 p-10 rounded-[50px] border border-indigo-500/10">
+                              <LanguageTools />
+                           </div>
+                         )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+               </div>
+
+               {/* Activity Controls Footer */}
+               <div className="sticky bottom-0 left-0 right-0 p-8 md:p-12 bg-black/60 backdrop-blur-3xl border-t border-white/5">
+                   <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-6">
+                       {!selectedActivity.isCompleted && !selectedActivity.isSuspended && (
+                          <button
+                            onClick={() => handleActivitySuspend(selectedActivity)}
+                            className="flex-1 w-full py-6 rounded-[30px] bg-indigo-600 text-white font-black text-2xl shadow-2xl shadow-indigo-600/40 hover:bg-indigo-500 transition-all active:scale-95 flex items-center justify-center gap-4 group"
+                          >
+                             <Play className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                             بدء التنفيذ والتركيز 🧭
+                          </button>
+                       )}
+                       {selectedActivity.isSuspended && !selectedActivity.isCompleted && (
+                          <button
+                            onClick={() => handleEndActivity(selectedActivity.id)}
+                            className="flex-1 w-full py-6 rounded-[30px] bg-emerald-600 text-white font-black text-2xl shadow-2xl shadow-emerald-600/40 hover:bg-emerald-500 transition-all active:scale-95 flex items-center justify-center gap-4 group"
+                          >
+                             <CheckCircle2 className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                             إنهاء النشاط والتقييم ✅
+                          </button>
+                       )}
+                       <button
+                         onClick={() => setSelectedActivity(null)}
+                         className="px-10 py-6 rounded-[30px] bg-white/5 text-slate-400 font-bold text-xl hover:bg-white/10 transition-all"
+                       >
+                         عودة للمهمة
+                       </button>
+                   </div>
+               </div>
+            </div>
+          ) : (
+            <div className="w-full h-full p-8 md:p-12 space-y-12 max-w-6xl mx-auto">
+               
+               {/* Context & Resources Strip */}
+               <div className="space-y-6">
+                 {task.description && (
+                    <div className="p-8 bg-white/5 border border-white/10 rounded-[40px] text-right relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl rounded-full" />
+                      <span className="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-lg mb-4">مضمون المهمة والغاية</span>
+                      <h3 className="text-3xl font-black text-white">{task.title}</h3>
+                      <p className="text-lg font-bold text-slate-300 mt-4 leading-relaxed">{task.description}</p>
+                    </div>
+                  )}
+
                   {task.practicalPart && (
-                    <div className="p-5 bg-gradient-to-br from-emerald-500/15 via-emerald-500/10 to-transparent border border-emerald-500/35 rounded-3xl space-y-2 text-right shadow-md animate-fade-in">
-                      <div className="flex items-center gap-2 text-emerald-300">
-                        <i className="pi pi-briefcase text-xs shrink-0 text-emerald-400" />
-                        <h4 className="text-xs font-black">🛠️ الجزء التطبيقي الفعلي للمهمة:</h4>
+                    <div className="p-8 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 rounded-[40px] text-right">
+                      <div className="flex items-center gap-4 text-emerald-300 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                          <i className="pi pi-briefcase text-lg text-emerald-400" />
+                        </div>
+                        <h4 className="text-xl font-black">الجزء التطبيقي السامي</h4>
                       </div>
-                      <p className="text-xs font-bold text-emerald-50 bg-white/5 border border-white/5 p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap shadow-3xs">
+                      <p className="text-lg font-bold text-emerald-50 bg-black/40 border border-white/5 p-8 rounded-3xl leading-relaxed whitespace-pre-wrap shadow-inner">
                         {task.practicalPart}
                       </p>
                     </div>
                   )}
 
-                  {/* 1. Pre-Task Start Message (رسالة قبل بدء المهمة) */}
-                  {task.startMessage && (
-                    <div className="p-5 bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border border-indigo-500/20 rounded-3xl space-y-2 text-right shadow-3xs animate-fade-in">
-                      <div className="flex items-center gap-2 text-indigo-300">
-                        <Sparkles className="w-4 h-4 animate-pulse shrink-0" />
-                        <h4 className="text-xs font-black">📢 رسالة انطلاق وتوجيه قبل البدء:</h4>
+                  {task.learningResources && parseLearningResources(task.learningResources).length > 0 && (
+                    <div className="p-8 bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 rounded-[40px] text-right">
+                      <div className="flex items-center gap-4 text-blue-300 mb-6">
+                         <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                            <i className="pi pi-book text-lg" />
+                         </div>
+                        <h4 className="text-xl font-black">مصادر التعلم المؤصلة</h4>
                       </div>
-                      <p className="text-xs font-bold text-white bg-white/5 border border-white/5 p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap shadow-3xs">
-                        {task.startMessage}
-                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {parseLearningResources(task.learningResources).map((item) => {
+                          const isUrl = item.url.startsWith('http://') || item.url.startsWith('https://');
+                          return (
+                            <a 
+                              key={item.id}
+                              href={isUrl ? item.url : undefined}
+                              target={isUrl ? "_blank" : undefined}
+                              rel="noopener noreferrer"
+                              className={`p-6 rounded-3xl border flex items-center justify-between transition-all cursor-pointer ${isUrl ? 'bg-black/40 border-blue-500/30 text-blue-300 hover:bg-blue-500/10 hover:border-blue-400' : 'bg-black/40 border-white/10 text-slate-300 pointer-events-none'}`}
+                            >
+                               <div className="flex flex-col gap-1">
+                                  <span className="font-black text-lg tracking-wide">{item.name.trim() || item.url}</span>
+                                  {isUrl && <span className="text-xs opacity-50 font-mono break-all line-clamp-1">{item.url}</span>}
+                               </div>
+                               <i className={`pi ${isUrl ? 'pi-external-link' : 'pi-bookmark'} text-sm opacity-50`} />
+                            </a>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
-                  {/* 2. Learning Resources (مصادر التعلم المخصصة للمهمة) */}
-                  {task.learningResources && parseLearningResources(task.learningResources).length > 0 ? (
-                    <div className="p-5 bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 rounded-3xl space-y-3 text-right shadow-3xs animate-fade-in">
-                      <div className="flex items-center gap-2 text-blue-300">
-                        <i className="pi pi-book text-xs shrink-0" />
-                        <h4 className="text-xs font-black">📚 مصادر ومراجع التعلم المقترحة:</h4>
-                      </div>
-                      <div className="flex flex-wrap gap-2.5">
-                        {(() => {
-                          const items = parseLearningResources(task.learningResources);
-                          return items.map((item) => {
-                            const isUrl = item.url.startsWith('http://') || item.url.startsWith('https://');
-                            const displayName = item.name.trim() || item.url;
-                            return (
-                              <a 
-                                key={item.id}
-                                href={isUrl ? item.url : undefined}
-                                target={isUrl ? "_blank" : undefined}
-                                rel="noopener noreferrer"
-                                className={`text-[11px] font-bold px-3 py-2 rounded-xl border flex items-center gap-1.5 transition-all
-                                  ${isUrl 
-                                    ? 'bg-white/5 border-blue-500/30 text-blue-300 hover:bg-white/10 hover:border-blue-400 hover:scale-105 active:scale-95 shadow-3xs' 
-                                    : 'bg-white/5 border-white/10 text-slate-300'
-                                  }`}
-                              >
-                                <i className={`pi ${isUrl ? 'pi-external-link' : 'pi-bookmark'} text-[10px]`}></i>
-                                <span>{displayName}</span>
-                              </a>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* YouTube Embedded Video for the Task */}
                   {task.youtubeUrl && (
-                    <div className="p-5 bg-white/5 border border-white/10 rounded-3xl space-y-3 shadow-3xs animate-fade-in">
-                      <div className="flex items-center gap-2 text-rose-400">
-                        <i className="pi pi-youtube text-lg shrink-0" />
-                        <h4 className="text-xs font-black">فيديو داعم للمهمة:</h4>
+                    <div className="p-8 bg-white/5 border border-white/10 rounded-[40px] text-right">
+                      <div className="flex items-center gap-4 text-rose-400 mb-6 focus-within:">
+                        <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center">
+                           <i className="pi pi-youtube text-xl" />
+                        </div>
+                        <h4 className="text-xl font-black">المحتوى المرئي الداعم</h4>
                       </div>
-                      <div className="rounded-2xl overflow-hidden border border-white/10">
+                      <div className="rounded-[30px] overflow-hidden border border-white/10 bg-black shadow-2xl">
                          {(() => {
                             let videoId = '';
                             try {
@@ -808,7 +623,6 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                                    videoId = urlObj.pathname.slice(1);
                                }
                             } catch { 
-                               // fail silently on bad url, we will just use the string if it's already an ID
                                videoId = task.youtubeUrl.length === 11 ? task.youtubeUrl : '';
                             }
                             const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : task.youtubeUrl;
@@ -816,11 +630,10 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                             return (
                                <iframe 
                                  width="100%" 
-                                 height="250" 
+                                 height="450" 
                                  src={embedUrl}
                                  title="YouTube video player" 
                                  frameBorder="0" 
-                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                                  allowFullScreen
                                  className="w-full"
                                ></iframe>
@@ -829,307 +642,169 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                       </div>
                     </div>
                   )}
+               </div>
 
-                  {/* Google Drive Embedded */}
-                  {task.googleDriveUrl && (
-                    <div className="p-5 bg-white/5 border border-white/10 rounded-3xl space-y-3 shadow-3xs animate-fade-in">
-                      <div className="flex items-center gap-2 text-blue-400">
-                        <i className="pi pi-google border p-0.5 rounded text-[10px] shrink-0" />
-                        <h4 className="text-xs font-black">جوجل درايف داعم للمهمة:</h4>
+               {/* Activities Grid */}
+               <div className="space-y-8 pb-12">
+                  <div className="flex items-center justify-between border-t border-white/10 pt-12">
+                    <h3 className="text-3xl font-black text-white flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
+                         <Target className="w-8 h-8 text-indigo-400" />
                       </div>
-                      <div className="rounded-2xl overflow-hidden border border-white/10 h-[400px]">
-                         {(() => {
-                            let embedUrl = task.googleDriveUrl;
-                            if (embedUrl.includes('/view')) {
-                              embedUrl = embedUrl.replace(/\/view.*$/, '/preview');
-                            } else if (embedUrl.includes('/edit')) {
-                              embedUrl = embedUrl.replace(/\/edit.*$/, '/preview');
-                            }
-                            return (
-                               <iframe 
-                                 width="100%" 
-                                 height="100%" 
-                                 src={embedUrl}
-                                 title="Google Drive Document" 
-                                 frameBorder="0" 
-                                 allowFullScreen
-                                 className="w-full h-full"
-                               ></iframe>
-                            );
-                         })()}
-                      </div>
-                    </div>
-                  )}
+                      الأنشطة التنفيذية
+                    </h3>
+                    <span className="text-slate-400 font-black text-lg bg-white/5 px-6 py-2 rounded-2xl border border-white/10">{(task.activities || []).length} نشاط</span>
+                  </div>
+                  
+                  {(task.activities || []).length === 0 ? (
+                     <div className="flex flex-col items-center justify-center p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[40px]">
+                       <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center text-slate-400 mb-6">
+                         <ListTodo className="w-12 h-12 opacity-30" />
+                       </div>
+                       <h4 className="text-2xl font-black text-white mb-4">لا توجد أنشطة حالياً</h4>
+                     </div>
+                  ) : (
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                       {(task.activities || []).map((act: any, idx: number) => (
+                         <div key={act.id} className="p-8 rounded-[40px] bg-white/5 border border-white/10 flex flex-col justify-between hover:border-indigo-500/40 transition-all group hover:bg-white/[0.07] hover:scale-[1.02]">
+                            <div className="space-y-4 mb-8">
+                              <div className="flex items-start justify-between">
+                                 <div className="flex items-center gap-3">
+                                    <span className="text-indigo-400 font-black text-lg bg-indigo-500/10 px-3 py-1 rounded-lg"># {idx+1}</span>
+                                    <h4 className={`text-2xl font-black leading-tight ${act.isCompleted ? 'text-slate-500 line-through opacity-60' : 'text-white group-hover:text-indigo-300'} transition-all`}>
+                                      {act.title}
+                                    </h4>
+                                 </div>
+                                 {act.isCompleted && (
+                                   <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                                     <CheckCircle2 className="w-5 h-5" />
+                                   </div>
+                                 )}
+                              </div>
+                              
+                              <p className="text-slate-400 text-lg font-bold leading-relaxed line-clamp-2">{act.description}</p>
 
-                  {/* Language Tools for Foreign Language Learning Journeys */}
-                  {isLanguageLearning && (
-                     <div className="space-y-4">
-                        <LanguageTools />
-                        
-                        <div className="p-5 bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border border-indigo-500/20 rounded-3xl space-y-3 text-right shadow-3xs animate-fade-in animate-none">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-indigo-200">
-                              <span className="text-base shrink-0">🌐</span>
-                              <h4 className="text-xs font-black">تدريب النطق والاستماع (YouGlish):</h4>
+                              <div className="flex items-center gap-3">
+                                 {act.isSuspended && !act.isCompleted && (
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 rounded-xl">
+                                       <Zap className="w-4 h-4" />
+                                       <span className="text-sm font-black tracking-wide">قيد التنفيذ 🧭</span>
+                                    </div>
+                                 )}
+                                 
+                                 {act.duration && !act.isCompleted && !act.isSuspended && (
+                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 text-slate-500 rounded-xl text-xs font-black">
+                                       <Clock className="w-4 h-4" />
+                                       <span>{act.duration} دقيقة</span>
+                                    </div>
+                                 )}
+                              </div>
                             </div>
-                            <a 
-                              href={`https://youglish.com/pronounce/${encodeURIComponent(task.youglishKeyword || task.title || '')}/english`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5"
-                            >
-                              <i className="pi pi-external-link text-[10px]"></i>
-                              <span>زيارة موقع YouGlish</span>
-                            </a>
-                          </div>
-                          
-                          <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 p-3 pt-4 flex flex-col items-center">
-                            <p className="text-xs text-slate-500 font-bold mb-3 text-center">
-                              تدرب على نطق الكلمة المخصصة: <span className="text-indigo-600 font-extrabold">{task.youglishKeyword || task.title}</span>
-                            </p>
-                            <YouGlishWidget query={task.youglishKeyword || task.title || ""} />
-                          </div>
-                        </div>
+                            
+                            <div className="mt-auto">
+                               {act.isCompleted ? (
+                                   <button
+                                     onClick={() => {
+                                       setSelectedActivity(act);
+                                       setReviewOption(null);
+                                       setShowReviewPopup(true);
+                                     }}
+                                     className="w-full py-5 rounded-[25px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-lg font-black transition-all cursor-pointer border border-emerald-500/20 flex items-center justify-center gap-3 group/rev"
+                                   >
+                                     <Sparkles className="w-6 h-6 group-hover/rev:scale-110 transition-transform" />
+                                     راجع النشاط
+                                   </button>
+                               ) : act.isSuspended ? (
+                                  <button
+                                     onClick={() => handleEndActivity(act.id)}
+                                     className="w-full py-5 rounded-[25px] bg-indigo-600 text-white text-lg font-black shadow-2xl shadow-indigo-600/30 hover:bg-indigo-500 active:scale-95 transition-all text-center flex items-center justify-center gap-3 cursor-pointer"
+                                  >
+                                    <CheckCircle2 className="w-6 h-6" />
+                                    إنهاء وتقييم النشاط
+                                  </button>
+                               ) : (
+                                  <button
+                                     onClick={() => setSelectedActivity(act)}
+                                     className="w-full py-5 rounded-[25px] bg-white/5 hover:bg-white/10 text-white text-lg font-black border border-white/10 transition-all flex items-center justify-center gap-3 group-hover:border-indigo-500/50 cursor-pointer"
+                                  >
+                                    <i className="pi pi-search text-sm" />
+                                    ابدأ النشاط
+                                  </button>
+                               )}
+                            </div>
+                         </div>
+                       ))}
                      </div>
                   )}
+               </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
 
-                  {/* 3. Post-Task Completed Message (رسالة نهاية بعد انتهاء المهمة) */}
-                  {task.endMessage && task.isCompleted && (
-                    <div className="p-5 bg-gradient-to-br from-emerald-50 to-emerald-100/30 border border-emerald-100/50 rounded-3xl space-y-2 text-right shadow-3xs animate-fade-in">
-                      <div className="flex items-center gap-2 text-emerald-800">
-                        <i className="pi pi-verified text-xs shrink-0" />
-                        <h4 className="text-xs font-black">🏆 رسالة الإنجاز والدعم بعد الختام:</h4>
-                      </div>
-                      <p className="text-xs font-black text-emerald-950 bg-white/95 p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap shadow-3xs">
-                        {task.endMessage}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Bottom Guide hint */}
-                <div className="text-center p-5 border border-dashed border-white/10 rounded-2xl bg-white/5 mt-auto">
-                  <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                    💡 اختر أحد الأنشطة العملية من الجدول الجانبي للبدء في تقسيمها، إدارتها، وتدوين إنجازاتك.
-                  </p>
-                </div>
-              </div>
-            )}
+      <Dialog
+        visible={showPostponeDialog}
+        onHide={() => setShowPostponeDialog(false)}
+        showHeader={false}
+        className="w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl relative"
+        modal
+        dismissableMask
+        contentClassName="p-0 bg-[#020617]"
+      >
+        <div className="p-7 text-center font-sans" dir="rtl">
+          {/* Clock/Delay Icon Container */}
+          <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-amber-500/20 text-amber-400 mb-4 border border-amber-500/30">
+            <Clock className="w-7 h-7" />
           </div>
-        </div>
-      )}
-    </motion.div>
+          
+          <h3 className="text-base font-black text-white mb-2">
+            ترحيل وتأجيل الأنشطة 🗓️
+          </h3>
+          
+          <p className="text-xs font-semibold text-slate-400 leading-relaxed mb-4 px-1">
+            حدد بذكاء الأنشطة التي تود ترحيلها ليوم إجازتك، لتخفف الضغط وتكمل دراستك بطاقة متوازنة.
+          </p>
 
-      <style>{`
-        .custom-task-tabs .p-tabview-nav {
-          border-bottom: 2px solid #f1f5f9;
-          gap: 3rem;
-          padding-bottom: 2px;
-          display: flex;
-          justify-content: center;
-        }
-        .custom-task-tabs .p-tabview-nav li .p-tabview-nav-link {
-          background: transparent;
-          border: none;
-          padding: 1rem 0;
-          color: #94a3b8;
-          font-weight: 900;
-          font-size: 0.85rem;
-          text-transform: uppercase;
-          letter-spacing: 0.2em;
-          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: none !important;
-        }
-        .custom-task-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
-          color: #4f46e5;
-          border-bottom: 4px solid #4f46e5;
-        }
-        .custom-task-tabs .p-tabview-panels {
-          padding: 0;
-          background: transparent;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e2e8f0;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #cbd5e1;
-        }
-      `}</style>
-    </Dialog>
-
-    <Dialog
-      visible={showPostponeDialog}
-      onHide={() => setShowPostponeDialog(false)}
-      showHeader={false}
-      className="w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl relative"
-      modal
-      dismissableMask
-      contentClassName="p-0 bg-[#020617]"
-    >
-      <div className="p-7 text-center font-sans" dir="rtl">
-        {/* Clock/Delay Icon Container */}
-        <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-amber-500/20 text-amber-400 mb-4 border border-amber-500/30">
-          <Clock className="w-7 h-7" />
-        </div>
-        
-        {/* Title */}
-        <h3 className="text-base font-black text-white mb-2">
-          ترحيل وتأجيل الأنشطة 🗓️
-        </h3>
-        
-        {/* Description */}
-        <p className="text-xs font-semibold text-slate-400 leading-relaxed mb-4 px-1">
-          حدد بذكاء الأنشطة التي تود ترحيلها ليوم إجازتك، لتخفف الضغط وتكمل دراستك بطاقة متوازنة.
-        </p>
-
-        {/* Activities list to select */}
-        <div className="space-y-1.5 max-h-40 overflow-y-auto mb-6 text-right custom-scrollbar border border-white/10 p-2 rounded-xl bg-white/5">
-          {(task?.activities || []).map(act => {
-            const isSelected = selectedForPostpone.includes(act.id);
-            return (
-              <button
-                key={act.id}
-                type="button"
-                onClick={() => {
-                  vibrate(HAPITCS.GUIDANCE);
-                  if (isSelected) {
-                    setSelectedForPostpone(selectedForPostpone.filter(id => id !== act.id));
-                  } else {
-                    setSelectedForPostpone([...selectedForPostpone, act.id]);
-                  }
-                }}
-                className={`w-full text-right p-2.5 rounded-lg border transition-all flex items-center justify-between cursor-pointer text-xs font-bold
-                  ${isSelected
-                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                    : 'bg-white/5 border-transparent text-slate-300 hover:border-white/20'}`}
-              >
-                <span>{act.title}</span>
-                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0
-                  ${isSelected ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-500 bg-transparent'}`}>
-                  {isSelected && <i className="pi pi-check text-[9px] font-black" />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Learning Days Selection */}
-        <div className="space-y-3 mb-6">
-          <h4 className="text-xs font-black text-slate-300 text-right pr-1">اختار يوم الإجازة اللي يريحك ترحل ليه:</h4>
-          <div className="grid grid-cols-2 gap-2">
-            {(() => {
-              const learningDaysRefs = user?.learningDays || [];
-              const fullWeekDays = [0, 1, 2, 3, 4, 5, 6];
-              const restDayIndices = fullWeekDays.filter(dayNum => !learningDaysRefs.includes(dayNum));
-              const finalRestDaysList = restDayIndices.length > 0 ? restDayIndices : [5, 6];
-              const dayNameMapping: Record<number, string> = {
-                0: "الأحد",
-                1: "الإثنين",
-                2: "الثلاثاء",
-                3: "الأربعاء",
-                4: "الخميس",
-                5: "الجمعة",
-                6: "السبت"
-              };
-              return finalRestDaysList.map(dayNum => {
-                const dayLabel = dayNameMapping[dayNum] || `يوم ${dayNum}`;
-                const targetDateString = getNextDateForDayOfWeek(dayNum);
-                return (
-                  <button
-                    key={dayNum}
-                    type="button"
-                    onClick={() => handlePostponeAction(targetDateString, dayLabel)}
-                    className="py-2.5 px-2 bg-indigo-500/20 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 text-indigo-300 text-xs font-extrabold rounded-lg border border-indigo-500/30 transition-all text-center cursor-pointer shadow-3xs active:scale-95"
-                  >
-                    {dayLabel} ({targetDateString})
-                  </button>
-                );
-              });
-            })()}
+          <div className="space-y-1.5 max-h-40 overflow-y-auto mb-6 text-right custom-scrollbar border border-white/10 p-2 rounded-xl bg-white/5">
+            {(task?.activities || []).map(act => {
+              const isSelected = selectedForPostpone.includes(act.id);
+              return (
+                <button
+                  key={act.id}
+                  type="button"
+                  onClick={() => {
+                    vibrate(HAPITCS.MAJOR_CLICK);
+                    setSelectedForPostpone(prev => isSelected ? prev.filter(id => id !== act.id) : [...prev, act.id]);
+                  }}
+                  className={`w-full p-3 rounded-lg flex items-center gap-3 transition-all cursor-pointer ${isSelected ? 'bg-amber-500/20 border border-amber-500/30 text-amber-200' : 'bg-transparent border border-transparent text-slate-300 hover:bg-white/5'}`}
+                >
+                   <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${isSelected ? 'bg-amber-500 border-amber-500 text-black' : 'border-slate-500'}`}>
+                     {isSelected && <CheckCircle2 className="w-3 h-3" />}
+                   </div>
+                   <span className="text-xs font-bold truncate max-w-[200px]">{act.title}</span>
+                </button>
+              );
+            })}
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <button
-          onClick={() => setShowPostponeDialog(false)}
-          className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 font-extrabold text-xs rounded-xl shadow-xs border border-white/10 transition-all active:scale-[0.98] cursor-pointer"
-        >
-          تراجع وإلغاء
-        </button>
-      </div>
-    </Dialog>
-
-    <Dialog
-      visible={showUndoDialog}
-      onHide={() => setShowUndoDialog(false)}
-      header="تراجع عن خطوة سابقة ↩️"
-      className="w-[95vw] md:w-[450px] font-sans"
-      modal
-      dismissableMask
-      baseZIndex={LAYERS.TASK_REVIEW + 30}
-      contentClassName="bg-[#0A0F2C] text-white p-6 rounded-b-[24px]"
-      headerClassName="bg-[#0A0F2C] text-white border-b border-rose-500/10 rounded-t-[24px]"
-    >
-      <div className="flex flex-col gap-4 text-right" dir="rtl">
-        <p className="text-slate-400 text-xs leading-relaxed font-bold mb-2">
-          اختر المستوى الذي ترغب في التراجع عنه. التراجع سيؤدي إلى خصم نقاط الخبرة المكتسبة، وإعادة المهام والأنشطة كـ "غير مكتملة".
-        </p>
-        
-        {/* Undo Activity Options */}
-        {(task?.activities || []).filter(a => a.isCompleted).length > 0 && (
-          <div className="space-y-2">
-            <h5 className="text-rose-400 font-bold text-[10px]">تراجع عن الأنشطة المكتملة</h5>
-            {(task?.activities || []).filter(a => a.isCompleted).map(act => (
-              <button
-                key={act.id}
-                onClick={() => {
-                  if(onUndoAction) onUndoAction('activity', act.id);
-                  setShowUndoDialog(false);
-                }}
-                className="w-full text-right p-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all cursor-pointer flex justify-between items-center"
-              >
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-rose-200">النشاط: {act.title}</span>
-                  <span className="text-[9px] text-rose-400/80 mt-0.5">سيتم خصم 10 XP</span>
-                </div>
-                <i className="pi pi-undo text-rose-400 text-sm"></i>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Undo Task */}
-        {task?.isCompleted && (
-          <div className="space-y-2 mt-2">
-            <h5 className="text-rose-400 font-bold text-[10px]">تراجع عن المهمة بأكملها</h5>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                if(onUndoAction) onUndoAction('task');
-                setShowUndoDialog(false);
-              }}
-              className="w-full text-right p-3 bg-rose-900/40 hover:bg-rose-900/60 border border-rose-500/30 rounded-xl transition-all cursor-pointer flex justify-between items-center"
+              onClick={() => setShowPostponeDialog(false)}
+              className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-bold transition-all cursor-pointer"
             >
-              <div className="flex flex-col">
-                <span className="text-xs font-bold pl-2 text-rose-100">المهمة: {task?.title}</span>
-                <span className="text-[9px] text-rose-300/80 mt-0.5 whitespace-pre-wrap">يلغي ختم المهمة والتقييمات، ويخصم نقاط أنشطتها وتقييمها.</span>
-              </div>
-              <i className="pi pi-undo text-rose-300 text-sm"></i>
+              إلغاء
+            </button>
+            <button
+              onClick={performPostpone}
+              disabled={selectedForPostpone.length === 0}
+              className={`flex-1 py-3 text-black rounded-xl text-sm font-black transition-all cursor-pointer ${selectedForPostpone.length === 0 ? 'bg-amber-500/50 opacity-50 cursor-not-allowed' : 'bg-amber-500 shadow-md shadow-amber-500/20 hover:brightness-110'}`}
+            >
+              تأكيد الترحيل
             </button>
           </div>
-        )}
-
-
-      </div>
+        </div>
+      </Dialog>
+      
     </Dialog>
-    </>
   );
 }
-

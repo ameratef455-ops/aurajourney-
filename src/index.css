@@ -507,4 +507,24 @@ body {
     background: transparent !important;
 }
 
+.custom-transparent-dialog-full.p-dialog .p-dialog-content {
+  background: transparent !important;
+  padding: 0 !important;
+  height: 100% !important;
+}
+
+.custom-transparent-dialog-full.p-dialog .p-dialog-header {
+  display: none !important;
+}
+
+.custom-transparent-dialog-full.p-dialog {
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.custom-dialog-no-padding .p-dialog-content {
+  padding: 0 !important;
+}
+
 

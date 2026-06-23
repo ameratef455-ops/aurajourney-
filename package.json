@@ -31,6 +31,7 @@
     "primereact": "^10.9.8",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "react-error-boundary": "^6.1.2",
     "react-hot-toast": "^2.6.0",
     "recharts": "^3.8.1",
     "vite": "^6.2.3"

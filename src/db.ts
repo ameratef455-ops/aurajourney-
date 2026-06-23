@@ -25,10 +25,14 @@ export interface TaskActivity {
   title: string;
   description?: string;
   guidance?: string;
+  learningResources?: string;
+  youtubeUrl?: string;
+  googleDriveUrl?: string;
   type?: "cognitive" | "applied" | "interactive";
   puzzleHint?: string;
   duration?: number; // Expected duration in minutes
   isCompleted: boolean;
+  isSuspended?: boolean;
   steps?: { id: string; title: string, isCompleted: boolean }[];
   children?: TaskActivity[];
 }

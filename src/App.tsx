@@ -8,10 +8,63 @@ import { Landing } from './components/Landing';
 import { SetupWizard } from './components/SetupWizard';
 import { Maps } from './components/Maps';
 import { playTickSound } from './lib/haptics';
+import { ErrorBoundary } from 'react-error-boundary';
+
+function ErrorFallback({ error, resetErrorBoundary }: any) {
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center" dir="rtl">
+      <div className="bg-white p-8 rounded-3xl shadow-xl border border-rose-100 max-w-md w-full animate-in fade-in zoom-in duration-500">
+        <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
+          <i className="pi pi-exclamation-triangle text-rose-500 text-2xl"></i>
+        </div>
+        <h2 className="text-xl font-black text-slate-900 mb-2">عذراً، حدث خطأ غير متوقع</h2>
+        <p className="text-sm text-slate-500 font-bold mb-6 leading-relaxed">
+          نواجه مشكلة تقنية بسيطة. جرب إعادة تحميل الصفحة أو العودة للرئيسية.
+        </p>
+        <div className="bg-slate-50 p-4 rounded-xl mb-6 text-left overflow-auto max-h-[150px]">
+          <pre className="text-[10px] text-rose-600 font-mono">
+            {error.message}
+            {error.stack && `\n\nStack:\n${error.stack}`}
+          </pre>
+        </div>
+        <div className="space-y-3">
+          <button 
+            onClick={resetErrorBoundary}
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all"
+          >
+            إعادة المحاولة
+          </button>
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-all"
+          >
+            العودة للرئيسية
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type AppState = 'splash' | 'tutorial' | 'landing' | 'wizard' | 'maps';
 
 export default function App() {
+  return (
+    <ErrorBoundary 
+      FallbackComponent={ErrorFallback}
+      onReset={() => {
+        window.location.reload();
+      }}
+      onError={(error, info) => {
+        console.error('ErrorBoundary caught an error:', error, info);
+      }}
+    >
+      <AppContent />
+    </ErrorBoundary>
+  );
+}
+
+function AppContent() {
   const [appState, setAppState] = useState<AppState>('splash');
   const [targetState, setTargetState] = useState<AppState>('landing');
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
