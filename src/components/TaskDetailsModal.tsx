@@ -26,7 +26,8 @@ import {
   BookOpen,
   Youtube,
   Award,
-  Eye
+  Eye,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TaskActivity, db, Task, Station } from '../db';
@@ -410,7 +411,7 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                   onHide();
                 }
               }}
-              className="w-12 h-12 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 flex items-center justify-center transition-all duration-300 cursor-pointer border border-white/10 group focus:outline-none"
+              className="w-12 h-12 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 flex items-center justify-center transition-all duration-300 cursor-pointer border border-white/10 group focus:outline-none shrink-0"
             >
               {selectedActivity ? (
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -418,14 +419,16 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                 <X className="w-5 h-5 group-hover:scale-110 transition-transform" />
               )}
             </button>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-indigo-400 tracking-[0.2em] uppercase mb-0.5">
-                {selectedActivity ? 'تفاصيل النشاط والتوجيه' : `بناء قدرات ومهارات - ${station ? station.name : 'جاري التحميل...'}`}
-              </span>
-              <h2 className="text-xl md:text-2xl font-black text-white">
-                  {selectedActivity ? selectedActivity.title : (task ? task.title : 'تفاصيل الغاية والمهمة 🎯')}
-              </h2>
-            </div>
+            {selectedActivity && (
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-indigo-400 tracking-[0.2em] uppercase mb-0.5">
+                  تفاصيل النشاط والتوجيه
+                </span>
+                <h2 className="text-xl md:text-2xl font-black text-white">
+                    {selectedActivity.title}
+                </h2>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -448,15 +451,6 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                     </button>
                  </div>
              )}
-
-             {!selectedActivity && task?.isCompleted && (
-               <div className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20 flex items-center gap-2">
-                 <CheckCircle2 className="w-4 h-4" />
-                 <span className="font-black text-xs md:text-sm">مهمة مكتملة</span>
-               </div>
-             )}
-             
-             
           </div>
         </div>
 
@@ -706,98 +700,46 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                
                {/* Context & Resources Strip */}
                <div className="space-y-6">
-                 {task.description && (
-                    <div className="p-6 md:p-8 bg-slate-900/30 backdrop-blur-md border border-white/5 rounded-3xl text-right relative overflow-hidden group shadow-xl">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl rounded-full" />
-                      <span className="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-lg mb-4">مضمون المهمة والغاية</span>
-                      <h3 className="text-3xl font-black text-white">{task.title}</h3>
-                      <p className="text-lg font-bold text-slate-300 mt-4 leading-relaxed">{task.description}</p>
-                    </div>
-                  )}
-
-                  {task.practicalPart && (
-                    <div className="p-6 md:p-8 bg-slate-900/30 backdrop-blur-md border border-emerald-500/15 rounded-3xl text-right shadow-xl">
-                      <div className="flex items-center gap-4 text-emerald-300 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                          <Briefcase className="w-5 h-5 text-emerald-400" />
-                        </div>
-                        <h4 className="text-xl font-black">الجزء التطبيقي السامي</h4>
-                      </div>
-                      <p className="text-slate-100 text-lg font-medium leading-relaxed bg-[#020617]/50 border border-white/5 p-6 rounded-2xl leading-relaxed whitespace-pre-wrap shadow-inner">
-                        {task.practicalPart}
-                      </p>
-                    </div>
-                  )}
-
-                  {task.learningResources && parseLearningResources(task.learningResources).length > 0 && (
-                    <div className="p-6 md:p-8 bg-slate-900/30 backdrop-blur-md border border-blue-500/15 rounded-3xl text-right shadow-xl">
-                      <div className="flex items-center gap-4 text-blue-300 mb-6">
-                         <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                            <BookOpen className="w-5 h-5 text-blue-400" />
+                 <div className="p-6 md:p-8 bg-slate-900/30 backdrop-blur-md border border-white/5 rounded-3xl text-right relative overflow-hidden group shadow-xl flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl rounded-full" />
+                   
+                   <div className="flex-1">
+                     <div className="flex items-center gap-3 mb-4">
+                       <h3 className="text-3xl font-black text-white">{task.title}</h3>
+                       {task.isCompleted && (
+                         <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                           <CheckCircle2 className="w-5 h-5" />
                          </div>
-                        <h4 className="text-xl font-black">مصادر التعلم المؤصلة</h4>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {parseLearningResources(task.learningResources).map((item) => {
-                          const isUrl = item.url.startsWith('http://') || item.url.startsWith('https://');
-                          return (
-                            <a 
-                              key={item.id}
-                              href={isUrl ? item.url : undefined}
-                              target={isUrl ? "_blank" : undefined}
-                              rel="noopener noreferrer"
-                              className={`p-5 rounded-2xl border flex items-center justify-between transition-all duration-300 cursor-pointer ${isUrl ? 'bg-[#020617]/80 border-blue-500/20 text-blue-300 hover:bg-blue-500/10 hover:border-blue-400/50 shadow-md' : 'bg-[#020617]/50 border-white/5 text-slate-400 pointer-events-none'}`}
-                            >
-                               <div className="flex flex-col gap-1 text-right">
-                                  <span className="font-black text-base tracking-wide">{item.name.trim() || item.url}</span>
-                                  {isUrl && <span className="text-xs opacity-50 font-mono break-all line-clamp-1 max-w-xs">{item.url}</span>}
-                               </div>
-                               {isUrl ? <ExternalLink className="w-4 h-4 text-blue-400" /> : <BookOpen className="w-4 h-4 text-slate-500" />}
-                            </a>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {task.youtubeUrl && (
-                    <div className="p-6 md:p-8 bg-slate-900/30 backdrop-blur-md border border-rose-500/15 rounded-3xl text-right shadow-xl">
-                      <div className="flex items-center gap-4 text-rose-400 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
-                           <Youtube className="w-5 h-5 text-rose-400" />
-                        </div>
-                        <h4 className="text-xl font-black">المحتوى المرئي الداعم</h4>
-                      </div>
-                      <div className="rounded-2xl overflow-hidden border border-white/5 bg-black shadow-2xl">
-                         {(() => {
-                            let videoId = '';
-                            try {
-                               const urlObj = new URL(task.youtubeUrl);
-                               if (urlObj.hostname.includes('youtube.com')) {
-                                   videoId = urlObj.searchParams.get('v') || '';
-                               } else if (urlObj.hostname.includes('youtu.be')) {
-                                   videoId = urlObj.pathname.slice(1);
-                               }
-                            } catch { 
-                               videoId = task.youtubeUrl.length === 11 ? task.youtubeUrl : '';
-                            }
-                            const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : task.youtubeUrl;
-                            
-                            return (
-                               <iframe 
-                                 width="100%" 
-                                 height="450" 
-                                 src={embedUrl}
-                                 title="YouTube video player" 
-                                 frameBorder="0" 
-                                 allowFullScreen
-                                 className="w-full"
-                               ></iframe>
-                            );
-                         })()}
-                      </div>
-                    </div>
-                  )}
+                       )}
+                     </div>
+                     {task.description && (
+                       <p className="text-lg font-bold text-slate-300 leading-relaxed">{task.description}</p>
+                     )}
+                   </div>
+                   
+                   <div className="flex items-center gap-3 shrink-0 relative z-10">
+                      {task.isCompleted && onOpenReflection && (
+                        <button
+                          onClick={() => onOpenReflection(task)}
+                          className="px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 font-black transition-all shadow-lg shadow-indigo-600/20 cursor-pointer"
+                          title="التقييم الأصلي"
+                        >
+                          <i className="pi pi-star-fill text-amber-400" />
+                          <span>التقييم الأصلي</span>
+                        </button>
+                      )}
+                      {onUndoAction && (
+                        <button
+                          onClick={() => onUndoAction('task', task.id)}
+                          className="px-4 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-300 flex items-center gap-2 font-black transition-all border border-white/10 cursor-pointer"
+                          title="تراجع"
+                        >
+                          <RotateCcw className="w-5 h-5" />
+                          <span>تراجع</span>
+                        </button>
+                      )}
+                   </div>
+                 </div>
                </div>
 
                {/* Activities Grid */}
@@ -870,14 +812,6 @@ export function TaskDetailsModal({ visible, onHide, taskId, onCompleteTask, onOp
                                      <Sparkles className="w-4 h-4" />
                                      راجع النشاط
                                    </button>
-                               ) : act.isSuspended ? (
-                                  <button
-                                     onClick={() => handleEndActivity(act.id)}
-                                     className="w-full py-3 rounded-xl bg-indigo-600 text-white text-sm md:text-base font-black shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 active:scale-[0.98] transition-all duration-300 text-center flex items-center justify-center gap-2 cursor-pointer"
-                                  >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    إنهاء وتقييم النشاط
-                                  </button>
                                ) : (
                                   <button
                                      onClick={() => setSelectedActivity(act)}
