@@ -33,6 +33,7 @@ export interface TaskActivity {
   duration?: number; // Expected duration in minutes
   isCompleted: boolean;
   isSuspended?: boolean;
+  comment?: string;
   steps?: { id: string; title: string, isCompleted: boolean }[];
   children?: TaskActivity[];
 }

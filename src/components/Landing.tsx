@@ -351,7 +351,7 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
 
                 {/* Three dots absolute position */}
                 <div 
-                  className="absolute top-4 left-4 z-30" 
+                  className="absolute top-4 left-4 z-30 flex items-center gap-2" 
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -413,8 +413,6 @@ function TripsList({ onEdit, onOpen }: { onEdit: (id: string) => void; onOpen: (
                           <i className={`pi ${isFrozen ? 'pi-play' : 'pi-stop-circle'} ${isFrozen ? 'text-emerald-400' : 'text-cyan-400'}`}></i>
                           <span>{isFrozen ? "إلغاء التجميد" : "تجميد الرحلة"}</span>
                         </button>
-                        <div className="h-px bg-white/5 mx-2" />
-                        {/* Deletion of plans button has been removed */}
                       </motion.div>
                     </>
                   )}
@@ -876,69 +874,9 @@ export function Landing({ onStart, onEdit, onOpen }: LandingProps) {
       </header>
  
       <div className="pt-24 md:pt-32 w-full">
-        {/* Growth Tree Visualizer on Landing */}
-        <motion.div
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
-           className="w-full max-w-sm mx-auto mb-4"
-        >
-           <GrowthTree xp={treeXp} keys={treeKeys} />
-        </motion.div>
 
-        {/* Gamification Stats Dashboard */}
-        <motion.div
-           initial={{ opacity: 0, scale: 0.95 }}
-           animate={{ opacity: 1, scale: 1 }}
-           transition={{ delay: 0.1 }}
-           className="w-full max-w-sm mx-auto mb-10 flex gap-4 bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 backdrop-blur-xl border border-white/10 p-4 rounded-[2rem] shadow-[0_10px_30px_rgba(37,99,235,0.15)]"
-           dir="rtl"
-        >
-           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-white/5 rounded-2xl border border-white/10 shadow-sm relative overflow-hidden group hover:bg-white/10 transition-all cursor-default">
-              <div className="w-10 h-10 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:rotate-12 transition-transform border border-indigo-500/30">
-                <i className="pi pi-star-fill text-lg drop-shadow-sm"></i>
-              </div>
-              <span className="font-extrabold text-2xl text-white font-mono tracking-tight">{Math.floor(treeXp / 100) + 1}</span>
-              <span className="text-[10px] font-black text-indigo-300 uppercase mt-1">المستوى</span>
-           </div>
-           
-           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-white/5 rounded-2xl border border-white/10 shadow-sm relative overflow-hidden group hover:bg-white/10 transition-all cursor-default">
-              <div className="w-10 h-10 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform border border-amber-500/30">
-                <i className="pi pi-bolt text-lg drop-shadow-sm"></i>
-              </div>
-              <span className="font-extrabold text-2xl text-white font-mono tracking-tight">{treeXp}</span>
-              <span className="text-[10px] font-black text-amber-300 uppercase mt-1">نقاط المعرفة</span>
-           </div>
 
-           <div className="flex-1 flex flex-col items-center justify-center p-3 bg-white/5 rounded-2xl border border-white/10 shadow-sm relative overflow-hidden group hover:bg-white/10 transition-all cursor-default">
-              <div className="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-2 shadow-inner group-hover:-rotate-12 transition-transform border border-emerald-500/30">
-                <i className="pi pi-key text-lg drop-shadow-sm"></i>
-              </div>
-              <span className="font-extrabold text-2xl text-white font-mono tracking-tight">{treeKeys}</span>
-              <span className="text-[10px] font-black text-emerald-300 uppercase mt-1">المفاتيح</span>
-           </div>
-        </motion.div>
-
-        {/* Level Progress Bar */}
-        <motion.div
-           initial={{ opacity: 0, scale: 0.95 }}
-           animate={{ opacity: 1, scale: 1 }}
-           transition={{ delay: 0.2 }}
-           className="w-full max-w-sm mx-auto mb-6 bg-gradient-to-br from-[#020617] via-slate-900 to-indigo-950 backdrop-blur-xl border border-white/10 p-4 rounded-3xl shadow-[0_10px_30px_rgba(37,99,235,0.15)] text-right"
-           dir="rtl"
-        >
-           <div className="flex justify-between items-center mb-2">
-              <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">التقدم نحو المستوى {Math.floor(treeXp / 100) + 2}</span>
-              <span className="text-xs font-bold font-mono text-indigo-400">{treeXp % 100} / 100</span>
-           </div>
-           <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden border border-white/5">
-               <motion.div 
-                 initial={{ width: 0 }}
-                 animate={{ width: `${treeXp % 100}%` }}
-                 transition={{ duration: 1, ease: "easeOut" }}
-                 className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full"
-               />
-           </div>
-        </motion.div>
+        
       </div>
  
       <TripsList onEdit={onEdit} onOpen={onOpen} />
